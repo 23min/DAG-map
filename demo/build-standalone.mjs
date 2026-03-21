@@ -32,8 +32,8 @@ const html = `<!DOCTYPE html>
 <title>dag-map — standalone demo</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-\${css}
-\${demoCss}
+${css}
+${demoCss}
 </style>
 </head>
 <body class="dm-container">

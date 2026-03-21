@@ -6,7 +6,7 @@ DAG visualization as metro maps. Decomposes directed acyclic graphs into routes 
 
 ## Demo
 
-Open `demo/standalone.html` directly in a browser — no server needed. Features:
+[**Live demo**](https://23min.github.io/DAG-map/demo/standalone.html) — or open `demo/standalone.html` directly in a browser. No server needed. Features:
 - DAG selector (8 sample graphs of varying size and shape)
 - Routing toggle (bezier / angular)
 - Theme selector (6 built-in themes)
