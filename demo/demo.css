@@ -106,3 +106,16 @@
 .dm-angle-control.visible {
   display: flex;
 }
+
+/* ── GitHub link ── */
+.dm-github {
+  color: var(--dm-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.dm-github:hover {
+  opacity: 1;
+}
