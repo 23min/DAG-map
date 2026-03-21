@@ -76,6 +76,7 @@ const svg = renderSVG(dag, layout, {
   diagonalLabels: false,     // tube-map style angled station labels
   labelAngle: 45,            // angle in degrees (0–90) when diagonalLabels is true
   showLegend: true,          // show legend at bottom
+  cssVars: false,            // use CSS var() references instead of inline colors
   legendLabels: {            // custom legend text per class
     pure: 'Compute',
     recordable: 'AI/ML',
@@ -84,6 +85,42 @@ const svg = renderSVG(dag, layout, {
   },
 });
 ```
+
+## Color modes
+
+### Inline colors (default)
+
+SVGs contain hardcoded hex colors. Portable — works in `<img>`, email, Figma, PDF export, server-side rendering.
+
+```javascript
+renderSVG(dag, layout); // colors baked into the SVG
+```
+
+### CSS variables (opt-in)
+
+SVGs reference CSS custom properties. Themeable from CSS — responds to `prefers-color-scheme`, hover effects, and runtime changes without re-rendering. Requires the SVG to be inline in the DOM (not `<img src>`).
+
+```javascript
+renderSVG(dag, layout, { cssVars: true });
+```
+
+The SVG output uses `var(--dm-paper)`, `var(--dm-cls-pure)`, etc. Override them in your stylesheet:
+
+```css
+/* Dark mode via CSS only — no JS re-render needed */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --dm-paper: #1E1E2E;
+    --dm-ink: #CDD6F4;
+    --dm-cls-pure: #94E2D5;
+    --dm-cls-recordable: #F38BA8;
+    --dm-cls-side-effecting: #F9E2AF;
+    --dm-cls-gate: #EBA0AC;
+  }
+}
+```
+
+Default values for all CSS variables are provided in `dag-map.css`.
 
 ## Routing styles
 

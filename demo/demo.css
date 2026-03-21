@@ -1,0 +1,108 @@
+/* =================================================================
+ * demo.css — Styles for the dag-map interactive demo page
+ * =================================================================
+ * Not needed for library usage. Only for the demo's controls,
+ * sliders, and advanced panel.
+ */
+
+/* ── Controls bar ── */
+.dm-controls {
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--dm-border);
+}
+
+.dm-controls label {
+  font-size: 11px;
+  color: var(--dm-muted);
+  letter-spacing: 0.06em;
+}
+
+.dm-controls select {
+  font-family: var(--dm-font);
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid var(--dm-border);
+  background: var(--dm-paper);
+  color: var(--dm-ink);
+  border-radius: var(--dm-radius);
+  cursor: pointer;
+}
+
+.dm-controls input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.dm-controls input[type="range"] {
+  width: 80px;
+}
+
+.dm-version {
+  font-size: 9px;
+  color: var(--dm-muted);
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+/* ── Advanced panel ── */
+.dm-advanced {
+  padding: 8px 24px;
+  font-size: 11px;
+  color: var(--dm-muted);
+  border-bottom: 1px solid var(--dm-border);
+}
+
+.dm-advanced summary {
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  padding: 4px 0;
+  font-weight: 500;
+}
+
+.dm-advanced .dm-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  align-items: center;
+}
+
+.dm-advanced label {
+  font-size: 10px;
+  color: var(--dm-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dm-advanced input[type="range"] {
+  width: 60px;
+}
+
+.dm-advanced .dm-val {
+  min-width: 24px;
+  font-size: 9px;
+  color: var(--dm-muted);
+  opacity: 0.7;
+}
+
+/* ── Inline label + control groups ── */
+.dm-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.dm-angle-control {
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.dm-angle-control.visible {
+  display: flex;
+}
