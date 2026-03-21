@@ -1,0 +1,494 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="'IBM Plex Mono', 'Courier New', monospace">
+
+  <!-- Cream background -->
+  <rect width="1200" height="700" fill="#F5F0E8"/>
+
+  <!-- Title -->
+  <text x="32" y="28" font-size="11" fill="#2C2C2C" letter-spacing="0.08em" opacity="0.5">SOFTWARE FACTORY — BUILD CYCLE 47  (63 OPS)</text>
+  <text x="32" y="42" font-size="7" fill="#8C8680">Topological layout. Colored lines = execution paths by determinism class. Stations = operations.</text>
+
+  <!-- Thin time axis -->
+  <line x1="60" y1="56" x2="1160" y2="56" stroke="#D4CFC7" stroke-width="0.3"/>
+  <text x="80" y="52" font-size="5" fill="#D4CFC7">0s</text>
+  <text x="200" y="52" font-size="5" fill="#D4CFC7">5s</text>
+  <text x="380" y="52" font-size="5" fill="#D4CFC7">15s</text>
+  <text x="560" y="52" font-size="5" fill="#D4CFC7">30s</text>
+  <text x="740" y="52" font-size="5" fill="#D4CFC7">60s</text>
+  <text x="920" y="52" font-size="5" fill="#D4CFC7">90s</text>
+  <text x="1080" y="52" font-size="5" fill="#D4CFC7">120s</text>
+
+  <!-- ================================================================ -->
+  <!-- LINES (routes) — drawn FIRST, behind stations                    -->
+  <!-- Bold, colored, 45/90 degree angles only                          -->
+  <!-- ================================================================ -->
+
+  <!-- ====== PLANNING PHASE (coral — LLM decision heavy) ====== -->
+
+  <!-- Line: plan_main (coral) — the planning spine -->
+  <path d="M 80 120 L 140 120 L 180 120 L 230 120 L 280 120 L 330 160 L 380 160"
+        stroke="#E8846B" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+
+  <!-- Line: plan_branch_arch (coral) — architecture sub-plan -->
+  <path d="M 180 120 L 210 150 L 260 150 L 310 190 L 380 190"
+        stroke="#E8846B" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+
+  <!-- Line: plan_branch_test (coral) — test plan sub-branch -->
+  <path d="M 230 120 L 260 150 L 310 150 L 360 150 L 380 160"
+        stroke="#E8846B" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- ====== GATE: human approval (red, dashed) ====== -->
+  <path d="M 380 160 L 380 190"
+        stroke="#C45B4A" stroke-width="2" fill="none" stroke-dasharray="3,2" opacity="0.4"/>
+  <path d="M 380 190 L 420 190 L 450 160"
+        stroke="#C45B4A" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- ====== IMPLEMENTATION PHASE (teal — pure computation heavy) ====== -->
+
+  <!-- Line: impl_core (teal) — core module implementation, the main trunk -->
+  <path d="M 450 160 L 500 160 L 540 160 L 580 160 L 620 160 L 660 160 L 700 160 L 740 160"
+        stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+
+  <!-- Line: impl_models (teal) — data model generation, parallel track -->
+  <path d="M 450 160 L 480 190 L 520 190 L 560 190 L 600 190 L 640 190 L 660 160"
+        stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Line: impl_api (teal) — API layer, another parallel track -->
+  <path d="M 500 160 L 530 130 L 570 130 L 610 130 L 650 130 L 700 160"
+        stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Line: impl_ui (teal) — UI components, drops down -->
+  <path d="M 500 160 L 530 220 L 570 220 L 610 220 L 650 220 L 700 220 L 740 220 L 780 220"
+        stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Line: impl_ui_sub (teal) — UI sub-components branching further -->
+  <path d="M 570 220 L 600 250 L 640 250 L 680 250 L 700 220"
+        stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+
+  <!-- Line: impl_config (amber — I/O, config file generation) -->
+  <path d="M 540 160 L 560 140 L 560 110 L 600 110 L 640 110 L 680 110 L 720 130 L 740 160"
+        stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Line: impl_db (amber — I/O, database migrations) -->
+  <path d="M 480 190 L 500 220 L 540 250 L 580 280 L 620 280 L 660 280 L 700 250 L 740 220"
+        stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Line: impl_db_seed (amber — I/O, seeding) -->
+  <path d="M 620 280 L 650 310 L 700 310 L 740 310 L 780 280"
+        stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+
+  <!-- Line: impl_llm_refactor (coral — LLM-assisted refactoring) -->
+  <path d="M 620 160 L 650 190 L 680 190 L 700 160"
+        stroke="#E8846B" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Line: impl_llm_docs (coral — LLM doc generation) -->
+  <path d="M 660 160 L 690 130 L 720 130"
+        stroke="#E8846B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+
+  <!-- ====== MERGE + TEST (convergence) ====== -->
+
+  <!-- Line: merge (teal) — everything converges -->
+  <path d="M 740 160 L 780 160 L 820 160"
+        stroke="#2B8A8E" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <path d="M 780 220 L 810 190 L 820 160"
+        stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+  <path d="M 780 280 L 810 250 L 830 220 L 850 190 L 860 160"
+        stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Line: test_unit (teal) — unit test track -->
+  <path d="M 820 160 L 860 160 L 900 160 L 940 160"
+        stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Line: test_integration (amber — I/O heavy) -->
+  <path d="M 860 160 L 890 190 L 930 190 L 960 190 L 990 160"
+        stroke="#D4944C" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+
+  <!-- Line: test_e2e (amber) -->
+  <path d="M 860 160 L 890 220 L 930 220 L 960 220 L 990 190 L 990 160"
+        stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Line: test_lint (teal — static analysis) -->
+  <path d="M 820 160 L 850 130 L 890 130 L 930 130 L 940 160"
+        stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+
+  <!-- FAILURE spur (red) -->
+  <path d="M 930 190 L 950 210"
+        stroke="#C45B4A" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- ====== REVIEW PHASE ====== -->
+
+  <!-- Line: review (coral — LLM review) -->
+  <path d="M 940 160 L 990 160 L 1020 160"
+        stroke="#E8846B" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Gate: human review -->
+  <path d="M 1020 160 L 1060 160"
+        stroke="#C45B4A" stroke-width="3" fill="none" stroke-dasharray="4,3" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Line: final (amber — deploy) -->
+  <path d="M 1060 160 L 1100 160 L 1140 160"
+        stroke="#D4944C" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Line: final_notify (amber — notification branch) -->
+  <path d="M 1100 160 L 1120 190 L 1140 190"
+        stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+
+  <!-- ================================================================ -->
+  <!-- STATIONS — small circles, drawn ON TOP of lines                  -->
+  <!-- Through-hole style: white fill, colored ring                     -->
+  <!-- ================================================================ -->
+
+  <!-- === PLANNING STATIONS === -->
+  <!-- Main planning spine -->
+  <circle cx="80" cy="120" r="4.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="2"/>
+  <text x="80" y="112" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">parse_req</text>
+
+  <circle cx="140" cy="120" r="4" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.8"/>
+  <text x="140" y="112" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">analyze</text>
+
+  <!-- Interchange: plan branches -->
+  <circle cx="180" cy="120" r="5.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="2"/>
+  <circle cx="180" cy="120" r="2" fill="#E8846B" opacity="0.3"/>
+  <text x="180" y="110" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">decompose</text>
+
+  <circle cx="230" cy="120" r="5" fill="#F5F0E8" stroke="#E8846B" stroke-width="2"/>
+  <circle cx="230" cy="120" r="2" fill="#E8846B" opacity="0.3"/>
+  <text x="248" y="116" font-size="5.5" fill="#2C2C2C" opacity="0.6">plan_impl</text>
+
+  <circle cx="280" cy="120" r="4" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.8"/>
+  <text x="280" y="112" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">plan_test</text>
+
+  <!-- Architecture sub-branch -->
+  <circle cx="210" cy="150" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.5"/>
+  <text x="210" y="164" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">arch_review</text>
+
+  <circle cx="260" cy="150" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.5"/>
+  <text x="278" y="148" font-size="5" fill="#2C2C2C" opacity="0.5">deps</text>
+
+  <circle cx="310" cy="190" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.5"/>
+  <text x="310" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">arch_plan</text>
+
+  <!-- Test plan sub-branch -->
+  <circle cx="310" cy="150" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.5"/>
+  <text x="310" y="143" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">test_plan</text>
+
+  <circle cx="360" cy="150" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.5"/>
+  <text x="360" y="143" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">coverage</text>
+
+  <!-- === GATE: plan approval === -->
+  <!-- Interchange: all planning converges here -->
+  <circle cx="380" cy="160" r="6" fill="#F5F0E8" stroke="#C45B4A" stroke-width="2"/>
+  <circle cx="380" cy="160" r="2.5" fill="#C45B4A" opacity="0.4"/>
+  <text x="380" y="152" font-size="5.5" fill="#C45B4A" text-anchor="middle" opacity="0.7">approve_plan</text>
+
+  <circle cx="380" cy="190" r="4" fill="#F5F0E8" stroke="#C45B4A" stroke-width="1.5"/>
+  <text x="396" y="194" font-size="5" fill="#8C8680" opacity="0.5">3m wait</text>
+
+  <circle cx="420" cy="190" r="3.5" fill="#F5F0E8" stroke="#C45B4A" stroke-width="1.5"/>
+
+  <!-- Post-gate start -->
+  <circle cx="450" cy="160" r="6" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="450" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="450" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">begin_impl</text>
+
+  <!-- === IMPLEMENTATION STATIONS === -->
+  <!-- Core trunk -->
+  <circle cx="500" cy="160" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="500" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="500" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">scaffold</text>
+
+  <circle cx="540" cy="160" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="540" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="540" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">gen_core</text>
+
+  <circle cx="580" cy="160" r="4" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.8"/>
+  <text x="580" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">gen_types</text>
+
+  <circle cx="620" cy="160" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="620" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="620" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">gen_logic</text>
+
+  <circle cx="660" cy="160" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="660" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="660" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">compile</text>
+
+  <circle cx="700" cy="160" r="5.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="700" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="700" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">link</text>
+
+  <circle cx="740" cy="160" r="5.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2.2"/>
+  <circle cx="740" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="740" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">merge_all</text>
+
+  <!-- Models parallel track -->
+  <circle cx="480" cy="190" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="480" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">schema</text>
+
+  <circle cx="520" cy="190" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="520" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">models</text>
+
+  <circle cx="560" cy="190" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="560" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">validate</text>
+
+  <circle cx="600" cy="190" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="600" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">serialize</text>
+
+  <circle cx="640" cy="190" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="640" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">index</text>
+
+  <!-- API parallel track -->
+  <circle cx="530" cy="130" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="530" y="123" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">routes</text>
+
+  <circle cx="570" cy="130" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="570" y="123" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">handlers</text>
+
+  <circle cx="610" cy="130" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="610" y="123" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">middleware</text>
+
+  <circle cx="650" cy="130" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="650" y="123" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">auth</text>
+
+  <!-- UI track -->
+  <circle cx="530" cy="220" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="530" y="234" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">layout</text>
+
+  <circle cx="570" cy="220" r="4" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <circle cx="570" cy="220" r="1.5" fill="#2B8A8E" opacity="0.2"/>
+  <text x="570" y="234" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">components</text>
+
+  <circle cx="610" cy="220" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="610" y="234" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">pages</text>
+
+  <circle cx="650" cy="220" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="650" y="234" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">styles</text>
+
+  <circle cx="700" cy="220" r="4" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <circle cx="700" cy="220" r="1.5" fill="#2B8A8E" opacity="0.2"/>
+  <text x="700" y="234" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">storybook</text>
+
+  <circle cx="740" cy="220" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="740" y="234" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">a11y</text>
+
+  <circle cx="780" cy="220" r="4" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.8"/>
+  <text x="780" y="234" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">ui_bundle</text>
+
+  <!-- UI sub-branch -->
+  <circle cx="600" cy="250" r="3" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.3"/>
+  <text x="600" y="263" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">forms</text>
+
+  <circle cx="640" cy="250" r="3" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.3"/>
+  <text x="640" y="263" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">tables</text>
+
+  <circle cx="680" cy="250" r="3" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.3"/>
+  <text x="680" y="263" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">charts</text>
+
+  <!-- Config track (amber) -->
+  <circle cx="560" cy="110" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="560" y="103" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">env_conf</text>
+
+  <circle cx="600" cy="110" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="600" y="103" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">docker</text>
+
+  <circle cx="640" cy="110" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="640" y="103" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">ci_conf</text>
+
+  <circle cx="680" cy="110" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="680" y="103" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">secrets</text>
+
+  <circle cx="720" cy="130" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="720" y="123" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">deploy_conf</text>
+
+  <!-- DB track (amber) -->
+  <circle cx="500" cy="220" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="500" y="234" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">migrate</text>
+
+  <circle cx="540" cy="250" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="540" y="263" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">tables</text>
+
+  <circle cx="580" cy="280" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="580" y="294" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">indexes</text>
+
+  <circle cx="620" cy="280" r="4" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <circle cx="620" cy="280" r="1.5" fill="#D4944C" opacity="0.2"/>
+  <text x="620" y="294" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">constraints</text>
+
+  <circle cx="660" cy="280" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="660" y="294" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">triggers</text>
+
+  <circle cx="700" cy="250" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="700" y="263" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">db_verify</text>
+
+  <!-- DB seed sub-branch -->
+  <circle cx="650" cy="310" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="650" y="324" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">seed_ref</text>
+
+  <circle cx="700" cy="310" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="700" y="324" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">seed_test</text>
+
+  <circle cx="740" cy="310" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="740" y="324" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">seed_demo</text>
+
+  <circle cx="780" cy="280" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="780" y="294" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">db_ready</text>
+
+  <!-- LLM refactor (coral) -->
+  <circle cx="650" cy="190" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.5"/>
+  <text x="666" y="194" font-size="5" fill="#2C2C2C" opacity="0.5">refactor</text>
+
+  <circle cx="680" cy="190" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.5"/>
+  <text x="696" y="194" font-size="5" fill="#2C2C2C" opacity="0.5">optimize</text>
+
+  <!-- LLM docs (coral) -->
+  <circle cx="690" cy="130" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.5"/>
+  <text x="690" y="123" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">gen_docs</text>
+
+  <!-- === TEST STATIONS === -->
+  <circle cx="780" cy="160" r="4" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.8"/>
+
+  <circle cx="820" cy="160" r="5.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2.2"/>
+  <circle cx="820" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="820" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">begin_test</text>
+
+  <circle cx="860" cy="160" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="860" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="860" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">test_setup</text>
+
+  <!-- Unit tests -->
+  <circle cx="900" cy="160" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.5"/>
+  <text x="900" y="150" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">unit_core</text>
+
+  <!-- Lint track -->
+  <circle cx="850" cy="130" r="3" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.3"/>
+  <text x="850" y="123" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">lint</text>
+
+  <circle cx="890" cy="130" r="3" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.3"/>
+  <text x="890" y="123" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">format</text>
+
+  <circle cx="930" cy="130" r="3" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.3"/>
+  <text x="930" y="123" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">typecheck</text>
+
+  <!-- Integration tests (amber) -->
+  <circle cx="890" cy="190" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="890" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">integ_api</text>
+
+  <circle cx="930" cy="190" r="4" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="930" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">integ_db</text>
+
+  <circle cx="960" cy="190" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="960" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">integ_auth</text>
+
+  <!-- E2E tests (amber) -->
+  <circle cx="890" cy="220" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="890" y="234" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">e2e_happy</text>
+
+  <circle cx="930" cy="220" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="930" y="234" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">e2e_edge</text>
+
+  <circle cx="960" cy="220" r="3" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.3"/>
+  <text x="960" y="234" font-size="4.5" fill="#2C2C2C" text-anchor="middle" opacity="0.45">e2e_error</text>
+
+  <!-- FAILURE station -->
+  <circle cx="950" cy="210" r="4" fill="#F5F0E8" stroke="#C45B4A" stroke-width="2"/>
+  <line x1="947" y1="207" x2="953" y2="213" stroke="#C45B4A" stroke-width="1.5"/>
+  <line x1="953" y1="207" x2="947" y2="213" stroke="#C45B4A" stroke-width="1.5"/>
+  <text x="964" y="214" font-size="5" fill="#C45B4A" opacity="0.7">FAIL: timeout</text>
+
+  <!-- Test convergence -->
+  <circle cx="940" cy="160" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="940" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+
+  <circle cx="990" cy="160" r="5.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="2"/>
+  <circle cx="990" cy="160" r="2" fill="#2B8A8E" opacity="0.3"/>
+  <text x="990" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">all_pass</text>
+
+  <!-- === REVIEW STATIONS === -->
+  <circle cx="1020" cy="160" r="4.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.8"/>
+  <text x="1020" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">llm_review</text>
+
+  <!-- Gate: human review -->
+  <circle cx="1060" cy="160" r="6" fill="#F5F0E8" stroke="#C45B4A" stroke-width="2"/>
+  <circle cx="1060" cy="160" r="2.5" fill="#C45B4A" opacity="0.4"/>
+  <text x="1060" y="150" font-size="5.5" fill="#C45B4A" text-anchor="middle" opacity="0.7">review</text>
+  <text x="1060" y="175" font-size="4.5" fill="#8C8680" text-anchor="middle" opacity="0.5">12m wait</text>
+
+  <!-- Deploy -->
+  <circle cx="1100" cy="160" r="5" fill="#F5F0E8" stroke="#D4944C" stroke-width="2"/>
+  <circle cx="1100" cy="160" r="2" fill="#D4944C" opacity="0.3"/>
+  <text x="1100" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">deploy</text>
+
+  <circle cx="1140" cy="160" r="4.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.8"/>
+  <text x="1140" y="150" font-size="5.5" fill="#2C2C2C" text-anchor="middle" opacity="0.6">verify</text>
+
+  <circle cx="1120" cy="190" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="1120" y="204" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.5">notify</text>
+
+  <circle cx="1140" cy="190" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.5"/>
+  <text x="1156" y="194" font-size="5" fill="#2C2C2C" opacity="0.5">log</text>
+
+  <!-- ================================================================ -->
+  <!-- PHASE LABELS (very subtle, like zone labels on a tube map)       -->
+  <!-- ================================================================ -->
+  <rect x="70" y="340" width="320" height="0.5" fill="#E8846B" opacity="0.15"/>
+  <text x="70" y="356" font-size="7" fill="#E8846B" opacity="0.3" letter-spacing="0.1em">PLANNING</text>
+
+  <rect x="440" y="340" width="340" height="0.5" fill="#2B8A8E" opacity="0.15"/>
+  <text x="440" y="356" font-size="7" fill="#2B8A8E" opacity="0.3" letter-spacing="0.1em">IMPLEMENTATION</text>
+
+  <rect x="810" y="340" width="200" height="0.5" fill="#D4944C" opacity="0.15"/>
+  <text x="810" y="356" font-size="7" fill="#D4944C" opacity="0.3" letter-spacing="0.1em">TESTING</text>
+
+  <rect x="1020" y="340" width="140" height="0.5" fill="#C45B4A" opacity="0.15"/>
+  <text x="1020" y="356" font-size="7" fill="#C45B4A" opacity="0.3" letter-spacing="0.1em">REVIEW + DEPLOY</text>
+
+  <!-- ================================================================ -->
+  <!-- LEGEND (tube-map style, bottom)                                  -->
+  <!-- ================================================================ -->
+  <line x1="32" y1="380" x2="1168" y2="380" stroke="#D4CFC7" stroke-width="0.3"/>
+
+  <text x="32" y="400" font-size="7" fill="#8C8680" letter-spacing="0.04em">LINES</text>
+
+  <line x1="32" y1="415" x2="62" y2="415" stroke="#2B8A8E" stroke-width="4" opacity="0.5" stroke-linecap="round"/>
+  <text x="70" y="419" font-size="7" fill="#8C8680">Pure computation</text>
+
+  <line x1="32" y1="433" x2="62" y2="433" stroke="#D4944C" stroke-width="4" opacity="0.5" stroke-linecap="round"/>
+  <text x="70" y="437" font-size="7" fill="#8C8680">I/O (side-effecting)</text>
+
+  <line x1="32" y1="451" x2="62" y2="451" stroke="#E8846B" stroke-width="4" opacity="0.5" stroke-linecap="round"/>
+  <text x="70" y="455" font-size="7" fill="#8C8680">LLM (recordable)</text>
+
+  <line x1="32" y1="469" x2="62" y2="469" stroke="#C45B4A" stroke-width="3" opacity="0.4" stroke-linecap="round" stroke-dasharray="4,3"/>
+  <text x="70" y="473" font-size="7" fill="#8C8680">Gate (human approval)</text>
+
+  <text x="280" y="400" font-size="7" fill="#8C8680" letter-spacing="0.04em">STATIONS</text>
+
+  <circle cx="292" cy="416" r="4" fill="#F5F0E8" stroke="#2C2C2C" stroke-width="1.5"/>
+  <text x="302" y="420" font-size="7" fill="#8C8680">Operation</text>
+
+  <circle cx="292" cy="436" r="5" fill="#F5F0E8" stroke="#2C2C2C" stroke-width="1.5"/>
+  <circle cx="292" cy="436" r="2" fill="#2C2C2C" opacity="0.3"/>
+  <text x="302" y="440" font-size="7" fill="#8C8680">Interchange (fan-in / fan-out)</text>
+
+  <circle cx="292" cy="456" r="5" fill="#F5F0E8" stroke="#C45B4A" stroke-width="2"/>
+  <circle cx="292" cy="456" r="2" fill="#C45B4A" opacity="0.4"/>
+  <text x="302" y="460" font-size="7" fill="#8C8680">Gate (awaiting human)</text>
+
+  <circle cx="292" cy="476" r="4" fill="#F5F0E8" stroke="#C45B4A" stroke-width="1.5"/>
+  <line x1="289" y1="473" x2="295" y2="479" stroke="#C45B4A" stroke-width="1.2"/>
+  <line x1="295" y1="473" x2="289" y2="479" stroke="#C45B4A" stroke-width="1.2"/>
+  <text x="302" y="480" font-size="7" fill="#8C8680">Failure</text>
+
+  <text x="560" y="400" font-size="7" fill="#8C8680" letter-spacing="0.04em">READING THE MAP</text>
+
+  <text x="560" y="420" font-size="7" fill="#8C8680">Line thickness ∝ data flow volume</text>
+  <text x="560" y="437" font-size="7" fill="#8C8680">Station size ∝ execution duration</text>
+  <text x="560" y="454" font-size="7" fill="#8C8680">Horizontal position ∝ wall-clock time</text>
+  <text x="560" y="471" font-size="7" fill="#8C8680">Parallel lines = concurrent execution paths</text>
+
+  <!-- Stats -->
+  <text x="880" y="400" font-size="7" fill="#8C8680" letter-spacing="0.04em">THIS RUN</text>
+  <text x="880" y="420" font-size="7" fill="#8C8680">63 ops  |  9 lines  |  2 gates</text>
+  <text x="880" y="437" font-size="7" fill="#8C8680">1 failure (integ_db timeout)</text>
+  <text x="880" y="454" font-size="7" fill="#8C8680">peak parallelism: 8 concurrent</text>
+  <text x="880" y="471" font-size="7" fill="#8C8680">total: 2m 14s  |  bottleneck: review (12m)</text>
+
+</svg>

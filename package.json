@@ -1,0 +1,17 @@
+{
+  "name": "dag-map",
+  "version": "0.1.0",
+  "description": "DAG visualization as metro maps — organic angular and bezier routing",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src/"
+  ],
+  "scripts": {
+    "demo": "npx serve . -l 3333"
+  },
+  "license": "MIT"
+}

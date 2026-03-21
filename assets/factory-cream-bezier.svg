@@ -1,0 +1,258 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1154 340" width="1154" height="340" font-family="'IBM Plex Mono', 'Courier New', monospace">
+<rect width="1154" height="340" fill="#F5F0E8"></rect>
+<text x="24" y="22" font-size="10" fill="#2C2C2C" letter-spacing="0.06em" opacity="0.5">SOFTWARE FACTORY — BUILD CYCLE 47 (71 OPS)</text>
+<text x="24" y="34" font-size="6.5" fill="#8C8680">Topological layout. Colored lines = execution paths by determinism class. Direction = operation.</text>
+<path d="M 506 216 L 528.8 216 C 542.48 216, 545.52 200, 559.2 200 L 582 200" stroke="#2B8A8E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.28"></path>
+<path d="M 50 170 L 88 170" stroke="#E8846B" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 88 170 L 126 170" stroke="#E8846B" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 126 170 L 164 170" stroke="#E8846B" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 164 170 L 202 170" stroke="#E8846B" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 202 170 L 240 170" stroke="#E8846B" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 240 170 L 278 170" stroke="#E8846B" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 278 170 L 316 170" stroke="#C45B4A" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5" stroke-dasharray="4,3"></path>
+<path d="M 316 170 L 354 170" stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 354 170 L 392 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 392 170 L 430 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 430 170 L 468 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 468 170 L 506 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 506 170 L 544 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 544 170 L 582 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 582 170 L 620 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 620 170 L 658 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 658 170 L 696 170" stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 696 170 L 734 170" stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 734 170 L 772 170" stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 772 170 L 810 170" stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 810 170 L 848 170" stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 848 170 L 886 170" stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 886 170 L 924 170" stroke="#2B8A8E" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 924 170 L 962 170" stroke="#E8846B" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 962 170 L 1000 170" stroke="#C45B4A" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5" stroke-dasharray="4,3"></path>
+<path d="M 1000 170 L 1038 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 1038 170 L 1076 170" stroke="#D4944C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"></path>
+<path d="M 316 170 L 323.6 170 C 333.86 170, 336.14 200, 346.4 200 L 354 200" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 354 200 L 392 200" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 392 200 L 430 200" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 430 200 L 468 200" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 468 200 L 506 200" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 506 200 L 544 200" stroke="#E8846B" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 544 200 L 582 200" stroke="#E8846B" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 582 200 L 604.8 200 C 618.48 200, 621.52 170, 635.2 170 L 658 170" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 316 170 L 323.6 170 C 333.86 170, 336.14 140, 346.4 140 L 354 140" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 354 140 L 392 140" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 392 140 L 430 140" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 430 140 L 468 140" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 468 140 L 506 140" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 506 140 L 544 140" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 544 140 L 582 140" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 582 140 L 604.8 140 C 618.48 140, 621.52 170, 635.2 170 L 658 170" stroke="#2B8A8E" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+<path d="M 316 170 L 320.56 170 C 333.556 170, 336.444 230, 349.44 230 L 354 230" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 354 230 L 392 230" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 392 230 L 430 230" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 430 230 L 468 230" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 468 230 L 506 230" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 506 230 L 551.6 230 C 578.96 230, 585.04 170, 612.4 170 L 658 170" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 316 170 L 320.56 170 C 333.556 170, 336.444 110, 349.44 110 L 354 110" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 354 110 L 392 110" stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 392 110 L 430 110" stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 430 110 L 468 110" stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 468 110 L 506 110" stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 506 110 L 551.6 110 C 578.96 110, 585.04 170, 612.4 170 L 658 170" stroke="#D4944C" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 316 170 L 320.56 170 C 333.556 170, 336.444 260, 349.44 260 L 354 260" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 354 260 L 392 260" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 392 260 L 430 260" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 430 260 L 468 260" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 468 260 L 506 260 C 557.3 260, 568.7 170, 620 170 L 658 170" stroke="#2B8A8E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"></path>
+<path d="M 126 170 L 130.56 170 C 143.556 170, 146.444 80, 159.44 80 L 164 80" stroke="#E8846B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 164 80 L 202 80" stroke="#E8846B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 202 80 L 211.12 80 C 237.112 80, 242.888 170, 268.88 170 L 278 170" stroke="#E8846B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 468 170 L 472.56 170 C 485.556 170, 488.444 80, 501.44 80 L 506 80" stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 506 80 L 544 80" stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 544 80 L 553.12 80 C 579.112 80, 584.888 170, 610.88 170 L 620 170" stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 468 200 L 475.6 200 C 485.86 200, 488.14 216, 498.4 216 L 506 216" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 506 216 L 544 216" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 544 216 L 566.8 216 C 597.58 216, 604.42 170, 635.2 170 L 658 170" stroke="#E8846B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 734 170 L 741.6 170 C 751.86 170, 754.14 200, 764.4 200 L 772 200" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 772 200 L 810 200" stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 810 200 L 832.8 200 C 846.48 200, 849.52 170, 863.2 170 L 886 170" stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 126 170 L 130.56 170 C 143.556 170, 146.444 50, 159.44 50 L 164 50" stroke="#E8846B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 164 50 L 177.68 50 C 216.668 50, 225.332 170, 264.32 170 L 278 170" stroke="#E8846B" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 392 140 L 399.6 140 C 409.86 140, 412.14 156, 422.4 156 L 430 156" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 430 156 L 452.8 156 C 466.48 156, 469.52 140, 483.2 140 L 506 140" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 392 140 L 399.6 140 C 409.86 140, 412.14 124, 422.4 124 L 430 124" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 430 124 L 452.8 124 C 466.48 124, 469.52 140, 483.2 140 L 506 140" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 392 140 L 396.56 140 C 409.556 140, 412.444 60, 425.44 60 L 430 60" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 430 60 L 439.12 60 C 465.112 60, 470.888 140, 496.88 140 L 506 140" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 734 170 L 741.6 170 C 751.86 170, 754.14 140, 764.4 140 L 772 140" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 772 140 L 806.2 140 C 826.72 140, 831.28 170, 851.8 170 L 886 170" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 734 170 L 738.56 170 C 751.556 170, 754.444 230, 767.44 230 L 772 230" stroke="#2B8A8E" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 772 230 L 794.8 230 C 825.58 230, 832.42 170, 863.2 170 L 886 170" stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<path d="M 1000 170 L 1007.6 170 C 1017.86 170, 1020.1400000000001 200, 1030.4 200 L 1038 200" stroke="#D4944C" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"></path>
+<circle cx="50.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="50.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">parse_req</text>
+<circle cx="88.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="88.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">analyze</text>
+<circle cx="126.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<circle cx="126.0" cy="170.0" r="1.8" fill="#E8846B" opacity="0.3"></circle>
+<text x="126.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">decompose</text>
+<circle cx="164.0" cy="50.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="164.0" y="61.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">plan_impl</text>
+<circle cx="164.0" cy="80.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="164.0" y="91.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">plan_test</text>
+<circle cx="164.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="164.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">arch_review</text>
+<circle cx="202.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="202.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">deps</text>
+<circle cx="240.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="240.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">arch_plan</text>
+<circle cx="202.0" cy="80.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="202.0" y="91.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">coverage</text>
+<circle cx="278.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#C45B4A" stroke-width="2" stroke-dasharray="2,1.5"></circle>
+<circle cx="278.0" cy="170.0" r="2" fill="#C45B4A" opacity="0.4"></circle>
+<text x="278.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">approve_plan</text>
+<circle cx="316.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="316.0" cy="170.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="316.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">begin_impl</text>
+<circle cx="354.0" cy="200.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="354.0" y="211.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">scaffold</text>
+<circle cx="392.0" cy="200.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="392.0" y="211.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">gen_core</text>
+<circle cx="430.0" cy="200.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="430.0" y="211.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">gen_types</text>
+<circle cx="468.0" cy="200.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="468.0" cy="200.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="468.0" y="213.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">gen_logic</text>
+<circle cx="506.0" cy="216.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="506.0" cy="216.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="506.0" y="208.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">compile</text>
+<circle cx="582.0" cy="200.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="582.0" cy="200.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="582.0" y="213.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">link</text>
+<circle cx="354.0" cy="230.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="354.0" y="241.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">schema</text>
+<circle cx="392.0" cy="230.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="392.0" y="241.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">models</text>
+<circle cx="430.0" cy="230.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="430.0" y="241.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">validate</text>
+<circle cx="468.0" cy="230.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="468.0" y="241.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">serialize</text>
+<circle cx="506.0" cy="230.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="506.0" y="241.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">index</text>
+<circle cx="354.0" cy="260.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="354.0" y="271.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">routes</text>
+<circle cx="392.0" cy="260.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="392.0" y="271.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">handlers</text>
+<circle cx="430.0" cy="260.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="430.0" y="271.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">middleware</text>
+<circle cx="468.0" cy="260.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="468.0" y="271.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">auth</text>
+<circle cx="354.0" cy="140.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="354.0" y="151.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">layout</text>
+<circle cx="392.0" cy="140.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="392.0" cy="140.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="392.0" y="153.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">components</text>
+<circle cx="430.0" cy="140.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="430.0" y="151.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">pages</text>
+<circle cx="468.0" cy="140.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="468.0" y="151.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">styles</text>
+<circle cx="506.0" cy="140.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="506.0" cy="140.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="506.0" y="153.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">storybook</text>
+<circle cx="544.0" cy="140.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="544.0" y="151.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">a11y</text>
+<circle cx="582.0" cy="140.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="582.0" y="151.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">ui_bundle</text>
+<circle cx="430.0" cy="156.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="430.0" y="149.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">forms</text>
+<circle cx="430.0" cy="124.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="430.0" y="117.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">tables</text>
+<circle cx="430.0" cy="60.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="430.0" y="53.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">charts</text>
+<circle cx="354.0" cy="110.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="354.0" y="121.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">env_conf</text>
+<circle cx="392.0" cy="110.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="392.0" y="121.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">docker</text>
+<circle cx="430.0" cy="110.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="430.0" y="121.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">ci_conf</text>
+<circle cx="468.0" cy="110.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="468.0" y="121.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">secrets</text>
+<circle cx="506.0" cy="110.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="506.0" y="121.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">deploy_conf</text>
+<circle cx="354.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="354.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">migrate</text>
+<circle cx="392.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="392.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">db_tables</text>
+<circle cx="430.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="430.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">db_indexes</text>
+<circle cx="468.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<circle cx="468.0" cy="170.0" r="1.8" fill="#D4944C" opacity="0.3"></circle>
+<text x="468.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">constraints</text>
+<circle cx="506.0" cy="80.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="506.0" y="91.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">triggers</text>
+<circle cx="544.0" cy="80.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="544.0" y="91.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">db_verify</text>
+<circle cx="506.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="506.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">seed_ref</text>
+<circle cx="544.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="544.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">seed_test</text>
+<circle cx="582.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="582.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">seed_demo</text>
+<circle cx="620.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<circle cx="620.0" cy="170.0" r="1.8" fill="#D4944C" opacity="0.3"></circle>
+<text x="620.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">db_ready</text>
+<circle cx="506.0" cy="200.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="506.0" y="211.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">refactor</text>
+<circle cx="544.0" cy="200.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="544.0" y="211.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">optimize</text>
+<circle cx="544.0" cy="216.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="544.0" y="209.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">gen_docs</text>
+<circle cx="658.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="658.0" cy="170.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="658.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">merge_all</text>
+<circle cx="696.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="696.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">begin_test</text>
+<circle cx="734.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="734.0" cy="170.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="734.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">test_setup</text>
+<circle cx="772.0" cy="140.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="772.0" y="151.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">unit_core</text>
+<circle cx="772.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="772.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">lint</text>
+<circle cx="810.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="810.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">format</text>
+<circle cx="848.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<text x="848.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">typecheck</text>
+<circle cx="772.0" cy="200.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="772.0" y="211.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">integ_api</text>
+<circle cx="772.0" cy="230.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="772.0" y="241.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">integ_db</text>
+<circle cx="810.0" cy="200.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="810.0" y="211.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">integ_auth</text>
+<circle cx="886.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#2B8A8E" stroke-width="1.6"></circle>
+<circle cx="886.0" cy="170.0" r="1.8" fill="#2B8A8E" opacity="0.3"></circle>
+<text x="886.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">all_pass</text>
+<circle cx="924.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#E8846B" stroke-width="1.6"></circle>
+<text x="924.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">llm_review</text>
+<circle cx="962.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#C45B4A" stroke-width="2" stroke-dasharray="2,1.5"></circle>
+<circle cx="962.0" cy="170.0" r="2" fill="#C45B4A" opacity="0.4"></circle>
+<text x="962.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">review</text>
+<circle cx="1000.0" cy="170.0" r="5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<circle cx="1000.0" cy="170.0" r="1.8" fill="#D4944C" opacity="0.3"></circle>
+<text x="1000.0" y="183.0" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">deploy</text>
+<circle cx="1038.0" cy="200.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="1038.0" y="211.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">verify</text>
+<circle cx="1038.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="1038.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">notify</text>
+<circle cx="1076.0" cy="170.0" r="3.5" fill="#F5F0E8" stroke="#D4944C" stroke-width="1.6"></circle>
+<text x="1076.0" y="181.5" font-size="5" fill="#2C2C2C" text-anchor="middle" opacity="0.55">log</text>
+<line x1="24" y1="285" x2="1130" y2="285" stroke="#D4CFC7" stroke-width="0.3"></line>
+<line x1="24" y1="301" x2="46" y2="301" stroke="#2B8A8E" stroke-width="3.5" opacity="0.5" stroke-linecap="round"></line>
+<text x="52" y="304" font-size="6.5" fill="#8C8680">Pure computation</text>
+<line x1="184" y1="301" x2="206" y2="301" stroke="#D4944C" stroke-width="3.5" opacity="0.5" stroke-linecap="round"></line>
+<text x="212" y="304" font-size="6.5" fill="#8C8680">I/O (side-effecting)</text>
+<line x1="344" y1="301" x2="366" y2="301" stroke="#E8846B" stroke-width="3.5" opacity="0.5" stroke-linecap="round"></line>
+<text x="372" y="304" font-size="6.5" fill="#8C8680">LLM (recordable)</text>
+<line x1="504" y1="301" x2="526" y2="301" stroke="#C45B4A" stroke-width="3.5" opacity="0.5" stroke-linecap="round" stroke-dasharray="4,3"></line>
+<text x="532" y="304" font-size="6.5" fill="#8C8680">Gate (human)</text>
+<text x="24" y="323" font-size="6" fill="#8C8680">71 ops | 86 edges | 17 routes | spread: 210px | layerSp: 38px</text>
+</svg>
