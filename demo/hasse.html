@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dag-map — Hasse diagram demo</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --dm-paper: #FFFFFF;
+  --dm-ink: #1A1A1A;
+  --dm-muted: #888888;
+  --dm-border: #CCCCCC;
+  --dm-font: 'IBM Plex Mono', 'Courier New', monospace;
+  --dm-radius: 4px;
+}
+.dm-container {
+  background: var(--dm-paper);
+  font-family: var(--dm-font);
+  color: var(--dm-ink);
+  transition: background 0.2s;
+}
+.dm-container svg { display: block; margin: 0 auto; }
+.dm-controls {
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--dm-border);
+}
+.dm-controls label {
+  font-size: 14px;
+  color: var(--dm-muted);
+  letter-spacing: 0.06em;
+}
+.dm-controls select {
+  font-family: var(--dm-font);
+  font-size: 14px;
+  padding: 4px 8px;
+  border: 1px solid var(--dm-border);
+  background: var(--dm-paper);
+  color: var(--dm-ink);
+  border-radius: var(--dm-radius);
+  cursor: pointer;
+}
+.dm-controls input[type="checkbox"] { cursor: pointer; }
+.dm-version {
+  font-size: 12px;
+  color: var(--dm-muted);
+  margin-left: auto;
+  opacity: 0.7;
+}
+.dm-advanced {
+  padding: 8px 24px;
+  font-size: 14px;
+  color: var(--dm-muted);
+  border-bottom: 1px solid var(--dm-border);
+}
+.dm-advanced summary {
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  padding: 4px 0;
+  font-weight: 500;
+}
+.dm-advanced .dm-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  align-items: center;
+}
+.dm-advanced label {
+  font-size: 13px;
+  color: var(--dm-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dm-advanced input[type="range"] { width: 60px; }
+.dm-advanced .dm-val {
+  min-width: 24px;
+  font-size: 12px;
+  color: var(--dm-muted);
+  opacity: 0.7;
+}
+.dm-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.dm-github {
+  color: var(--dm-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+}
+.dm-github:hover {
+  opacity: 1;
+}
+.dm-angle-control {
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+.dm-angle-control.visible {
+  display: flex;
+}
+.dm-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+.dm-graph {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+.dm-graph svg {
+  display: block;
+}
+.dm-callout {
+  width: 320px;
+  min-width: 280px;
+  max-width: 360px;
+  padding: 20px 24px;
+  border-right: 1px solid var(--dm-border);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--dm-ink);
+  overflow-y: auto;
+  max-height: calc(100vh - 140px);
+}
+.dm-callout h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  letter-spacing: 0.02em;
+}
+.dm-callout .dm-subtitle {
+  font-size: 12px;
+  color: var(--dm-muted);
+  font-style: italic;
+  margin: 0 0 12px 0;
+}
+.dm-callout p {
+  margin: 0 0 10px 0;
+}
+.dm-callout em {
+  font-style: italic;
+}
+.dm-callout strong {
+  font-weight: 600;
+}
+.dm-callout .dm-formula {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+.dm-callout .dm-ref {
+  font-size: 11px;
+  color: var(--dm-muted);
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dm-border);
+}
+.dm-callout .dm-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--dm-border);
+  color: var(--dm-muted);
+  letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+.dm-code {
+  margin: 12px 24px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius);
+  font-family: var(--dm-font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dm-ink);
+  white-space: pre;
+  overflow-x: auto;
+  cursor: text;
+  user-select: all;
+  -webkit-user-select: all;
+}
+</style>
+</head>
+<body class="dm-container">
+<div class="dm-controls">
+  <label for="latticeSelect">Graph:</label>
+  <select id="latticeSelect">
+    <optgroup label="Lattices">
+      <option value="powerset_3">P({1,2,3}) — Boolean B3</option>
+      <option value="divisors_30">D(30) — divisors</option>
+      <option value="divisors_60">D(60) — divisors</option>
+      <option value="divisors_12">D(12) — divisors</option>
+      <option value="boolean">Boolean — diamond</option>
+      <option value="diamond_m3">M3 — non-distributive</option>
+      <option value="pentagon">N5 — non-modular</option>
+      <option value="chain_5">Chain — total order</option>
+      <option value="product_2x3">2x3 — product lattice</option>
+      <option value="partition_3">Pi(3) — partitions</option>
+      <option value="partition_4" selected>Pi(4) — partitions</option>
+      <option value="type_hierarchy">Type hierarchy</option>
+    </optgroup>
+    <optgroup label="Posets">
+      <option value="young_4">Young — integer partitions</option>
+    </optgroup>
+    <optgroup label="DAGs (top-to-bottom)">
+      <option value="dag_data_pipeline">Data pipeline (6 ops)</option>
+      <option value="dag_diamond">Diamond (7 ops)</option>
+      <option value="dag_linear">Linear (5 ops)</option>
+      <option value="dag_wide_fan">Wide fan (10 ops)</option>
+      <option value="dag_deep_tree">Deep tree (31 ops)</option>
+      <option value="dag_dense_merge">Dense merge (29 ops)</option>
+      <option value="dag_factory">Software factory (71 ops)</option>
+    </optgroup>
+  </select>
+  <label for="themeSelect">Theme:</label>
+  <select id="themeSelect">
+    <option value="mono" selected>mono</option>
+    <option value="cream">cream</option>
+    <option value="light">light</option>
+    <option value="dark">dark</option>
+    <option value="blueprint">blueprint</option>
+    <option value="metro">metro</option>
+  </select>
+  <label for="edgeStyleSelect">Edges:</label>
+  <select id="edgeStyleSelect">
+    <option value="bezier">bezier</option>
+    <option value="straight">straight</option>
+  </select>
+  <label class="dm-inline">
+    <input type="checkbox" id="diagonalLabels"> diagonal labels
+  </label>
+  <span id="angleControl" class="dm-angle-control">
+    <input type="range" id="labelAngle" min="0" max="90" value="45">
+    <span id="angleValue" class="dm-val">45°</span>
+  </span>
+  <label class="dm-inline">label size <input type="range" id="labelSizeSlider" min="3" max="10" step="0.5" value="7" style="width:60px">
+    <span class="dm-val" id="labelSizeValue">7</span></label>
+  <span class="dm-version">dag-map hasse 0.1.0</span>
+  <a href="dag.html" class="dm-version" title="DAG metro demo">dag</a>
+  <a href="https://github.com/23min/DAG-map" target="_blank" rel="noopener" class="dm-github" title="View on GitHub">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  </a>
+</div>
+<details class="dm-advanced" open>
+  <summary>advanced</summary>
+  <div class="dm-grid">
+    <label>scale <input type="range" id="scaleSlider" min="0.5" max="3" step="0.1" value="1.5">
+      <span class="dm-val" id="scaleValue">1.5</span></label>
+    <label>rank spacing <input type="range" id="rankSpacingSlider" min="40" max="160" step="5" value="80">
+      <span class="dm-val" id="rankSpacingValue">80</span></label>
+    <label>node spacing <input type="range" id="nodeSpacingSlider" min="30" max="120" step="5" value="60">
+      <span class="dm-val" id="nodeSpacingValue">60</span></label>
+  </div>
+</details>
+<div class="dm-main">
+  <div id="callout" class="dm-callout"></div>
+  <div id="mapContainer" class="dm-graph"></div>
+</div>
+<pre id="optionsBlock" class="dm-code"></pre>
+<script>
+// ============================================================
+// dag-map Hasse standalone — all modules inlined
+// ============================================================
+
+// --- themes.js ---
+var THEMES = {
+  cream: {
+    paper: '#F5F0E8', ink: '#2C2C2C', muted: '#8C8680', border: '#D4CFC7',
+    classes: { pure: '#2B8A8E', recordable: '#E8846B', side_effecting: '#D4944C', gate: '#C45B4A' }
+  },
+  light: {
+    paper: '#FAFAFA', ink: '#333333', muted: '#999999', border: '#E0E0E0',
+    classes: { pure: '#0077B6', recordable: '#E36414', side_effecting: '#6C757D', gate: '#DC3545' }
+  },
+  dark: {
+    paper: '#1E1E2E', ink: '#CDD6F4', muted: '#6C7086', border: '#313244',
+    classes: { pure: '#94E2D5', recordable: '#F38BA8', side_effecting: '#F9E2AF', gate: '#EBA0AC' }
+  },
+  blueprint: {
+    paper: '#1B2838', ink: '#E0E8F0', muted: '#5A7A9A', border: '#2A4060',
+    classes: { pure: '#4FC3F7', recordable: '#FF8A65', side_effecting: '#FFD54F', gate: '#EF5350' }
+  },
+  mono: {
+    paper: '#FFFFFF', ink: '#1A1A1A', muted: '#888888', border: '#CCCCCC',
+    classes: { pure: '#444444', recordable: '#777777', side_effecting: '#999999', gate: '#333333' }
+  },
+  metro: {
+    paper: '#FFFFFF', ink: '#1A1A1A', muted: '#9E9E9E', border: '#D4EAF7',
+    classes: { pure: '#0078C8', recordable: '#E3242B', side_effecting: '#F5A623', gate: '#6A2D8E' },
+    lineOpacity: 1.4
+  }
+};
+
+function resolveTheme(themeOption) {
+  if (!themeOption || themeOption === 'cream') return THEMES.cream;
+  if (typeof themeOption === 'string') return THEMES[themeOption] || THEMES.cream;
+  return { ...THEMES.cream, ...themeOption, classes: { ...THEMES.cream.classes, ...(themeOption.classes || {}) } };
+}
+
+// --- layout-hasse.js ---
+function buildGraph(nodes, edges) {
+  var nodeMap = new Map(nodes.map(function(n) { return [n.id, n]; }));
+  var childrenOf = new Map();
+  var parentsOf = new Map();
+  nodes.forEach(function(n) { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
+  edges.forEach(function(e) {
+    childrenOf.get(e[0]).push(e[1]);
+    parentsOf.get(e[1]).push(e[0]);
+  });
+  return { nodeMap: nodeMap, childrenOf: childrenOf, parentsOf: parentsOf };
+}
+
+function topoSortAndRank(nodes, childrenOf, parentsOf) {
+  var rank = new Map();
+  var inDeg = new Map();
+  nodes.forEach(function(nd) { inDeg.set(nd.id, parentsOf.get(nd.id).length); });
+  var queue = nodes.filter(function(nd) { return inDeg.get(nd.id) === 0; }).map(function(nd) { return nd.id; });
+  queue.forEach(function(id) { rank.set(id, 0); });
+  var topo = [];
+  while (queue.length) {
+    var u = queue.shift(); topo.push(u);
+    var children = childrenOf.get(u);
+    for (var ci = 0; ci < children.length; ci++) {
+      var v = children[ci];
+      rank.set(v, Math.max(rank.get(v) || 0, rank.get(u) + 1));
+      inDeg.set(v, inDeg.get(v) - 1);
+      if (inDeg.get(v) === 0) queue.push(v);
+    }
+  }
+  var maxRank = topo.length > 0 ? Math.max.apply(null, topo.map(function(id) { return rank.get(id); })) : 0;
+  return { topo: topo, rank: rank, maxRank: maxRank };
+}
+
+function insertVirtualNodes(edges, rank, childrenOf, parentsOf) {
+  var virtualNodes = [];
+  var expandedEdges = [];
+  var virtualChains = new Map();
+  for (var ei = 0; ei < edges.length; ei++) {
+    var from = edges[ei][0], to = edges[ei][1];
+    var rFrom = rank.get(from), rTo = rank.get(to);
+    var span = rTo - rFrom;
+    if (span <= 1) { expandedEdges.push([from, to]); continue; }
+    var chain = [];
+    var prev = from;
+    for (var r = rFrom + 1; r < rTo; r++) {
+      var vid = '__v_' + from + '_' + to + '_' + r;
+      virtualNodes.push({ id: vid, rank: r });
+      chain.push(vid);
+      expandedEdges.push([prev, vid]);
+      if (!childrenOf.has(vid)) childrenOf.set(vid, []);
+      if (!parentsOf.has(vid)) parentsOf.set(vid, []);
+      childrenOf.get(prev).push(vid);
+      parentsOf.get(vid).push(prev);
+      prev = vid;
+    }
+    expandedEdges.push([prev, to]);
+    childrenOf.get(prev).push(to);
+    parentsOf.get(to).push(prev);
+    virtualChains.set(from + '->' + to, chain);
+  }
+  for (var vi = 0; vi < virtualNodes.length; vi++) {
+    rank.set(virtualNodes[vi].id, virtualNodes[vi].rank);
+  }
+  return { virtualNodes: virtualNodes, expandedEdges: expandedEdges, virtualChains: virtualChains };
+}
+
+function buildLayers(nodeIds, rank, maxRank) {
+  var layers = [];
+  for (var r = 0; r <= maxRank; r++) layers.push([]);
+  for (var i = 0; i < nodeIds.length; i++) {
+    var r2 = rank.get(nodeIds[i]);
+    if (r2 !== undefined) layers[r2].push(nodeIds[i]);
+  }
+  return layers;
+}
+
+function countCrossings(layers, childrenOf) {
+  var total = 0;
+  for (var r = 0; r < layers.length - 1; r++) {
+    var upper = layers[r], lower = layers[r + 1];
+    var posInLower = new Map();
+    lower.forEach(function(id, i) { posInLower.set(id, i); });
+    var edgePairs = [];
+    for (var ui = 0; ui < upper.length; ui++) {
+      var ch = childrenOf.get(upper[ui]) || [];
+      for (var ci = 0; ci < ch.length; ci++) {
+        var li = posInLower.get(ch[ci]);
+        if (li !== undefined) edgePairs.push([ui, li]);
+      }
+    }
+    for (var i = 0; i < edgePairs.length; i++) {
+      for (var j = i + 1; j < edgePairs.length; j++) {
+        if ((edgePairs[i][0] - edgePairs[j][0]) * (edgePairs[i][1] - edgePairs[j][1]) < 0) total++;
+      }
+    }
+  }
+  return total;
+}
+
+function barycenterSort(layer, getNeighborPositions) {
+  var barycenters = new Map();
+  for (var i = 0; i < layer.length; i++) {
+    var id = layer[i];
+    var positions = getNeighborPositions(id);
+    if (positions.length > 0) {
+      var avg = positions.reduce(function(a, b) { return a + b; }, 0) / positions.length;
+      barycenters.set(id, avg);
+    } else {
+      barycenters.set(id, Infinity);
+    }
+  }
+  var indexed = layer.map(function(id, i) { return { id: id, bc: barycenters.get(id), orig: i }; });
+  indexed.sort(function(a, b) { return a.bc !== b.bc ? a.bc - b.bc : a.orig - b.orig; });
+  return indexed.map(function(e) { return e.id; });
+}
+
+function reduceCrossings(layers, childrenOf, parentsOf, passes) {
+  var best = layers.map(function(l) { return l.slice(); });
+  var bestCrossings = countCrossings(best, childrenOf);
+  var current = layers.map(function(l) { return l.slice(); });
+  for (var pass = 0; pass < passes; pass++) {
+    if (pass % 2 === 0) {
+      for (var r = 1; r < current.length; r++) {
+        var upperPos = new Map();
+        current[r - 1].forEach(function(id, i) { upperPos.set(id, i); });
+        current[r] = barycenterSort(current[r], function(id) {
+          var parents = parentsOf.get(id) || [];
+          return parents.map(function(p) { return upperPos.get(p); }).filter(function(p) { return p !== undefined; });
+        });
+      }
+    } else {
+      for (var r = current.length - 2; r >= 0; r--) {
+        var lowerPos = new Map();
+        current[r + 1].forEach(function(id, i) { lowerPos.set(id, i); });
+        current[r] = barycenterSort(current[r], function(id) {
+          var children = childrenOf.get(id) || [];
+          return children.map(function(c) { return lowerPos.get(c); }).filter(function(c) { return c !== undefined; });
+        });
+      }
+    }
+    var crossings = countCrossings(current, childrenOf);
+    if (crossings < bestCrossings) {
+      bestCrossings = crossings;
+      for (var r = 0; r < current.length; r++) best[r] = current[r].slice();
+    }
+  }
+  return best;
+}
+
+function enforceSpacing(layer, x, minSpacing) {
+  var sorted = layer.slice().sort(function(a, b) { return x.get(a) - x.get(b); });
+  for (var i = 1; i < sorted.length; i++) {
+    var prev = x.get(sorted[i - 1]);
+    if (x.get(sorted[i]) - prev < minSpacing) x.set(sorted[i], prev + minSpacing);
+  }
+  for (var i = sorted.length - 2; i >= 0; i--) {
+    var next = x.get(sorted[i + 1]);
+    if (next - x.get(sorted[i]) < minSpacing) x.set(sorted[i], next - minSpacing);
+  }
+}
+
+function centerLayers(layers, x) {
+  var globalMin = Infinity, globalMax = -Infinity;
+  for (var li = 0; li < layers.length; li++) {
+    for (var ni = 0; ni < layers[li].length; ni++) {
+      var val = x.get(layers[li][ni]);
+      if (val < globalMin) globalMin = val;
+      if (val > globalMax) globalMax = val;
+    }
+  }
+  var globalCenter = (globalMin + globalMax) / 2;
+  for (var li = 0; li < layers.length; li++) {
+    var layer = layers[li];
+    if (layer.length === 0) continue;
+    var layerMin = Infinity, layerMax = -Infinity;
+    for (var ni = 0; ni < layer.length; ni++) {
+      var val = x.get(layer[ni]);
+      if (val < layerMin) layerMin = val;
+      if (val > layerMax) layerMax = val;
+    }
+    var shift = globalCenter - (layerMin + layerMax) / 2;
+    for (var ni = 0; ni < layer.length; ni++) x.set(layer[ni], x.get(layer[ni]) + shift);
+  }
+}
+
+function assignXCoordinates(layers, childrenOf, parentsOf, nodeSpacing) {
+  var x = new Map();
+  for (var li = 0; li < layers.length; li++) {
+    for (var ni = 0; ni < layers[li].length; ni++) x.set(layers[li][ni], ni * nodeSpacing);
+  }
+  for (var iter = 0; iter < 12; iter++) {
+    for (var r = 1; r < layers.length; r++) {
+      for (var ni = 0; ni < layers[r].length; ni++) {
+        var id = layers[r][ni];
+        var neighbors = (parentsOf.get(id) || []).concat(childrenOf.get(id) || []).filter(function(n) { return x.has(n); });
+        if (neighbors.length > 0) {
+          var avg = neighbors.reduce(function(sum, n) { return sum + x.get(n); }, 0) / neighbors.length;
+          x.set(id, avg);
+        }
+      }
+      enforceSpacing(layers[r], x, nodeSpacing);
+    }
+    for (var r = layers.length - 2; r >= 0; r--) {
+      for (var ni = 0; ni < layers[r].length; ni++) {
+        var id = layers[r][ni];
+        var neighbors = (parentsOf.get(id) || []).concat(childrenOf.get(id) || []).filter(function(n) { return x.has(n); });
+        if (neighbors.length > 0) {
+          var avg = neighbors.reduce(function(sum, n) { return sum + x.get(n); }, 0) / neighbors.length;
+          x.set(id, avg);
+        }
+      }
+      enforceSpacing(layers[r], x, nodeSpacing);
+    }
+  }
+  centerLayers(layers, x);
+  return x;
+}
+
+function hasseEdgePath(points, edgeStyle) {
+  if (points.length < 2) return '';
+  if (points.length === 2) {
+    var p = points[0], q = points[1];
+    var dx = Math.abs(q.x - p.x);
+    if (edgeStyle === 'straight' || dx < 2) {
+      return 'M ' + p.x + ' ' + p.y + ' L ' + q.x + ' ' + q.y;
+    }
+    var dy = q.y - p.y;
+    return 'M ' + p.x + ' ' + p.y + ' C ' + p.x + ' ' + (p.y + dy * 0.4) + ', ' + q.x + ' ' + (p.y + dy * 0.6) + ', ' + q.x + ' ' + q.y;
+  }
+  if (edgeStyle === 'straight') {
+    var d = 'M ' + points[0].x + ' ' + points[0].y;
+    for (var i = 1; i < points.length; i++) d += ' L ' + points[i].x + ' ' + points[i].y;
+    return d;
+  }
+  var d = 'M ' + points[0].x + ' ' + points[0].y;
+  for (var i = 1; i < points.length; i++) {
+    var p = points[i - 1], q = points[i];
+    var dy = q.y - p.y;
+    d += ' C ' + p.x + ' ' + (p.y + dy * 0.4) + ', ' + q.x + ' ' + (p.y + dy * 0.6) + ', ' + q.x + ' ' + q.y;
+  }
+  return d;
+}
+
+function layoutHasse(dag, options) {
+  options = options || {};
+  var theme = resolveTheme(options.theme != null ? options.theme : 'mono');
+  var s = options.scale != null ? options.scale : 1.5;
+  var rankSpacing = (options.rankSpacing != null ? options.rankSpacing : 80) * s;
+  var nodeSpacing = (options.nodeSpacing != null ? options.nodeSpacing : 60) * s;
+  var crossingPasses = options.crossingPasses != null ? options.crossingPasses : 24;
+  var edgeStyle = options.edgeStyle || 'bezier';
+
+  var nodes = dag.nodes, edges = dag.edges;
+  var graph = buildGraph(nodes, edges);
+  var nodeMap = graph.nodeMap, childrenOf = graph.childrenOf, parentsOf = graph.parentsOf;
+  var result = topoSortAndRank(nodes, childrenOf, parentsOf);
+  var topo = result.topo, rank = result.rank, maxRank = result.maxRank;
+
+  var expandedChildren = new Map();
+  var expandedParents = new Map();
+  childrenOf.forEach(function(v, k) { expandedChildren.set(k, v.slice()); });
+  parentsOf.forEach(function(v, k) { expandedParents.set(k, v.slice()); });
+
+  var vResult = insertVirtualNodes(edges, rank, expandedChildren, expandedParents);
+  var virtualNodes = vResult.virtualNodes, virtualChains = vResult.virtualChains;
+  var allIds = topo.concat(virtualNodes.map(function(v) { return v.id; }));
+
+  var layers = buildLayers(allIds, rank, maxRank);
+  layers = reduceCrossings(layers, expandedChildren, expandedParents, crossingPasses);
+  var xCoord = assignXCoordinates(layers, expandedChildren, expandedParents, nodeSpacing);
+
+  var topPad = 50 * s, leftPad = 50 * s;
+  var minX = Infinity;
+  for (var i = 0; i < allIds.length; i++) {
+    var val = xCoord.get(allIds[i]);
+    if (val < minX) minX = val;
+  }
+  var xShift = leftPad - minX;
+
+  var allPositions = new Map();
+  for (var i = 0; i < allIds.length; i++) {
+    var id = allIds[i];
+    allPositions.set(id, { x: xCoord.get(id) + xShift, y: topPad + rank.get(id) * rankSpacing });
+  }
+
+  var positions = new Map();
+  for (var i = 0; i < nodes.length; i++) {
+    var pos = allPositions.get(nodes[i].id);
+    if (pos) positions.set(nodes[i].id, pos);
+  }
+
+  var maxX = 0, maxY = 0, layoutMinY = Infinity, layoutMaxY = -Infinity;
+  for (var i = 0; i < nodes.length; i++) {
+    var pos = positions.get(nodes[i].id);
+    if (!pos) continue;
+    if (pos.x > maxX) maxX = pos.x;
+    if (pos.y > maxY) maxY = pos.y;
+    if (pos.y < layoutMinY) layoutMinY = pos.y;
+    if (pos.y > layoutMaxY) layoutMaxY = pos.y;
+  }
+  var width = maxX + 50 * s;
+  var height = maxY + 80 * s;
+
+  var edgeColor = theme.ink;
+  var opBoost = theme.lineOpacity || 1.0;
+  var edgeThickness = 2.2 * s;
+  var edgeOpacity = Math.min(0.35 * opBoost, 1);
+
+  var segments = [];
+  for (var ei = 0; ei < edges.length; ei++) {
+    var from = edges[ei][0], to = edges[ei][1];
+    var chainKey = from + '->' + to;
+    var chain = virtualChains.get(chainKey);
+    var pathPoints;
+    if (chain) {
+      pathPoints = [allPositions.get(from)];
+      for (var ci = 0; ci < chain.length; ci++) pathPoints.push(allPositions.get(chain[ci]));
+      pathPoints.push(allPositions.get(to));
+    } else {
+      pathPoints = [allPositions.get(from), allPositions.get(to)];
+    }
+    var d = hasseEdgePath(pathPoints, edgeStyle);
+    segments.push({ d: d, color: edgeColor, thickness: edgeThickness, opacity: edgeOpacity, dashed: false });
+  }
+
+  var routes = [{ nodes: topo, lane: 0, parentRoute: -1, depth: 0 }];
+  var nodeRoute = new Map();
+  var nodeLane = new Map();
+  for (var i = 0; i < nodes.length; i++) {
+    nodeRoute.set(nodes[i].id, 0);
+    nodeLane.set(nodes[i].id, 0);
+  }
+  var centerY = (layoutMinY + layoutMaxY) / 2;
+
+  return {
+    positions: positions, routePaths: [segments], extraEdges: [],
+    width: width, height: height, maxLayer: maxRank, routes: routes,
+    nodeLane: nodeLane, nodeRoute: nodeRoute, laneSpacing: nodeSpacing,
+    layerSpacing: rankSpacing, minY: layoutMinY, maxY: layoutMaxY,
+    routeYScreen: new Map([[0, centerY]]), trunkYScreen: centerY,
+    scale: s, theme: theme, orientation: 'ttb'
+  };
+}
+
+// --- render.js (with TTB support) ---
+function renderSVG(dag, layout, options) {
+  options = options || {};
+  var title = options.title;
+  var diagonalLabels = options.diagonalLabels || false;
+  var labelAngle = options.labelAngle || 45;
+  var showLegend = options.showLegend !== false;
+  var cssVars = options.cssVars || false;
+  var labelSize = options.labelSize || 7;
+
+  var defaultLegendLabels = { pure: 'Primary', recordable: 'Secondary', side_effecting: 'Tertiary', gate: 'Control' };
+  var legendLabels = Object.assign({}, defaultLegendLabels, options.legendLabels || {});
+
+  var theme = layout.theme || THEMES.cream;
+  var col = {
+    paper: theme.paper, ink: theme.ink, muted: theme.muted, border: theme.border,
+    cls: function(c) { return theme.classes[c] || theme.classes.pure || theme.classes[Object.keys(theme.classes)[0]]; }
+  };
+
+  var positions = layout.positions, routePaths = layout.routePaths, extraEdges = layout.extraEdges;
+  var width = layout.width, height = layout.height, routes = layout.routes, nodeRoute = layout.nodeRoute;
+  var s = layout.scale || 1;
+  var nodeMap = new Map(dag.nodes.map(function(n) { return [n.id, n]; }));
+  var inDeg = new Map(), outDeg = new Map();
+  dag.nodes.forEach(function(nd) { inDeg.set(nd.id, 0); outDeg.set(nd.id, 0); });
+  dag.edges.forEach(function(e) { outDeg.set(e[0], outDeg.get(e[0]) + 1); inDeg.set(e[1], inDeg.get(e[1]) + 1); });
+
+  var displayTitle = title || 'DAG (' + dag.nodes.length + ' nodes)';
+
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '" font-family="\'IBM Plex Mono\', \'Courier New\', monospace">\n';
+  svg += '<rect width="' + width + '" height="' + height + '" fill="' + col.paper + '"/>\n';
+  svg += '<text x="' + (24 * s) + '" y="' + (22 * s) + '" font-size="' + (14 * s) + '" fill="' + col.ink + '" letter-spacing="0.06em" opacity="0.5">' + displayTitle + '</text>\n';
+
+  var subtitle = layout.orientation === 'ttb' ? 'Hasse diagram. Edges = covering relations.' : 'Topological layout. Colored lines = execution paths by node class.';
+  svg += '<text x="' + (24 * s) + '" y="' + (38 * s) + '" font-size="' + (9 * s) + '" fill="' + col.muted + '">' + subtitle + '</text>\n';
+
+  // Extra edges (behind)
+  extraEdges.forEach(function(seg) {
+    svg += '<path d="' + seg.d + '" stroke="' + seg.color + '" stroke-width="' + seg.thickness + '" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="' + seg.opacity + '"';
+    if (seg.dashed) svg += ' stroke-dasharray="' + (4 * s) + ',' + (3 * s) + '"';
+    svg += '/>\n';
+  });
+
+  // Route paths
+  routePaths.forEach(function(segments) {
+    segments.forEach(function(seg) {
+      svg += '<path d="' + seg.d + '" stroke="' + seg.color + '" stroke-width="' + seg.thickness + '" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="' + seg.opacity + '"';
+      if (seg.dashed) svg += ' stroke-dasharray="' + (4 * s) + ',' + (3 * s) + '"';
+      svg += '/>\n';
+    });
+  });
+
+  // Stations
+  dag.nodes.forEach(function(nd) {
+    var pos = positions.get(nd.id);
+    if (!pos) return;
+    var color = col.cls(nd.cls || 'pure');
+    var isInterchange = (inDeg.get(nd.id) > 1 || outDeg.get(nd.id) > 1);
+    var isGate = nd.cls === 'gate';
+    var ri = nodeRoute.get(nd.id);
+    var depth = (ri !== undefined && routes[ri]) ? routes[ri].depth : 0;
+    var r;
+    if (isInterchange) r = 5.5 * s;
+    else if (depth <= 1) r = 3.5 * s;
+    else r = 3 * s;
+
+    svg += '<circle cx="' + pos.x.toFixed(1) + '" cy="' + pos.y.toFixed(1) + '" r="' + r + '" fill="' + col.paper + '" stroke="' + color + '" stroke-width="' + ((isGate ? 2 : 1.6) * s) + '"';
+    if (isGate) svg += ' stroke-dasharray="' + (2 * s) + ',' + (1.5 * s) + '"';
+    svg += '/>\n';
+
+    if (isInterchange && !isGate) {
+      svg += '<circle cx="' + pos.x.toFixed(1) + '" cy="' + pos.y.toFixed(1) + '" r="' + (2 * s) + '" fill="' + color + '" opacity="0.3"/>\n';
+    }
+    if (isGate) {
+      svg += '<circle cx="' + pos.x.toFixed(1) + '" cy="' + pos.y.toFixed(1) + '" r="' + (2.2 * s) + '" fill="' + col.cls('gate') + '" opacity="0.4"/>\n';
+    }
+
+    // Labels
+    var fs = labelSize * s;
+    if (diagonalLabels) {
+      var tickLen = 6 * s;
+      var angle = -labelAngle;
+      var rad = angle * Math.PI / 180;
+      var tickEndX = pos.x + Math.cos(rad) * tickLen;
+      var tickEndY = pos.y + Math.sin(rad) * tickLen;
+      svg += '<line x1="' + pos.x.toFixed(1) + '" y1="' + (pos.y - r).toFixed(1) + '" x2="' + tickEndX.toFixed(1) + '" y2="' + (tickEndY - r).toFixed(1) + '" stroke="' + col.ink + '" stroke-width="' + (0.6 * s) + '" opacity="0.3"/>\n';
+      var textX = tickEndX + 1 * s;
+      var textY = tickEndY - r - 1 * s;
+      svg += '<text x="' + textX.toFixed(1) + '" y="' + textY.toFixed(1) + '" font-size="' + (fs * 0.9) + '" fill="' + col.ink + '" text-anchor="start" opacity="0.55" transform="rotate(' + angle + ' ' + textX.toFixed(1) + ' ' + textY.toFixed(1) + ')">' + nd.label + '</text>\n';
+    } else if (layout.orientation === 'ttb') {
+      var labelX = pos.x + r + 4 * s;
+      var labelY = pos.y + fs * 0.35;
+      svg += '<text x="' + labelX.toFixed(1) + '" y="' + labelY.toFixed(1) + '" font-size="' + fs + '" fill="' + col.ink + '" text-anchor="start" opacity="0.55">' + nd.label + '</text>\n';
+    } else {
+      var labelY = pos.y + r + 8 * s;
+      svg += '<text x="' + pos.x.toFixed(1) + '" y="' + labelY.toFixed(1) + '" font-size="' + fs + '" fill="' + col.ink + '" text-anchor="middle" opacity="0.55">' + nd.label + '</text>\n';
+    }
+  });
+
+  // Legend
+  if (showLegend) {
+    var ly = height - 55 * s;
+    svg += '<line x1="' + (24 * s) + '" y1="' + ly + '" x2="' + (width - 24 * s) + '" y2="' + ly + '" stroke="' + col.border + '" stroke-width="' + (0.3 * s) + '"/>\n';
+    var vertSpread = layout.maxY - layout.minY;
+    svg += '<text x="' + (24 * s) + '" y="' + (ly + 19 * s) + '" font-size="' + (8 * s) + '" fill="' + col.muted + '">' + dag.nodes.length + ' nodes | ' + dag.edges.length + ' edges | depth: ' + (layout.maxLayer + 1) + ' layers</text>\n';
+  }
+
+  svg += '</svg>';
+  return svg;
+}
+
+// --- lattices.js ---
+function n(id, label, cls) {
+  return { id: id, label: label || id, cls: cls || 'type' };
+}
+
+var LATTICES = {
+  boolean: function() { return {
+    label: 'Boolean lattice', description: '4 elements — the simplest diamond shape',
+    notes: '<h3>Boolean Lattice <span class="dm-formula">B\u2082</span></h3><p class="dm-subtitle">The simplest non-trivial lattice</p><p>Four elements: <strong>\u22A4</strong> (top), two atoms <em>a</em> and <em>b</em>, and <strong>\u22A5</strong> (bottom). Isomorphic to the power set <span class="dm-formula">P({x})</span> with two elements.</p><p>Every pair has a unique <strong>meet</strong> (\u2227) and <strong>join</strong> (\u2228). This is the building block of all Boolean algebras.</p><p><span class="dm-tag">distributive</span> <span class="dm-tag">modular</span> <span class="dm-tag">complemented</span></p><div class="dm-ref">Birkhoff, G. <em>Lattice Theory</em>, 1967</div>',
+    nodes: [ n('top', '\u22A4', 'top'), n('a', 'a', 'type'), n('b', 'b', 'type'), n('bot', '\u22A5', 'bottom') ],
+    edges: [ ['top', 'a'], ['top', 'b'], ['a', 'bot'], ['b', 'bot'] ]
+  }; },
+  powerset_3: function() { return {
+    label: 'P({1,2,3})', description: 'Power set of {1,2,3} — Boolean lattice B\u2083 (cube)',
+    notes: '<h3>Power Set Lattice <span class="dm-formula">P({1,2,3})</span></h3><p class="dm-subtitle">Boolean algebra B\u2083 \u2014 the 3-cube</p><p>All subsets of <em>{1, 2, 3}</em> ordered by <strong>inclusion</strong>. The top element is <em>{1,2,3}</em>, the bottom is <em>\u2205</em>.</p><p>The <strong>meet</strong> of two sets is their intersection; the <strong>join</strong> is their union. This is the canonical example of a <em>distributive</em> lattice \u2014 the prototype for Boolean algebras in logic and set theory.</p><p>Has 8 elements (= 2\u00B3), and its Hasse diagram forms the skeleton of a <strong>cube</strong>.</p><p><span class="dm-tag">distributive</span> <span class="dm-tag">Boolean</span> <span class="dm-tag">8 elements</span></p><div class="dm-ref">Davey, B.A. & Priestley, H.A. <em>Introduction to Lattices and Order</em>, 2002</div>',
+    nodes: [ n('123', '{1,2,3}', 'top'), n('12', '{1,2}', 'type'), n('13', '{1,3}', 'type'), n('23', '{2,3}', 'type'), n('1', '{1}', 'type'), n('2', '{2}', 'type'), n('3', '{3}', 'type'), n('empty', '\u2205', 'bottom') ],
+    edges: [ ['123', '12'], ['123', '13'], ['123', '23'], ['12', '1'], ['12', '2'], ['13', '1'], ['13', '3'], ['23', '2'], ['23', '3'], ['1', 'empty'], ['2', 'empty'], ['3', 'empty'] ]
+  }; },
+  divisors_30: function() { return {
+    label: 'D(30)', description: 'Divisors of 30 ordered by divisibility',
+    notes: '<h3>Divisor Lattice <span class="dm-formula">D(30)</span></h3><p class="dm-subtitle">Divisibility order on {1, 2, 3, 5, 6, 10, 15, 30}</p><p>The divisors of <strong>30 = 2 \u00B7 3 \u00B7 5</strong>, ordered by <em>a</em> | <em>b</em> (a divides b). The <strong>meet</strong> is gcd; the <strong>join</strong> is lcm.</p><p>Since 30 is <em>squarefree</em> (product of distinct primes), this lattice is isomorphic to the Boolean lattice <span class="dm-formula">B\u2083</span> \u2014 but with number labels instead of set labels. Each prime factor corresponds to a dimension of the cube.</p><p><span class="dm-tag">distributive</span> <span class="dm-tag">isomorphic to B\u2083</span></p><div class="dm-ref">Hardy, G.H. & Wright, E.M. <em>An Introduction to the Theory of Numbers</em>, 1938</div>',
+    nodes: [ n('30', '30', 'top'), n('6', '6', 'type'), n('10', '10', 'type'), n('15', '15', 'type'), n('2', '2', 'type'), n('3', '3', 'type'), n('5', '5', 'type'), n('1', '1', 'bottom') ],
+    edges: [ ['30', '6'], ['30', '10'], ['30', '15'], ['6', '2'], ['6', '3'], ['10', '2'], ['10', '5'], ['15', '3'], ['15', '5'], ['2', '1'], ['3', '1'], ['5', '1'] ]
+  }; },
+  divisors_60: function() { return {
+    label: 'D(60)', description: 'Divisors of 60 \u2014 12 nodes',
+    notes: '<h3>Divisor Lattice <span class="dm-formula">D(60)</span></h3><p class="dm-subtitle">Divisibility order on the 12 divisors of 60</p><p><strong>60 = 2\u00B2 \u00B7 3 \u00B7 5</strong> \u2014 not squarefree (2 appears squared), so this is <em>not</em> a Boolean lattice. The factor 4 = 2\u00B2 creates an asymmetry: the chain 1\u20142\u20144 has depth 2 through a single prime.</p><p>Meet = gcd, join = lcm. The lattice has 12 elements across 5 ranks, with the widest layer containing 4 nodes.</p><p><span class="dm-tag">distributive</span> <span class="dm-tag">non-Boolean</span> <span class="dm-tag">12 elements</span></p><div class="dm-ref">Gr\u00E4tzer, G. <em>Lattice Theory: Foundation</em>, 2011</div>',
+    nodes: [ n('60', '60', 'top'), n('30', '30', 'type'), n('20', '20', 'type'), n('12', '12', 'type'), n('15', '15', 'type'), n('10', '10', 'type'), n('6', '6', 'type'), n('4', '4', 'type'), n('5', '5', 'type'), n('3', '3', 'type'), n('2', '2', 'type'), n('1', '1', 'bottom') ],
+    edges: [ ['60', '30'], ['60', '20'], ['60', '12'], ['30', '15'], ['30', '10'], ['30', '6'], ['20', '10'], ['20', '4'], ['12', '6'], ['12', '4'], ['15', '5'], ['15', '3'], ['10', '5'], ['10', '2'], ['6', '3'], ['6', '2'], ['4', '2'], ['5', '1'], ['3', '1'], ['2', '1'] ]
+  }; },
+  pentagon: function() { return {
+    label: 'N\u2085 (Pentagon)', description: 'Smallest non-modular lattice \u2014 5 elements',
+    notes: '<h3>Pentagon <span class="dm-formula">N\u2085</span></h3><p class="dm-subtitle">The smallest non-modular lattice</p><p>Five elements with an <strong>asymmetric</strong> structure: <em>a</em> covers <em>c</em>, while <em>b</em> connects directly to \u22A5. The chain <em>\u22A4\u2013a\u2013c\u2013\u22A5</em> has length 3, but <em>\u22A4\u2013b\u2013\u22A5</em> has length 2.</p><p>This lattice is the key to <strong>Dedekind\'s theorem</strong>: a lattice is <em>modular</em> if and only if it contains no sublattice isomorphic to <span class="dm-formula">N\u2085</span>.</p><p><span class="dm-tag">non-modular</span> <span class="dm-tag">non-distributive</span></p><div class="dm-ref">Dedekind, R. <em>\u00DCber die von drei Moduln erzeugte Dualgruppe</em>, 1900</div>',
+    nodes: [ n('top', '\u22A4', 'top'), n('a', 'a', 'type'), n('b', 'b', 'type'), n('c', 'c', 'constraint'), n('bot', '\u22A5', 'bottom') ],
+    edges: [ ['top', 'a'], ['top', 'b'], ['a', 'c'], ['b', 'bot'], ['c', 'bot'] ]
+  }; },
+  diamond_m3: function() { return {
+    label: 'M\u2083 (Diamond)', description: 'Smallest non-distributive modular lattice \u2014 5 elements',
+    notes: '<h3>Diamond <span class="dm-formula">M\u2083</span></h3><p class="dm-subtitle">The smallest non-distributive modular lattice</p><p>Three <strong>mutually incomparable</strong> atoms <em>a, b, c</em> between \u22A4 and \u22A5. The meet of any two atoms is \u22A5; the join of any two is \u22A4.</p><p>Together with <span class="dm-formula">N\u2085</span>, this is the other half of <strong>Birkhoff\'s theorem</strong>: a lattice is <em>distributive</em> if and only if it contains no sublattice isomorphic to <span class="dm-formula">M\u2083</span> or <span class="dm-formula">N\u2085</span>.</p><p><span class="dm-tag">modular</span> <span class="dm-tag">non-distributive</span> <span class="dm-tag">complemented</span></p><div class="dm-ref">Birkhoff, G. <em>Lattice Theory</em>, 1967</div>',
+    nodes: [ n('top', '\u22A4', 'top'), n('a', 'a', 'type'), n('b', 'b', 'type'), n('c', 'c', 'type'), n('bot', '\u22A5', 'bottom') ],
+    edges: [ ['top', 'a'], ['top', 'b'], ['top', 'c'], ['a', 'bot'], ['b', 'bot'], ['c', 'bot'] ]
+  }; },
+  chain_5: function() { return {
+    label: 'Chain (5)', description: 'Total order \u2014 5 elements in a line',
+    notes: '<h3>Chain <span class="dm-formula">C\u2085</span></h3><p class="dm-subtitle">A totally ordered set (linear order)</p><p>Every pair of elements is <strong>comparable</strong>: <em>4 > 3 > 2 > 1 > 0</em>. This is the degenerate case \u2014 a lattice where the meet and join of any pair are simply the smaller and larger element.</p><p>Chains are the <em>building blocks</em> of all lattices. The <strong>height</strong> of a lattice is the length of its longest chain.</p><p><span class="dm-tag">distributive</span> <span class="dm-tag">totally ordered</span></p>',
+    nodes: [ n('e4', '4', 'top'), n('e3', '3', 'type'), n('e2', '2', 'type'), n('e1', '1', 'type'), n('e0', '0', 'bottom') ],
+    edges: [ ['e4', 'e3'], ['e3', 'e2'], ['e2', 'e1'], ['e1', 'e0'] ]
+  }; },
+  product_2x3: function() { return {
+    label: '2 \u00D7 3', description: 'Product of chains {0,1} \u00D7 {0,1,2} \u2014 grid lattice',
+    notes: '<h3>Product Lattice <span class="dm-formula">C\u2082 \u00D7 C\u2083</span></h3><p class="dm-subtitle">Cartesian product of two chains</p><p>Elements are pairs <span class="dm-formula">(a, b)</span> where <em>a</em> \u2208 {0,1} and <em>b</em> \u2208 {0,1,2}. The order is <strong>componentwise</strong>: <span class="dm-formula">(a,b) \u2264 (c,d)</span> iff <em>a \u2264 c</em> and <em>b \u2264 d</em>.</p><p>Product lattices always form a <strong>grid</strong> shape. They are always distributive. This construction generalizes to any number of factors.</p><p><span class="dm-tag">distributive</span> <span class="dm-tag">product</span> <span class="dm-tag">6 elements</span></p>',
+    nodes: [ n('12', '(1,2)', 'top'), n('02', '(0,2)', 'type'), n('11', '(1,1)', 'type'), n('01', '(0,1)', 'type'), n('10', '(1,0)', 'type'), n('00', '(0,0)', 'bottom') ],
+    edges: [ ['12', '02'], ['12', '11'], ['02', '01'], ['11', '01'], ['11', '10'], ['01', '00'], ['10', '00'] ]
+  }; },
+  partition_3: function() { return {
+    label: '\u03A0(3)', description: 'Partitions of {1,2,3} by refinement \u2014 non-distributive',
+    notes: '<h3>Partition Lattice <span class="dm-formula">\u03A0\u2083</span></h3><p class="dm-subtitle">Set partitions of {1,2,3} ordered by refinement</p><p>The top element <em>{123}</em> is the single-block partition; the bottom <em>{1|2|3}</em> puts each element alone. One partition <strong>refines</strong> another if every block of the first is contained in a block of the second.</p><p>This is isomorphic to <span class="dm-formula">M\u2083</span> \u2014 the three 2-block partitions are mutually incomparable, making it <em>non-distributive</em>. Partition lattices are central to <strong>combinatorics</strong> and <strong>group theory</strong>.</p><p><span class="dm-tag">modular</span> <span class="dm-tag">non-distributive</span> <span class="dm-tag">geometric</span></p><div class="dm-ref">Stanley, R.P. <em>Enumerative Combinatorics</em>, Vol. 1, 1997</div>',
+    nodes: [ n('all', '{123}', 'top'), n('12_3', '{12|3}', 'type'), n('13_2', '{13|2}', 'type'), n('1_23', '{1|23}', 'type'), n('disc', '{1|2|3}', 'bottom') ],
+    edges: [ ['all', '12_3'], ['all', '13_2'], ['all', '1_23'], ['12_3', 'disc'], ['13_2', 'disc'], ['1_23', 'disc'] ]
+  }; },
+  partition_4: function() { return {
+    label: '\u03A0(4)', description: 'Partitions of {1,2,3,4} by refinement \u2014 15 elements',
+    notes: '<h3>Partition Lattice <span class="dm-formula">\u03A0\u2084</span></h3><p class="dm-subtitle">Set partitions of {1,2,3,4} ordered by refinement</p><p><strong>15 elements</strong> in 4 ranks: 1 top, 4 partitions of type 3+1, 3 of type 2+2, 6 of type 2+1+1, and 1 bottom. The middle layers have high connectivity \u2014 each 3+1 partition refines into three 2+1+1 partitions.</p><p>The number of partitions follows the <strong>Bell numbers</strong>: <span class="dm-formula">B\u2084 = 15</span>. This lattice is <em>semimodular</em> (every element has a well-defined rank) but not distributive.</p><p><span class="dm-tag">semimodular</span> <span class="dm-tag">geometric</span> <span class="dm-tag">15 elements</span></p><div class="dm-ref">Rota, G.-C. <em>On the foundations of combinatorial theory I</em>, 1964</div>',
+    nodes: [
+      n('1234', '{1234}', 'top'),
+      n('123_4', '{123|4}', 'type'), n('124_3', '{124|3}', 'type'), n('134_2', '{134|2}', 'type'), n('234_1', '{234|1}', 'type'),
+      n('12_34', '{12|34}', 'type'), n('13_24', '{13|24}', 'type'), n('14_23', '{14|23}', 'type'),
+      n('12_3_4', '{12|3|4}', 'constraint'), n('13_2_4', '{13|2|4}', 'constraint'), n('14_2_3', '{14|2|3}', 'constraint'),
+      n('23_1_4', '{23|1|4}', 'constraint'), n('24_1_3', '{24|1|3}', 'constraint'), n('34_1_2', '{34|1|2}', 'constraint'),
+      n('disc', '{1|2|3|4}', 'bottom')
+    ],
+    edges: [
+      ['1234', '123_4'], ['1234', '124_3'], ['1234', '134_2'], ['1234', '234_1'],
+      ['1234', '12_34'], ['1234', '13_24'], ['1234', '14_23'],
+      ['123_4', '12_3_4'], ['123_4', '13_2_4'], ['123_4', '23_1_4'],
+      ['124_3', '12_3_4'], ['124_3', '14_2_3'], ['124_3', '24_1_3'],
+      ['134_2', '13_2_4'], ['134_2', '14_2_3'], ['134_2', '34_1_2'],
+      ['234_1', '23_1_4'], ['234_1', '24_1_3'], ['234_1', '34_1_2'],
+      ['12_34', '12_3_4'], ['12_34', '34_1_2'],
+      ['13_24', '13_2_4'], ['13_24', '24_1_3'],
+      ['14_23', '14_2_3'], ['14_23', '23_1_4'],
+      ['12_3_4', 'disc'], ['13_2_4', 'disc'], ['14_2_3', 'disc'],
+      ['23_1_4', 'disc'], ['24_1_3', 'disc'], ['34_1_2', 'disc']
+    ]
+  }; },
+  young_4: function() { return {
+    label: 'Young (\u22644)', description: 'Integer partitions up to 4 \u2014 poset (not a lattice)',
+    notes: '<h3>Young\'s Lattice <span class="dm-formula">Y\u2084</span></h3><p class="dm-subtitle">Integer partitions up to size 4, ordered by diagram containment</p><p>Each node is an <strong>integer partition</strong> \u2014 a way to write a positive integer as a sum: e.g. [3,1] means 3 + 1 = 4. An edge means one partition\'s <em>Young diagram</em> fits inside another (differs by exactly one box).</p><p><strong>Note:</strong> This truncation is a <em>poset</em>, not a lattice \u2014 the five partitions of 4 at the top have no common upper bound. The full Young\'s lattice (all partitions, no size limit) <em>is</em> an infinite distributive lattice.</p><p><span class="dm-tag">poset</span> <span class="dm-tag">combinatorics</span> <span class="dm-tag">representation theory</span></p><div class="dm-ref">Sagan, B.E. <em>The Symmetric Group</em>, 2001</div>',
+    nodes: [
+      n('4', '[4]', 'type'), n('31', '[3,1]', 'type'), n('22', '[2,2]', 'type'), n('211', '[2,1,1]', 'type'), n('1111', '[1,1,1,1]', 'type'),
+      n('3', '[3]', 'type'), n('21', '[2,1]', 'type'), n('111', '[1,1,1]', 'type'),
+      n('2', '[2]', 'type'), n('11', '[1,1]', 'type'),
+      n('1', '[1]', 'type'), n('0', '\u2205', 'bottom')
+    ],
+    edges: [ ['4', '3'], ['31', '3'], ['31', '21'], ['22', '21'], ['211', '21'], ['211', '111'], ['1111', '111'], ['3', '2'], ['21', '2'], ['21', '11'], ['111', '11'], ['2', '1'], ['11', '1'], ['1', '0'] ]
+  }; },
+  type_hierarchy: function() { return {
+    label: 'Type hierarchy', description: 'Synthetic subtype lattice with multiple inheritance',
+    notes: '<h3>Type Hierarchy</h3><p class="dm-subtitle">Synthetic example \u2014 subtype lattice with multiple inheritance</p><p>A constructed lattice modeling a type system. <strong>Sequence</strong> is the meet of <em>Equatable</em> and <em>Iterable</em> (types that are both). <strong>List</strong> is the meet of <em>Sequence</em> and <em>Collection</em>.</p><p>Every pair has a unique meet (\u2227) and join (\u2228), verified exhaustively. This demonstrates how <strong>intersection types</strong> are needed for multiple inheritance to form a proper lattice.</p><p><em>Not from the literature</em> \u2014 designed to illustrate lattice structure in type systems.</p><p><span class="dm-tag">synthetic</span> <span class="dm-tag">multiple inheritance</span> <span class="dm-tag">12 elements</span></p>',
+    nodes: [
+      n('any', 'Any', 'top'), n('equatable', 'Equatable', 'type'), n('iterable', 'Iterable', 'type'),
+      n('sequence', 'Sequence', 'type'), n('number', 'Number', 'type'), n('collection', 'Collection', 'type'),
+      n('int', 'Int', 'concrete'), n('float', 'Float', 'concrete'), n('str', 'String', 'concrete'),
+      n('list', 'List', 'concrete'), n('set', 'Set', 'concrete'),
+      n('never', 'Never', 'bottom')
+    ],
+    edges: [
+      ['any', 'equatable'], ['any', 'iterable'],
+      ['equatable', 'sequence'], ['equatable', 'number'],
+      ['iterable', 'sequence'], ['iterable', 'collection'],
+      ['sequence', 'str'], ['sequence', 'list'],
+      ['number', 'int'], ['number', 'float'],
+      ['collection', 'list'], ['collection', 'set'],
+      ['int', 'never'], ['float', 'never'], ['str', 'never'],
+      ['list', 'never'], ['set', 'never']
+    ]
+  }; },
+  divisors_12: function() { return {
+    label: 'D(12)', description: 'Divisors of 12 \u2014 compact asymmetric lattice',
+    notes: '<h3>Divisor Lattice <span class="dm-formula">D(12)</span></h3><p class="dm-subtitle">Divisibility order on {1, 2, 3, 4, 6, 12}</p><p><strong>12 = 2\u00B2 \u00B7 3</strong>. The repeated prime factor creates <strong>asymmetry</strong>: the left branch 12\u20144\u20142\u20141 has depth 3 (through powers of 2), while the right branch 12\u20146\u20143\u20141 passes through both primes.</p><p>A compact example showing that divisor lattices of non-squarefree numbers are <em>not</em> Boolean.</p><p><span class="dm-tag">distributive</span> <span class="dm-tag">non-Boolean</span> <span class="dm-tag">6 elements</span></p>',
+    nodes: [
+      n('12', '12', 'top'), n('4', '4', 'type'), n('6', '6', 'type'),
+      n('2', '2', 'type'), n('3', '3', 'type'), n('1', '1', 'bottom')
+    ],
+    edges: [ ['12', '4'], ['12', '6'], ['4', '2'], ['6', '2'], ['6', '3'], ['2', '1'], ['3', '1'] ]
+  }; },
+
+  // ── DAGs (from metro demo, rendered top-to-bottom) ──
+  dag_data_pipeline: function() { return {
+    label: 'Data pipeline', description: 'Fan-in → transform → publish (6 ops)',
+    nodes: [
+      n('fetch_a', 'fetch_a', 'side_effecting'), n('fetch_b', 'fetch_b', 'side_effecting'),
+      n('fetch_c', 'fetch_c', 'side_effecting'), n('transform', 'transform', 'pure'),
+      n('analyze', 'analyze', 'recordable'), n('publish', 'publish', 'side_effecting')
+    ],
+    edges: [
+      ['fetch_a', 'transform'], ['fetch_b', 'transform'], ['fetch_c', 'transform'],
+      ['transform', 'analyze'], ['analyze', 'publish']
+    ]
+  }; },
+  dag_diamond: function() { return {
+    label: 'Diamond', description: 'Fan-out then fan-in with gate (7 ops)',
+    nodes: [
+      n('start', 'start', 'pure'),
+      n('a', 'branch_a', 'recordable'), n('b', 'branch_b', 'side_effecting'),
+      n('c', 'branch_c', 'pure'), n('d', 'branch_d', 'recordable'),
+      n('merge', 'merge', 'pure'), n('final', 'final', 'gate')
+    ],
+    edges: [
+      ['start', 'a'], ['start', 'b'], ['start', 'c'], ['start', 'd'],
+      ['a', 'merge'], ['b', 'merge'], ['c', 'merge'], ['d', 'merge'],
+      ['merge', 'final']
+    ]
+  }; },
+  dag_linear: function() { return {
+    label: 'Linear', description: 'Simple 5-stage pipeline',
+    nodes: [
+      n('a', 'step_1', 'pure'), n('b', 'step_2', 'pure'), n('c', 'step_3', 'recordable'),
+      n('d', 'step_4', 'pure'), n('e', 'step_5', 'side_effecting')
+    ],
+    edges: [['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e']]
+  }; },
+  dag_wide_fan: function() {
+    var nodes = [n('src', 'source', 'pure')];
+    var edges = [];
+    var classes = ['pure', 'pure', 'recordable', 'side_effecting', 'pure', 'recordable', 'side_effecting', 'pure'];
+    for (var i = 0; i < 8; i++) {
+      nodes.push(n('w' + i, 'worker_' + i, classes[i]));
+      edges.push(['src', 'w' + i]);
+    }
+    nodes.push(n('sink', 'collect', 'pure'));
+    for (var i = 0; i < 8; i++) edges.push(['w' + i, 'sink']);
+    return { label: 'Wide fan', description: '1 source → 8 workers → 1 sink (10 ops)', nodes: nodes, edges: edges };
+  },
+  dag_deep_tree: function() {
+    var nodes = [n('root', 'root', 'recordable')];
+    var edges = [];
+    function addLevel(parentId, depth, maxDepth) {
+      if (depth >= maxDepth) return;
+      var cls = depth < 2 ? 'pure' : 'side_effecting';
+      var l = n(parentId + '_l', parentId + '_l', cls);
+      var r = n(parentId + '_r', parentId + '_r', cls);
+      nodes.push(l, r);
+      edges.push([parentId, l.id], [parentId, r.id]);
+      addLevel(l.id, depth + 1, maxDepth);
+      addLevel(r.id, depth + 1, maxDepth);
+    }
+    addLevel('root', 0, 4);
+    return { label: 'Deep tree', description: 'Binary tree, depth 4 (31 ops)', nodes: nodes, edges: edges };
+  },
+  dag_dense_merge: function() {
+    var nodes = []; var edges = [];
+    for (var i = 0; i < 8; i++) {
+      for (var j = 0; j < 3; j++) {
+        nodes.push(n('c' + i + '_' + j, 'chain' + i + '_' + j, ['pure', 'recordable', 'side_effecting'][j]));
+        if (j > 0) edges.push(['c' + i + '_' + (j - 1), 'c' + i + '_' + j]);
+      }
+    }
+    for (var i = 0; i < 4; i++) {
+      nodes.push(n('m' + i, 'merge_' + i, 'pure'));
+      edges.push(['c' + (i * 2) + '_2', 'm' + i]);
+      edges.push(['c' + (i * 2 + 1) + '_2', 'm' + i]);
+    }
+    nodes.push(n('final', 'final', 'recordable'));
+    for (var i = 0; i < 4; i++) edges.push(['m' + i, 'final']);
+    return { label: 'Dense merge', description: '8 parallel chains merging pairwise (29 ops)', nodes: nodes, edges: edges };
+  },
+  dag_factory: function() { return {
+    label: 'Software factory', description: 'Full build pipeline with planning, coding, testing, deploy (71 ops)',
+    nodes: [
+      n('parse', 'parse_req', 'recordable'), n('analyze', 'analyze', 'recordable'),
+      n('decompose', 'decompose', 'recordable'), n('plan_impl', 'plan_impl', 'recordable'),
+      n('plan_test', 'plan_test', 'recordable'), n('arch_review', 'arch_review', 'recordable'),
+      n('deps', 'deps', 'recordable'), n('arch_plan', 'arch_plan', 'recordable'),
+      n('coverage', 'coverage', 'recordable'), n('approve', 'approve_plan', 'gate'),
+      n('begin', 'begin_impl', 'pure'), n('scaffold', 'scaffold', 'pure'),
+      n('gen_core', 'gen_core', 'pure'), n('gen_types', 'gen_types', 'pure'),
+      n('gen_logic', 'gen_logic', 'pure'), n('compile', 'compile', 'pure'),
+      n('link', 'link', 'pure'), n('schema', 'schema', 'pure'), n('models', 'models', 'pure'),
+      n('validate', 'validate', 'pure'), n('serialize', 'serialize', 'pure'), n('index', 'index', 'pure'),
+      n('routes', 'routes', 'pure'), n('handlers', 'handlers', 'pure'),
+      n('middleware', 'middleware', 'pure'), n('auth', 'auth', 'pure'),
+      n('layout', 'layout', 'pure'), n('components', 'components', 'pure'),
+      n('pages', 'pages', 'pure'), n('styles', 'styles', 'pure'),
+      n('storybook', 'storybook', 'pure'), n('a11y', 'a11y', 'pure'), n('ui_bundle', 'ui_bundle', 'pure'),
+      n('forms', 'forms', 'pure'), n('tables', 'tables', 'pure'), n('charts', 'charts', 'pure'),
+      n('env_conf', 'env_conf', 'side_effecting'), n('docker', 'docker', 'side_effecting'),
+      n('ci_conf', 'ci_conf', 'side_effecting'), n('secrets', 'secrets', 'side_effecting'),
+      n('deploy_conf', 'deploy_conf', 'side_effecting'),
+      n('migrate', 'migrate', 'side_effecting'), n('db_tables', 'db_tables', 'side_effecting'),
+      n('db_indexes', 'db_indexes', 'side_effecting'), n('constraints', 'constraints', 'side_effecting'),
+      n('triggers', 'triggers', 'side_effecting'), n('db_verify', 'db_verify', 'side_effecting'),
+      n('seed_ref', 'seed_ref', 'side_effecting'), n('seed_test', 'seed_test', 'side_effecting'),
+      n('seed_demo', 'seed_demo', 'side_effecting'), n('db_ready', 'db_ready', 'side_effecting'),
+      n('refactor', 'refactor', 'recordable'), n('optimize', 'optimize', 'recordable'),
+      n('gen_docs', 'gen_docs', 'recordable'), n('merge_all', 'merge_all', 'pure'),
+      n('begin_test', 'begin_test', 'pure'), n('test_setup', 'test_setup', 'pure'),
+      n('unit_core', 'unit_core', 'pure'), n('lint', 'lint', 'pure'),
+      n('format', 'format', 'pure'), n('typecheck', 'typecheck', 'pure'),
+      n('integ_api', 'integ_api', 'side_effecting'), n('integ_db', 'integ_db', 'side_effecting'),
+      n('integ_auth', 'integ_auth', 'side_effecting'),
+      n('all_pass', 'all_pass', 'pure'), n('llm_review', 'llm_review', 'recordable'),
+      n('review', 'review', 'gate'), n('deploy', 'deploy', 'side_effecting'),
+      n('verify', 'verify', 'side_effecting'), n('notify', 'notify', 'side_effecting'),
+      n('log_run', 'log', 'side_effecting')
+    ],
+    edges: [
+      ['parse', 'analyze'], ['analyze', 'decompose'],
+      ['decompose', 'plan_impl'], ['decompose', 'plan_test'], ['decompose', 'arch_review'],
+      ['arch_review', 'deps'], ['deps', 'arch_plan'], ['plan_test', 'coverage'],
+      ['plan_impl', 'approve'], ['coverage', 'approve'], ['arch_plan', 'approve'],
+      ['approve', 'begin'],
+      ['begin', 'scaffold'], ['begin', 'schema'], ['begin', 'routes'], ['begin', 'layout'],
+      ['begin', 'env_conf'], ['begin', 'migrate'],
+      ['scaffold', 'gen_core'], ['gen_core', 'gen_types'], ['gen_types', 'gen_logic'],
+      ['gen_logic', 'compile'], ['compile', 'link'],
+      ['schema', 'models'], ['models', 'validate'], ['validate', 'serialize'], ['serialize', 'index'],
+      ['routes', 'handlers'], ['handlers', 'middleware'], ['middleware', 'auth'],
+      ['layout', 'components'], ['components', 'pages'], ['pages', 'styles'],
+      ['components', 'forms'], ['components', 'tables'], ['components', 'charts'],
+      ['styles', 'storybook'], ['storybook', 'a11y'], ['a11y', 'ui_bundle'],
+      ['forms', 'storybook'], ['tables', 'storybook'], ['charts', 'storybook'],
+      ['env_conf', 'docker'], ['docker', 'ci_conf'], ['ci_conf', 'secrets'], ['secrets', 'deploy_conf'],
+      ['migrate', 'db_tables'], ['db_tables', 'db_indexes'], ['db_indexes', 'constraints'],
+      ['constraints', 'triggers'], ['triggers', 'db_verify'],
+      ['constraints', 'seed_ref'], ['seed_ref', 'seed_test'], ['seed_test', 'seed_demo'],
+      ['seed_demo', 'db_ready'], ['db_verify', 'db_ready'],
+      ['gen_logic', 'refactor'], ['refactor', 'optimize'], ['optimize', 'link'],
+      ['compile', 'gen_docs'],
+      ['link', 'merge_all'], ['index', 'merge_all'], ['auth', 'merge_all'],
+      ['ui_bundle', 'merge_all'], ['deploy_conf', 'merge_all'], ['db_ready', 'merge_all'],
+      ['gen_docs', 'merge_all'],
+      ['merge_all', 'begin_test'], ['begin_test', 'test_setup'],
+      ['test_setup', 'unit_core'], ['test_setup', 'lint'], ['test_setup', 'integ_api'], ['test_setup', 'integ_db'],
+      ['lint', 'format'], ['format', 'typecheck'],
+      ['unit_core', 'all_pass'], ['typecheck', 'all_pass'], ['integ_api', 'integ_auth'],
+      ['integ_auth', 'all_pass'], ['integ_db', 'all_pass'],
+      ['all_pass', 'llm_review'], ['llm_review', 'review'],
+      ['review', 'deploy'], ['deploy', 'verify'], ['deploy', 'notify'], ['notify', 'log_run']
+    ]
+  }; }
+};
+
+// --- app ---
+function render() {
+  var latticeName = document.getElementById('latticeSelect').value;
+  var themeName = document.getElementById('themeSelect').value;
+  var edgeStyle = document.getElementById('edgeStyleSelect').value;
+  var diagonalLabels = document.getElementById('diagonalLabels').checked;
+  var labelAngle = parseInt(document.getElementById('labelAngle').value, 10);
+  var labelSize = parseFloat(document.getElementById('labelSizeSlider').value);
+  var scale = parseFloat(document.getElementById('scaleSlider').value);
+  var rankSpacing = parseInt(document.getElementById('rankSpacingSlider').value, 10);
+  var nodeSpacing = parseInt(document.getElementById('nodeSpacingSlider').value, 10);
+
+  document.getElementById('angleControl').classList.toggle('visible', diagonalLabels);
+  document.getElementById('angleValue').textContent = labelAngle + '\u00B0';
+  document.getElementById('labelSizeValue').textContent = labelSize;
+  document.getElementById('scaleValue').textContent = scale;
+  document.getElementById('rankSpacingValue').textContent = rankSpacing;
+  document.getElementById('nodeSpacingValue').textContent = nodeSpacing;
+
+  var resolved = resolveTheme(themeName);
+  var root = document.documentElement;
+  root.style.setProperty('--dm-paper', resolved.paper);
+  root.style.setProperty('--dm-ink', resolved.ink);
+  root.style.setProperty('--dm-muted', resolved.muted);
+  root.style.setProperty('--dm-border', resolved.border);
+
+  var dag = LATTICES[latticeName]();
+  var calloutEl = document.getElementById('callout');
+  if (dag.notes) {
+    calloutEl.innerHTML = dag.notes;
+    calloutEl.style.display = '';
+  } else {
+    calloutEl.innerHTML = '<h3>' + (dag.label || latticeName) + '</h3><p class="dm-subtitle">' + (dag.description || '') + '</p>';
+    calloutEl.style.display = '';
+  }
+
+  var layoutOpts = { theme: themeName, scale: scale, rankSpacing: rankSpacing, nodeSpacing: nodeSpacing, edgeStyle: edgeStyle };
+  var renderOpts = { title: dag.label || latticeName, diagonalLabels: diagonalLabels, labelAngle: labelAngle, labelSize: labelSize, showLegend: true };
+
+  var layout = layoutHasse(dag, layoutOpts);
+  var svg = renderSVG(dag, layout, renderOpts);
+  document.getElementById('mapContainer').innerHTML = svg;
+
+  // Code snippet
+  var lo = {};
+  if (themeName !== 'mono') lo.theme = themeName;
+  if (scale !== 1.5) lo.scale = scale;
+  if (rankSpacing !== 80) lo.rankSpacing = rankSpacing;
+  if (nodeSpacing !== 60) lo.nodeSpacing = nodeSpacing;
+  if (edgeStyle !== 'bezier') lo.edgeStyle = edgeStyle;
+  var ro = {};
+  if (diagonalLabels) ro.diagonalLabels = true;
+  if (diagonalLabels && labelAngle !== 45) ro.labelAngle = labelAngle;
+  if (labelSize !== 7) ro.labelSize = labelSize;
+
+  var loStr = Object.keys(lo).length ? ', ' + JSON.stringify(lo, null, 2) : '';
+  var roStr = Object.keys(ro).length ? ', ' + JSON.stringify(ro, null, 2) : '';
+  var code = 'const layout = layoutHasse(dag' + loStr + ');\nconst svg = renderSVG(dag, layout' + roStr + ');';
+
+  function highlight(src) {
+    return src
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\b(const|let|var)\b/g, '<span style="color:#CF222E">$1</span>')
+      .replace(/\b(layoutHasse|renderSVG)\b/g, '<span style="color:#8250DF">$1</span>')
+      .replace(/\b(dag|layout|svg)\b/g, '<span style="color:#953800">$1</span>')
+      .replace(/"([^"]+)"\s*:/g, '<span style="color:#0550AE">"$1"</span>:')
+      .replace(/:\s*"([^"]+)"/g, ': <span style="color:#0A3069">"$1"</span>')
+      .replace(/:\s*(true|false)/g, ': <span style="color:#CF222E">$1</span>')
+      .replace(/:\s*(\d+\.?\d*)/g, ': <span style="color:#0550AE">$1</span>');
+  }
+  document.getElementById('optionsBlock').innerHTML = highlight(code);
+}
+
+['latticeSelect', 'themeSelect', 'edgeStyleSelect'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', render);
+});
+['diagonalLabels'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', render);
+});
+['labelAngle', 'labelSizeSlider', 'scaleSlider', 'rankSpacingSlider', 'nodeSpacingSlider'].forEach(function(id) {
+  document.getElementById(id).addEventListener('input', render);
+});
+render();
+</script>
+</body>
+</html>

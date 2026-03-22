@@ -55,10 +55,12 @@ export function dominantClass(nodeIds, nodeMap) {
  * @param {number} [options.layerSpacing=38] - px between topological layers
  * @param {number} [options.progressivePower=2.2] - power for progressive curves
  * @param {number} [options.scale=1.5] - scale multiplier for all spatial values
+ * @param {'ltr'|'ttb'} [options.direction='ltr'] - layout direction
  * @returns {object} { positions, routePaths, extraEdges, width, height, routes, ... }
  */
 export function layoutMetro(dag, options = {}) {
   const routing = options.routing || 'bezier';
+  const direction = options.direction || 'ltr';
   const theme = resolveTheme(options.theme);
   const classColor = {
     pure: theme.classes.pure,
@@ -397,6 +399,57 @@ export function layoutMetro(dag, options = {}) {
     const ri = nodeRoute.get(nd.id);
     nodeLane.set(nd.id, ri !== undefined ? routes[ri].lane : 0);
   });
+
+  if (direction === 'ttb') {
+    // Swap X↔Y in all positions
+    for (const [id, pos] of positions) {
+      positions.set(id, { x: pos.y, y: pos.x });
+    }
+
+    // Rewrite SVG path data: swap all coordinate pairs
+    function swapPathCoords(d) {
+      // Tokenize: split on SVG commands, swap each x,y pair
+      return d.replace(/([MLCQ])\s*/gi, '\n$1 ').split('\n').filter(Boolean).map(seg => {
+        const cmd = seg[0];
+        const nums = seg.slice(1).trim().split(/[\s,]+/).map(Number);
+        const swapped = [];
+        for (let i = 0; i < nums.length; i += 2) {
+          swapped.push(nums[i + 1], nums[i]);
+        }
+        return cmd + ' ' + swapped.join(' ');
+      }).join(' ');
+    }
+
+    for (const segments of routePaths) {
+      for (const seg of segments) {
+        seg.d = swapPathCoords(seg.d);
+      }
+    }
+    for (const seg of extraEdges) {
+      seg.d = swapPathCoords(seg.d);
+    }
+
+    return {
+      positions,
+      routePaths,
+      extraEdges,
+      width: height,
+      height: width,
+      maxLayer,
+      routes,
+      nodeLane,
+      nodeRoute,
+      laneSpacing: MAIN_SPACING,
+      layerSpacing,
+      minY,
+      maxY,
+      routeYScreen,
+      trunkYScreen,
+      scale: s,
+      theme,
+      orientation: 'ttb',
+    };
+  }
 
   return {
     positions,

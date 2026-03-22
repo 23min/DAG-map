@@ -4,12 +4,14 @@
 // Public API
 
 import { layoutMetro, C, CLASS_COLOR, dominantClass } from './layout.js';
+import { layoutHasse } from './layout-hasse.js';
 import { renderSVG } from './render.js';
 import { bezierPath } from './route-bezier.js';
 import { angularPath, progressiveCurve } from './route-angular.js';
 import { THEMES, resolveTheme } from './themes.js';
 
 export { layoutMetro, C, CLASS_COLOR, dominantClass };
+export { layoutHasse };
 export { renderSVG };
 export { bezierPath };
 export { angularPath, progressiveCurve };

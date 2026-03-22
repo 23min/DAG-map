@@ -208,5 +208,5 @@ render();
 </body>
 </html>`;
 
-writeFileSync(join(__dirname, 'standalone.html'), html);
-console.log('Built demo/standalone.html');
+writeFileSync(join(__dirname, 'dag-map.html'), html);
+console.log('Built demo/dag-map.html');

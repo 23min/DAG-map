@@ -24,6 +24,7 @@ import { C, CLASS_COLOR } from './layout.js';
  * @param {boolean} [options.showLegend=true] - show legend at bottom
  * @param {object} [options.legendLabels] - custom legend labels per class
  * @param {boolean} [options.cssVars=false] - use CSS var() references instead of inline colors
+ * @param {number} [options.labelSize=5] - label font size multiplier (before scale)
  * @returns {string} SVG markup
  */
 export function renderSVG(dag, layout, options = {}) {
@@ -33,6 +34,7 @@ export function renderSVG(dag, layout, options = {}) {
     labelAngle = 45,
     showLegend = true,
     cssVars = false,
+    labelSize = 5,
   } = options;
 
   const defaultLegendLabels = {
@@ -136,6 +138,7 @@ export function renderSVG(dag, layout, options = {}) {
       svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="0.4"/>\n`;
     }
 
+    const fs = labelSize * s;
     if (diagonalLabels) {
       const tickLen = 6 * s;
       const angle = -labelAngle;
@@ -148,12 +151,18 @@ export function renderSVG(dag, layout, options = {}) {
       const textX = tickEndX + 1 * s;
       const textY = tickEndY - r - 1 * s;
       svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
-      svg += `font-size="${4.5 * s}" fill="${col.ink}" text-anchor="start" opacity="0.55" `;
+      svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="0.55" `;
       svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${nd.label}</text>\n`;
+    } else if (layout.orientation === 'ttb') {
+      // TTB layout: place labels to the right of nodes
+      const labelX = pos.x + r + 4 * s;
+      const labelY = pos.y + fs * 0.35;
+      svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
+      svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${nd.label}</text>\n`;
     } else {
       const labelY = pos.y + r + 8 * s;
       svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-      svg += `font-size="${5 * s}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${nd.label}</text>\n`;
+      svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${nd.label}</text>\n`;
     }
   });
 
