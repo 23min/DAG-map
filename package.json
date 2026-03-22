@@ -9,7 +9,8 @@
   },
   "files": [
     "src/",
-    "dag-map.css"
+    "dag-map.css",
+    "hasse.css"
   ],
   "scripts": {
     "demo": "npx serve . -l 3333"

@@ -6,7 +6,7 @@ DAG visualization as metro maps. Decomposes directed acyclic graphs into routes 
 
 ## Demo
 
-[**Live demo**](https://23min.github.io/DAG-map/demo/standalone.html) — or open `demo/standalone.html` directly in a browser. No server needed. Features:
+[**Metro map demo**](https://23min.github.io/DAG-map/demo/dag-map.html) — or open `demo/dag-map.html` directly in a browser. No server needed. Features:
 - DAG selector (8 sample graphs of varying size and shape)
 - Routing toggle (bezier / angular)
 - Theme selector (6 built-in themes)
@@ -14,12 +14,12 @@ DAG visualization as metro maps. Decomposes directed acyclic graphs into routes 
 - Advanced section with layout parameter sliders
 - Live code snippet showing current options, syntax-highlighted and copyable
 
-For the modular version (`demo/index.html`), serve via HTTP: `npx serve .` from the dag-map directory.
+[**Hasse diagram demo**](https://23min.github.io/DAG-map/demo/hasse.html) — or open `demo/hasse.html` directly. 13 example lattices and DAGs (Boolean lattice, divisibility, set inclusion, face lattice, and more), each with mathematical context. No server needed.
 
 ## Quick start
 
 ```javascript
-import { dag-map } from 'dag-map';
+import { dagMap } from 'dag-map';
 
 const dag = {
   nodes: [
@@ -35,13 +35,13 @@ const dag = {
   ],
 };
 
-const { layout, svg } = dag-map(dag);
+const { layout, svg } = dagMap(dag);
 document.getElementById('container').innerHTML = svg;
 ```
 
 ## API
 
-### `dag-map(dag, options?)` — convenience function
+### `dagMap(dag, options?)` — convenience function
 
 Runs layout + render in one call. Returns `{ layout, svg }`.
 
@@ -54,6 +54,7 @@ import { layoutMetro } from 'dag-map';
 
 const layout = layoutMetro(dag, {
   routing: 'bezier',        // 'bezier' (default) | 'angular'
+  direction: 'ltr',         // 'ltr' (default) | 'ttb' (top-to-bottom)
   theme: 'cream',           // theme name or custom theme object
   scale: 1.5,               // global size multiplier (default: 1.5)
   layerSpacing: 38,         // px between topological layers (before scale)
@@ -120,7 +121,7 @@ The SVG output uses `var(--dm-paper)`, `var(--dm-cls-pure)`, etc. Override them 
 }
 ```
 
-Default values for all CSS variables are provided in `dag-map.css`.
+Default values for all CSS variables are provided in `dag-map.css` (metro layouts) and `hasse.css` (Hasse diagrams). Include the appropriate file for your use case — or both if using both layout engines.
 
 ## Routing styles
 
@@ -146,6 +147,50 @@ The `progressivePower` parameter controls how aggressive the angle progression i
 - `1.0` — uniform angle (no progression, straight diagonal)
 - `2.2` — default, natural-looking curve
 - `3.5` — dramatic, very flat start then steep finish
+
+## Hasse diagrams
+
+`layoutHasse` renders lattices and partial orders using a Sugiyama-style layered layout. Where `layoutMetro` decomposes a DAG into routes (execution paths), `layoutHasse` treats every node as a point in a partial order — suitable for divisibility lattices, set inclusion, face lattices, concept lattices, and similar structures.
+
+```javascript
+import { layoutHasse, renderSVG } from 'dag-map';
+
+const divisibility = {
+  nodes: [
+    { id: '1',  label: '1'  },
+    { id: '2',  label: '2'  },
+    { id: '3',  label: '3'  },
+    { id: '6',  label: '6'  },
+    { id: '12', label: '12' },
+  ],
+  // covering relations: [lesser, greater]
+  edges: [['1','2'], ['1','3'], ['2','6'], ['3','6'], ['6','12']],
+};
+
+const layout = layoutHasse(divisibility, { theme: 'mono' });
+const svg = renderSVG(divisibility, layout);
+document.getElementById('container').innerHTML = svg;
+```
+
+Options:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `theme` | `'mono'` | Theme name or custom theme object. Defaults to mono (clean for academic use). |
+| `scale` | `1.5` | Global size multiplier. |
+| `rankSpacing` | `80` | Vertical distance between layers (before scale). |
+| `nodeSpacing` | `60` | Horizontal distance between nodes (before scale). |
+| `edgeStyle` | `'bezier'` | `'bezier'` or `'straight'`. |
+| `crossingPasses` | `24` | Barycenter sweep iterations for crossing reduction. |
+
+Edges represent covering relations. By convention `[a, b]` means a is covered by b (a ≤ b, a lower in the diagram). See the [Hasse demo](https://23min.github.io/DAG-map/demo/hasse.html) for 13 worked examples.
+
+| | |
+|---|---|
+| ![D(30) — mono](docs/examples/hasse-divisors30-mono.png) | ![D(30) — cream](docs/examples/hasse-divisors30-cream.png) |
+| D(30) mono | D(30) cream |
+| ![Π(4) — blueprint](docs/examples/hasse-partition4-blueprint.png) | ![Π(4) — dark](docs/examples/hasse-partition4-dark.png) |
+| Π(4) blueprint | Π(4) dark |
 
 ## Theming
 
@@ -236,7 +281,8 @@ These control the spatial structure of the graph. All spacing values are in px *
 | Parameter | Default | Effect |
 |-----------|---------|--------|
 | `scale` | `1.5` | Global size multiplier. Affects all spatial values and rendering sizes. |
-| `layerSpacing` | `38` | Horizontal distance between topological layers. Higher = more breathing room. |
+| `direction` | `'ltr'` | Layout direction. `'ltr'` = left-to-right (default). `'ttb'` = top-to-bottom. |
+| `layerSpacing` | `38` | Distance between topological layers (horizontal in LTR, vertical in TTB). |
 | `mainSpacing` | `34` | Vertical distance between depth-1 branch lanes. Higher = routes fan further from trunk. |
 | `subSpacing` | `16` | Vertical distance between sub-branch lanes. Higher = sub-branches spread more. |
 | `maxLanes` | `null` | Maximum lane count. `null` = unlimited. Lower values force a more compact layout. |
@@ -244,8 +290,16 @@ These control the spatial structure of the graph. All spacing values are in px *
 ## Docs
 
 - [DAG Visualization Landscape](docs/research/dag-visualization-landscape.md) — research on layout approaches, scale considerations, dynamic DAGs, and domain precedents
-- `docs/reference-circuit-metro.svg` — hand-drawn reference design
-- `docs/reference-v5-bezier.svg` — bezier routing reference
+
+### Reference design
+
+The reference that defined the visual language — interchange stations, route coloring, and progressive angular curves:
+
+![Reference circuit metro design](docs/research/reference-circuit-metro.svg)
+
+## Contributing
+
+Contributions welcome — bug fixes, layout improvements, new themes, demo examples, and docs. Scope is DAG visualization (metro-map style) and Hasse diagrams. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 

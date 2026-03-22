@@ -1,0 +1,61 @@
+/* =================================================================
+ * hasse.css — Library stylesheet for dag-map Hasse diagrams
+ * =================================================================
+ * The minimal CSS needed to use layoutHasse in your application.
+ * Provides CSS custom properties for theming and base container styles.
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="hasse.css">
+ *   <div class="dm-container" id="my-diagram"></div>
+ *
+ * Override theme via CSS custom properties:
+ *   :root { --dm-paper: #1E1E2E; --dm-ink: #CDD6F4; }
+ *
+ * Or via the JS theme system (takes precedence):
+ *   layoutHasse(dag, { theme: 'dark' });
+ */
+
+/* ── CSS Custom Properties (defaults = cream theme) ── */
+:root {
+  --dm-paper: #F5F0E8;
+  --dm-ink: #2C2C2C;
+  --dm-muted: #8C8680;
+  --dm-border: #D4CFC7;
+  --dm-font: 'IBM Plex Mono', 'Courier New', monospace;
+  --dm-radius: 4px;
+
+  /* Node class colors (used when cssVars: true) */
+  --dm-cls-top:    #C45B4A;  /* ⊤ — maximum element */
+  --dm-cls-type:   #2B8A8E;  /* regular elements */
+  --dm-cls-bottom: #5B7FA8;  /* ⊥ — minimum element */
+}
+
+/* ── Container ── */
+.dm-container {
+  background: var(--dm-paper);
+  font-family: var(--dm-font);
+  color: var(--dm-ink);
+  transition: background 0.2s;
+}
+
+.dm-container svg {
+  display: block;
+}
+
+/* ── Code snippet (optional — for showing generated options) ── */
+.dm-code {
+  margin: 12px 24px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius);
+  font-family: var(--dm-font);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--dm-ink);
+  white-space: pre;
+  overflow-x: auto;
+  cursor: text;
+  user-select: all;
+  -webkit-user-select: all;
+}
