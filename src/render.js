@@ -73,7 +73,7 @@ export function renderSVG(dag, layout, options = {}) {
     cls:    (cls) => theme.classes[cls] || theme.classes.pure,
   };
 
-  const { positions, routePaths, extraEdges, width, height, routes, nodeRoute } = layout;
+  const { positions, routePaths, extraEdges, width, height, routes, nodeRoute, nodeRoutes } = layout;
   const s = layout.scale || 1;
   const nodeMap = new Map(dag.nodes.map(n => [n.id, n]));
   const inDeg = new Map(), outDeg = new Map();
@@ -156,6 +156,13 @@ export function renderSVG(dag, layout, options = {}) {
     const ri = nodeRoute.get(nd.id);
     const depth = (ri !== undefined && routes[ri]) ? routes[ri].depth : 0;
 
+    // Compute route info for this node
+    const nRoutes = nodeRoutes ? nodeRoutes.get(nd.id) : null;
+    const routeCount = nRoutes ? nRoutes.size : 1;
+    const routeClasses = nRoutes
+      ? [...nRoutes].map(idx => routes[idx]?.cls).filter(Boolean)
+      : [];
+
     if (renderNode) {
       const ctx = {
         theme,
@@ -166,6 +173,8 @@ export function renderSVG(dag, layout, options = {}) {
         outDegree: outDeg.get(nd.id),
         color,
         routeIndex: ri,
+        routeCount,
+        routeClasses,
       };
       svg += `<g data-node-id="${nd.id}" data-node-cls="${nd.cls || 'pure'}">`;
       svg += renderNode(nd, pos, ctx);

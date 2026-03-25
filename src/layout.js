@@ -62,12 +62,8 @@ export function layoutMetro(dag, options = {}) {
   const routing = options.routing || 'bezier';
   const direction = options.direction || 'ltr';
   const theme = resolveTheme(options.theme);
-  const classColor = {
-    pure: theme.classes.pure,
-    recordable: theme.classes.recordable,
-    side_effecting: theme.classes.side_effecting,
-    gate: theme.classes.gate,
-  };
+  // Build classColor from all theme classes (not just hardcoded four)
+  const classColor = { ...theme.classes };
   const s = options.scale ?? 1.5;
   const TRUNK_Y = (options.trunkY ?? 160) * s;
   const MAIN_SPACING = (options.mainSpacing ?? 34) * s;
@@ -99,7 +95,10 @@ export function layoutMetro(dag, options = {}) {
   }
   const maxLayer = Math.max(...topo.map(id => layer.get(id)));
 
-  // ── STEP 2: Extract routes via greedy longest-path ──
+  // ── STEP 2: Extract routes ──
+  // Either use consumer-provided routes or auto-discover via greedy longest-path.
+  const lineGap = (options.lineGap ?? 5) * s; // perpendicular gap between parallel lines
+
   function longestPathIn(nodeSet) {
     const dist = new Map(), prev = new Map();
     nodeSet.forEach(id => { dist.set(id, 0); prev.set(id, null); });
@@ -123,45 +122,104 @@ export function layoutMetro(dag, options = {}) {
   const routes = [];
   const assigned = new Set();
   const nodeRoute = new Map();
+  const nodeRoutes = new Map(); // node → Set<routeIdx> (all routes through this node)
+  nodes.forEach(nd => nodeRoutes.set(nd.id, new Set()));
 
-  const trunk = longestPathIn(new Set(topo));
-  routes.push({ nodes: trunk, lane: 0, parentRoute: -1, depth: 0 });
-  trunk.forEach(id => { assigned.add(id); nodeRoute.set(id, 0); });
+  if (options.routes && options.routes.length > 0) {
+    // ── Consumer-provided routes ──
+    // Sort by length descending — longest route becomes trunk
+    const provided = options.routes
+      .map((r, i) => ({ ...r, originalIndex: i }))
+      .sort((a, b) => b.nodes.length - a.nodes.length);
 
-  let safety = 0;
-  while (assigned.size < nodes.length && safety++ < 300) {
-    const unassigned = [];
-    nodes.forEach(nd => { if (!assigned.has(nd.id)) unassigned.push(nd.id); });
-    if (unassigned.length === 0) break;
+    provided.forEach((pr, i) => {
+      // Determine parent route: the earlier route that shares the most nodes
+      let parentRouteIdx = -1;
+      let bestOverlap = 0;
+      const prNodeSet = new Set(pr.nodes);
+      for (let j = 0; j < i; j++) {
+        const overlap = routes[j].nodes.filter(id => prNodeSet.has(id)).length;
+        if (overlap > bestOverlap) { bestOverlap = overlap; parentRouteIdx = j; }
+      }
+      if (i === 0) parentRouteIdx = -1;
+      const depth = parentRouteIdx >= 0 ? routes[parentRouteIdx].depth + 1 : 0;
 
-    const unassignedSet = new Set(unassigned);
-    let bestPath = longestPathIn(unassignedSet);
-    if (bestPath.length === 0) {
-      unassigned.forEach(id => { assigned.add(id); nodeRoute.set(id, 0); });
-      break;
-    }
+      routes.push({
+        nodes: pr.nodes,
+        lane: 0,
+        parentRoute: parentRouteIdx >= 0 ? parentRouteIdx : (i === 0 ? -1 : 0),
+        depth,
+        cls: pr.cls || null,
+        id: pr.id || null,
+      });
 
-    const firstNode = bestPath[0];
-    const assignedParents = parentsOf.get(firstNode).filter(p => assigned.has(p));
-    let parentRouteIdx = 0;
-    if (assignedParents.length > 0) {
-      bestPath.unshift(assignedParents[0]);
-      parentRouteIdx = nodeRoute.get(assignedParents[0]) ?? 0;
-    }
-
-    const lastNode = bestPath[bestPath.length - 1];
-    const assignedChildren = childrenOf.get(lastNode).filter(c => assigned.has(c));
-    if (assignedChildren.length > 0) {
-      bestPath.push(assignedChildren[0]);
-    }
-
-    const ri = routes.length;
-    const parentDepth = routes[parentRouteIdx]?.depth ?? 0;
-    routes.push({ nodes: bestPath, lane: 0, parentRoute: parentRouteIdx, depth: parentDepth + 1 });
-    bestPath.forEach(id => {
-      if (!assigned.has(id)) { assigned.add(id); nodeRoute.set(id, ri); }
+      const ri = routes.length - 1;
+      pr.nodes.forEach(id => {
+        if (!assigned.has(id)) { assigned.add(id); nodeRoute.set(id, ri); }
+        nodeRoutes.get(id)?.add(ri);
+      });
     });
+
+    // Any nodes not in any route get assigned to route 0
+    nodes.forEach(nd => {
+      if (!assigned.has(nd.id)) {
+        assigned.add(nd.id);
+        nodeRoute.set(nd.id, 0);
+      }
+    });
+  } else {
+    // ── Auto-discover routes via greedy longest-path ──
+    const trunk = longestPathIn(new Set(topo));
+    routes.push({ nodes: trunk, lane: 0, parentRoute: -1, depth: 0 });
+    trunk.forEach(id => { assigned.add(id); nodeRoute.set(id, 0); nodeRoutes.get(id)?.add(0); });
+
+    let safety = 0;
+    while (assigned.size < nodes.length && safety++ < 300) {
+      const unassigned = [];
+      nodes.forEach(nd => { if (!assigned.has(nd.id)) unassigned.push(nd.id); });
+      if (unassigned.length === 0) break;
+
+      const unassignedSet = new Set(unassigned);
+      let bestPath = longestPathIn(unassignedSet);
+      if (bestPath.length === 0) {
+        unassigned.forEach(id => { assigned.add(id); nodeRoute.set(id, 0); });
+        break;
+      }
+
+      const firstNode = bestPath[0];
+      const assignedParents = parentsOf.get(firstNode).filter(p => assigned.has(p));
+      let parentRouteIdx = 0;
+      if (assignedParents.length > 0) {
+        bestPath.unshift(assignedParents[0]);
+        parentRouteIdx = nodeRoute.get(assignedParents[0]) ?? 0;
+      }
+
+      const lastNode = bestPath[bestPath.length - 1];
+      const assignedChildren = childrenOf.get(lastNode).filter(c => assigned.has(c));
+      if (assignedChildren.length > 0) {
+        bestPath.push(assignedChildren[0]);
+      }
+
+      const ri = routes.length;
+      const parentDepth = routes[parentRouteIdx]?.depth ?? 0;
+      routes.push({ nodes: bestPath, lane: 0, parentRoute: parentRouteIdx, depth: parentDepth + 1 });
+      bestPath.forEach(id => {
+        if (!assigned.has(id)) { assigned.add(id); nodeRoute.set(id, ri); }
+        nodeRoutes.get(id)?.add(ri);
+      });
+    }
   }
+
+  // ── Build shared segment map for parallel offset rendering ──
+  // segmentRoutes: "A→B" → [routeIdx, ...] (ordered)
+  const segmentRoutes = new Map();
+  routes.forEach((route, ri) => {
+    for (let i = 1; i < route.nodes.length; i++) {
+      const key = `${route.nodes[i - 1]}\u2192${route.nodes[i]}`;
+      if (!segmentRoutes.has(key)) segmentRoutes.set(key, []);
+      segmentRoutes.get(key).push(ri);
+    }
+  });
 
   // ── STEP 3: Y-position assignment with occupancy tracking ──
   const routeChildren = new Map();
@@ -315,14 +373,22 @@ export function layoutMetro(dag, options = {}) {
   // ── STEP 5: Build route paths ──
   const pathFn = routing === 'bezier' ? bezierPath : angularPath;
   const opBoost = theme.lineOpacity ?? 1.0;
+  const hasProvidedRoutes = !!(options.routes && options.routes.length > 0);
 
   const routePaths = routes.map((route, ri) => {
     const pts = route.nodes.map(id => ({ ...positions.get(id), id }));
     const ownNodes = route.nodes.filter(id => nodeRoute.get(id) === ri);
-    const color = classColor[dominantClass(ownNodes, nodeMap)] || classColor.pure;
+
+    // Route color: use route's cls if provided, else dominant class
+    const routeCls = route.cls || dominantClass(ownNodes, nodeMap);
+    const color = classColor[routeCls] || classColor.pure || Object.values(classColor)[0];
 
     let thickness, opacity;
-    if (ri === 0) {
+    if (hasProvidedRoutes) {
+      // With provided routes, all lines are equal weight
+      thickness = 3 * s;
+      opacity = Math.min(0.55 * opBoost, 1);
+    } else if (ri === 0) {
       thickness = 5 * s;
       opacity = Math.min(0.6 * opBoost, 1);
     } else if (ownNodes.length > 5) {
@@ -336,35 +402,56 @@ export function layoutMetro(dag, options = {}) {
       opacity = Math.min(0.28 * opBoost, 1);
     }
 
+    // Precompute per-node offset for this route.
+    // At each node, find all routes passing through it and assign a consistent
+    // slot so the line enters and exits at the same Y-offset.
+    const nodeOffsetY = new Map();
+    for (const id of route.nodes) {
+      const nr = nodeRoutes.get(id);
+      if (nr && nr.size > 1) {
+        const allRoutes = [...nr].sort((a, b) => a - b); // stable order
+        const idx = allRoutes.indexOf(ri);
+        const n = allRoutes.length;
+        nodeOffsetY.set(id, (idx - (n - 1) / 2) * lineGap);
+      } else {
+        nodeOffsetY.set(id, 0);
+      }
+    }
+
     const segments = [];
     for (let i = 1; i < pts.length; i++) {
       const p = pts[i - 1], q = pts[i];
+
+      // Use node-based offsets for continuity through stations
+      const offPy = nodeOffsetY.get(p.id) || 0;
+      const offQy = nodeOffsetY.get(q.id) || 0;
+
+      const px = p.x, py = p.y + offPy;
+      const qx = q.x, qy = q.y + offQy;
+
+      // Segment color: use route color for provided routes, else source node class
       const srcNode = nodeMap.get(p.id);
-      const segColor = classColor[srcNode?.cls] || color;
-      const segDashed = srcNode?.cls === 'gate';
+      const segColor = hasProvidedRoutes ? color : (classColor[srcNode?.cls] || color);
+      const segDashed = srcNode?.cls === 'gate' || route.cls === 'gate';
 
       // Determine reference Y for convergence/divergence detection
       let segRefY;
       if (routing === 'angular') {
-        // R9: Interchange-based direction detection
         const srcIsOwn = nodeRoute.get(p.id) === ri;
         const dstIsOwn = nodeRoute.get(q.id) === ri;
 
         if (!srcIsOwn && dstIsOwn) {
-          // FORK: source is interchange, dest is own node -> DIVERGENCE
-          segRefY = p.y;
+          segRefY = py;
         } else if (srcIsOwn && !dstIsOwn) {
-          // RETURN: source is own node, dest is interchange -> CONVERGENCE
-          segRefY = q.y;
+          segRefY = qy;
         } else {
-          // Both own or both interchange -> use trunk Y as fallback
           segRefY = trunkYScreen;
         }
       } else {
         segRefY = trunkYScreen;
       }
 
-      const d = `M ${p.x} ${p.y} ` + pathFn(p.x, p.y, q.x, q.y, ri, i, segRefY, { progressivePower });
+      const d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower });
       segments.push({ d, color: segColor, thickness, opacity, dashed: segDashed });
     }
     return segments;
@@ -439,6 +526,8 @@ export function layoutMetro(dag, options = {}) {
       routes,
       nodeLane,
       nodeRoute,
+      nodeRoutes,
+      segmentRoutes,
       laneSpacing: MAIN_SPACING,
       layerSpacing,
       minY,
@@ -461,6 +550,8 @@ export function layoutMetro(dag, options = {}) {
     routes,
     nodeLane,
     nodeRoute,
+    nodeRoutes,
+    segmentRoutes,
     laneSpacing: MAIN_SPACING,
     layerSpacing,
     minY,
