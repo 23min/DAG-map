@@ -8,6 +8,7 @@ import { layoutHasse } from './layout-hasse.js';
 import { renderSVG } from './render.js';
 import { bezierPath } from './route-bezier.js';
 import { angularPath, progressiveCurve } from './route-angular.js';
+import { metroPath } from './route-metro.js';
 import { THEMES, resolveTheme } from './themes.js';
 
 export { layoutMetro, C, CLASS_COLOR, dominantClass };
@@ -15,6 +16,7 @@ export { layoutHasse };
 export { renderSVG };
 export { bezierPath };
 export { angularPath, progressiveCurve };
+export { metroPath };
 export { THEMES, resolveTheme };
 
 /**
@@ -22,7 +24,7 @@ export { THEMES, resolveTheme };
  *
  * @param {object} dag - { nodes: [{id, label, cls}], edges: [[from, to]] }
  * @param {object} [options] - combined layout + render options
- * @param {'bezier'|'angular'} [options.routing='angular']
+ * @param {'bezier'|'angular'|'metro'} [options.routing='angular']
  * @param {string|object} [options.theme='cream'] - theme name or custom theme object
  * @param {string} [options.title]
  * @param {boolean} [options.diagonalLabels=false]

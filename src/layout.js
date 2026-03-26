@@ -7,6 +7,7 @@
 
 import { bezierPath } from './route-bezier.js';
 import { angularPath } from './route-angular.js';
+import { metroPath } from './route-metro.js';
 import { resolveTheme } from './themes.js';
 
 // ================================================================
@@ -61,6 +62,7 @@ export function dominantClass(nodeIds, nodeMap) {
 export function layoutMetro(dag, options = {}) {
   const routing = options.routing || 'bezier';
   const direction = options.direction || 'ltr';
+  const isTTB = direction === 'ttb';
   const theme = resolveTheme(options.theme);
   // Build classColor from all theme classes (not just hardcoded four)
   const classColor = { ...theme.classes };
@@ -70,7 +72,9 @@ export function layoutMetro(dag, options = {}) {
   const SUB_SPACING = (options.subSpacing ?? 16) * s;
   const layerSpacing = (options.layerSpacing ?? 38) * s;
   const progressivePower = options.progressivePower ?? 2.2;
+  const cornerRadius = (options.cornerRadius ?? 8) * s;
   const maxLanes = options.maxLanes ?? null;
+  const hasProvidedRoutes = !!(options.routes && options.routes.length > 0);
 
   const { nodes, edges } = dag;
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
@@ -277,8 +281,11 @@ export function layoutMetro(dag, options = {}) {
     const parentY = routeY.get(pi);
     const children = routeChildren.get(pi) || [];
 
-    // Sort: longest routes first
-    children.sort((a, b) => routeOwnLength[b] - routeOwnLength[a]);
+    // With provided routes, keep route order (gives consumer control over above/below).
+    // With auto-discovered routes, sort longest first.
+    if (!hasProvidedRoutes) {
+      children.sort((a, b) => routeOwnLength[b] - routeOwnLength[a]);
+    }
 
     let childAbove = 0, childBelow = 0;
 
@@ -292,10 +299,12 @@ export function layoutMetro(dag, options = {}) {
       // Spacing depends on depth and route length
       const spacing = (depth <= 1 && ownLength > 2) ? MAIN_SPACING : SUB_SPACING;
 
-      // Direction: side_effecting below, recordable above,
-      // pure alternates but prefers above for balance
+      // With provided routes, alternate strictly: first child above, second below, etc.
+      // With auto-discovered routes, use class-based heuristics.
       let preferBelow;
-      if (cls === 'side_effecting') {
+      if (hasProvidedRoutes) {
+        preferBelow = childBelow <= childAbove;
+      } else if (cls === 'side_effecting') {
         preferBelow = true;
       } else if (cls === 'recordable' && depth === 1) {
         preferBelow = false;
@@ -371,9 +380,8 @@ export function layoutMetro(dag, options = {}) {
   const trunkYScreen = topPad + (TRUNK_Y - minY);
 
   // ── STEP 5: Build route paths ──
-  const pathFn = routing === 'bezier' ? bezierPath : angularPath;
+  const pathFn = routing === 'metro' ? metroPath : routing === 'bezier' ? bezierPath : angularPath;
   const opBoost = theme.lineOpacity ?? 1.0;
-  const hasProvidedRoutes = !!(options.routes && options.routes.length > 0);
 
   const routePaths = routes.map((route, ri) => {
     const pts = route.nodes.map(id => ({ ...positions.get(id), id }));
@@ -451,7 +459,7 @@ export function layoutMetro(dag, options = {}) {
         segRefY = trunkYScreen;
       }
 
-      const d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower });
+      const d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
       segments.push({ d, color: segColor, thickness, opacity, dashed: segDashed });
     }
     return segments;
@@ -476,7 +484,7 @@ export function layoutMetro(dag, options = {}) {
     // Extra edges always use trunkScreenY as reference
     const refY = trunkYScreen;
 
-    const d = `M ${p.x} ${p.y} ` + pathFn(p.x, p.y, q.x, q.y, extraIdx, 0, refY, { progressivePower });
+    const d = `M ${p.x} ${p.y} ` + pathFn(p.x, p.y, q.x, q.y, extraIdx, 0, refY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
     extraEdges.push({ d, color, thickness: 1.8 * s, opacity: Math.min(0.22 * opBoost, 1), dashed: srcNode?.cls === 'gate' });
   });
 
