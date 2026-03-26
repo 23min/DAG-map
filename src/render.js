@@ -176,6 +176,7 @@ export function renderSVG(dag, layout, options = {}) {
         routeCount,
         routeClasses,
         orientation: layout.orientation || 'ltr',
+        laneX: layout.laneX || null,
       };
       svg += `<g data-node-id="${nd.id}" data-node-cls="${nd.cls || 'pure'}">`;
       svg += renderNode(nd, pos, ctx);

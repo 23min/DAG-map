@@ -134,10 +134,13 @@ export function layoutLanes(dag, options = {}) {
     if (pos.y > maxY) maxY = pos.y;
   });
 
+  // Also shift lane X positions by the same offset
+  const xShift = -minX + margin.left;
   positions.forEach(pos => {
-    pos.x = pos.x - minX + margin.left;
+    pos.x = pos.x + xShift;
     pos.y = pos.y - minY + margin.top;
   });
+  const shiftedLaneX = routeLaneX.map(x => x + xShift);
 
   const width = (maxX - minX) + margin.left + margin.right;
   const height = (maxY - minY) + margin.top + margin.bottom;
@@ -161,8 +164,11 @@ export function layoutLanes(dag, options = {}) {
     const color = classColor[route.cls] || Object.values(classColor)[0];
     const laneX = routeLaneX[ri];
 
-    // Build waypoints: for each node in the route, use the node's Y
-    // but the route's own lane X. This keeps lines straight in their lane.
+    // Build waypoints using GLOBAL slot positions.
+    // Each route has a fixed slot index (ri). Within a station, dots are placed
+    // at their global slot offset from the station centroid, preserving the
+    // spacing even when some routes are absent. This keeps route X-positions
+    // consistent across stations, minimizing line zigzag.
     const waypoints = route.nodes.map(id => {
       const pos = positions.get(id);
       if (!pos) return null;
@@ -170,16 +176,20 @@ export function layoutLanes(dag, options = {}) {
 
       let wx;
       if (memberRoutes.size <= 1) {
-        // Single-route node — line goes through node center
-        wx = pos.x;
+        // Single-route node: line goes through the route's lane X directly
+        wx = shiftedLaneX[ri];
       } else {
-        // Multi-route node — line passes at its own lane X, adjusted to node center
-        // The line should hit the node position but at its lane offset within the station
-        const routeList = [...memberRoutes].sort((a, b) => a - b);
-        const idx = routeList.indexOf(ri);
-        const n = routeList.length;
-        const stationWidth = (n - 1) * laneSpacing * 0.3; // compact station
-        wx = pos.x + (idx - (n - 1) / 2) * laneSpacing * 0.3;
+        // Multi-route node: dot at route's global slot position
+        // Station centroid is already at the centroid of member routes' lanes.
+        // The dot's X = station centroid + (route's lane - centroid of member lanes)
+        const memberLaneXs = [...memberRoutes].map(mri => shiftedLaneX[mri]);
+        const memberCentroid = memberLaneXs.reduce((a, b) => a + b, 0) / memberLaneXs.length;
+        const dotGap = laneSpacing * 0.35;
+        // Scale from global lane spacing to dot spacing, preserving relative positions
+        const globalSpan = Math.max(...memberLaneXs) - Math.min(...memberLaneXs);
+        const memberSpan = (memberRoutes.size - 1) * dotGap;
+        const scaleFactor = globalSpan > 0 ? memberSpan / globalSpan : 0;
+        wx = pos.x + (shiftedLaneX[ri] - memberCentroid) * scaleFactor;
       }
 
       return { id, x: wx, y: pos.y };
@@ -233,6 +243,7 @@ export function layoutLanes(dag, options = {}) {
     routes,
     nodeRoute,
     nodeRoutes,
+    laneX: shiftedLaneX,
     scale: s,
     theme,
     orientation: 'ttb',
