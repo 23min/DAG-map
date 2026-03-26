@@ -2,7 +2,7 @@
 // FlowTime parallel lines demo — complex order management flow
 // Usage: node flowtime-parallel.mjs > flowtime-parallel.html
 
-import { layoutLanes } from '../src/layout-lanes.js';
+import { layoutProcess } from '../src/layout-process.js';
 import { renderSVG } from '../src/render.js';
 
 const theme = {
@@ -84,68 +84,64 @@ const routes = [
   },
 ];
 
-const LANE_SPACING = 36;
-
-const layout = layoutLanes(dag, {
+const layout = layoutProcess(dag, {
   routes,
   routing: 'metro',
   theme,
   scale: 1.8,
   layerSpacing: 50,
-  laneSpacing: LANE_SPACING,
-  cornerRadius: 4,
+  columnSpacing: 100,
+  dotSpacing: 12,
+  cornerRadius: 5,
   lineThickness: 3,
 });
 
-// Station renderer — globally consistent dot positions (Celonis-style)
+// Station renderer — activity-cluster style (Celonis-inspired)
 function renderStation(node, pos, ctx) {
   const s = ctx.scale;
-  const n = ctx.routeCount;
-  const laneX = ctx.laneX;
   const dotR = 3.2 * s;
-  const dotGap = LANE_SPACING * 0.35 * s;
+  const dSpacing = layout.dotSpacing || 12 * s;
   let svg = '';
 
-  // Get route indices through this node, sorted for consistent ordering
+  // Get route indices through this node
   const routeIndices = [];
   routes.forEach((route, ri) => {
     if (route.nodes.includes(node.id)) routeIndices.push(ri);
   });
+  const n = routeIndices.length;
 
-  if (routeIndices.length > 1 && laneX) {
-    // Compute dot positions matching the layout waypoint logic:
-    // dots preserve global slot ratios within the station
-    const memberLaneXs = routeIndices.map(ri => laneX[ri]);
-    const memberCentroid = memberLaneXs.reduce((a, b) => a + b, 0) / memberLaneXs.length;
-    const globalSpan = Math.max(...memberLaneXs) - Math.min(...memberLaneXs);
-    const memberSpan = (routeIndices.length - 1) * dotGap;
-    const scaleFactor = globalSpan > 0 ? memberSpan / globalSpan : 0;
+  // Compute dot positions (must match layout waypoint logic)
+  const dotPositions = routeIndices.map((ri, i) => {
+    if (n <= 1) return pos.x;
+    return pos.x + (i - (n - 1) / 2) * dSpacing;
+  });
 
-    const dotXs = routeIndices.map(ri => pos.x + (laneX[ri] - memberCentroid) * scaleFactor);
-    const minDotX = Math.min(...dotXs);
-    const maxDotX = Math.max(...dotXs);
-
+  if (n > 1) {
+    const minDotX = Math.min(...dotPositions);
+    const maxDotX = Math.max(...dotPositions);
     const padding = dotR + 2 * s;
     const pillW = (maxDotX - minDotX) + padding * 2;
     const pillH = dotR * 2 + 2.5 * s;
     const r = pillH / 2;
     const pillCX = (minDotX + maxDotX) / 2;
 
+    // Pill background
     svg += `<rect x="${pillCX - pillW / 2}" y="${pos.y - pillH / 2}" width="${pillW}" height="${pillH}" rx="${r}" `;
     svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${1 * s}"/>`;
 
+    // Punched-out dots
     routeIndices.forEach((ri, i) => {
       const col = ctx.theme.classes[routes[ri].cls];
       if (!col) return;
-      svg += `<circle cx="${dotXs[i]}" cy="${pos.y}" r="${dotR}" fill="${col}"/>`;
-      svg += `<circle cx="${dotXs[i]}" cy="${pos.y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"/>`;
+      svg += `<circle cx="${dotPositions[i]}" cy="${pos.y}" r="${dotR}" fill="${col}"/>`;
+      svg += `<circle cx="${dotPositions[i]}" cy="${pos.y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"/>`;
     });
 
+    // Label to the right of pill
     const fs = 3.6 * s;
-    const labelX = pillCX + pillW / 2 + 4 * s;
-    svg += `<text x="${labelX}" y="${pos.y + fs * 0.35}" font-size="${fs}" fill="${ctx.theme.ink}" text-anchor="start" opacity="0.7">${node.label}</text>`;
+    svg += `<text x="${pillCX + pillW / 2 + 4 * s}" y="${pos.y + fs * 0.35}" font-size="${fs}" fill="${ctx.theme.ink}" text-anchor="start" opacity="0.7">${node.label}</text>`;
   } else {
-    // Single-route: dot at node position
+    // Single-route dot
     const routeCls = ctx.routeClasses?.[0];
     const col = routeCls ? ctx.theme.classes[routeCls] : (ctx.color || ctx.theme.ink);
     svg += `<circle cx="${pos.x}" cy="${pos.y}" r="${dotR}" fill="${col}"/>`;
