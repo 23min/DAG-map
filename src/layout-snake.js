@@ -247,49 +247,118 @@ export function layoutSnake(dag, options = {}) {
     return { d, jogY: midY };
   }
 
+  // Check collision for all 3 segments of a V-H-V path
+  function scoreVHV(px, py, qx, qy, jogY, owner) {
+    const t = lineThickness;
+    // Vertical run 1: (px, py) to (px, jogY)
+    const v1 = { x: px - t, y: Math.min(py, jogY), w: t * 2, h: Math.abs(jogY - py), type: 'track', owner };
+    // Horizontal jog: (px, jogY) to (qx, jogY)
+    const hj = { x: Math.min(px, qx) - t, y: jogY - t * 2, w: Math.abs(qx - px) + t * 2, h: t * 4, type: 'track', owner };
+    // Vertical run 2: (qx, jogY) to (qx, qy)
+    const v2 = { x: qx - t, y: Math.min(jogY, qy), w: t * 2, h: Math.abs(qy - jogY), type: 'track', owner };
+
+    return grid.overlapCount(v1, owner) + grid.overlapCount(hj, owner) + grid.overlapCount(v2, owner);
+  }
+
+  // Register all 3 segments of a V-H-V path in the grid
+  function registerVHV(px, py, qx, qy, jogY, owner) {
+    grid.placeLine(px, py, px, jogY, lineThickness, owner);
+    grid.placeLine(px, jogY, qx, jogY, lineThickness, owner);
+    grid.placeLine(qx, jogY, qx, qy, lineThickness, owner);
+  }
+
   // Route a segment with collision avoidance
   function routeSegment(px, py, qx, qy, ri, owner) {
     const r = cornerRadius;
 
-    // Straight vertical — no collision concern
+    // Straight vertical — still check for card collisions
     if (Math.abs(qx - px) < 1) {
-      return `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      const vRect = { x: px - lineThickness, y: Math.min(py, qy), w: lineThickness * 2, h: Math.abs(qy - py), type: 'track', owner };
+      const collisions = grid.overlapCount(vRect, owner);
+
+      if (collisions === 0) {
+        grid.placeLine(px, py, qx, qy, lineThickness, owner);
+        return `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      }
+
+      // Vertical segment hits an obstacle — detour around it
+      // Find which side has more room and route V-H-V with a small horizontal offset
+      const detourDist = 25 * s;
+      const leftX = px - detourDist;
+      const rightX = px + detourDist;
+
+      const leftScore = scoreVHV(px, py, leftX, qy, (py + qy) / 2, owner)
+        + scoreVHV(leftX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, owner);
+      const rightScore = scoreVHV(px, py, rightX, qy, (py + qy) / 2, owner)
+        + scoreVHV(rightX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, owner);
+
+      // Simple detour: go out to the side, then back
+      const detourX = leftScore <= rightScore ? leftX : rightX;
+      const midY1 = py + (qy - py) * 0.3;
+      const midY2 = py + (qy - py) * 0.7;
+
+      const cr = Math.min(r, detourDist / 2, Math.abs(midY1 - py) / 2);
+      if (cr < 1) {
+        grid.placeLine(px, py, qx, qy, lineThickness, owner);
+        return `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      }
+
+      // V-H-V-H-V detour path
+      const sx = Math.sign(detourX - px);
+      const sy = Math.sign(qy - py);
+      let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
+      // Down to midY1
+      d += `L ${px.toFixed(1)} ${(midY1 - sy * cr).toFixed(1)} `;
+      // Elbow out
+      d += `Q ${px.toFixed(1)} ${midY1.toFixed(1)} ${(px + sx * cr).toFixed(1)} ${midY1.toFixed(1)} `;
+      // Across to detourX
+      d += `L ${(detourX - sx * cr).toFixed(1)} ${midY1.toFixed(1)} `;
+      // Elbow down
+      d += `Q ${detourX.toFixed(1)} ${midY1.toFixed(1)} ${detourX.toFixed(1)} ${(midY1 + sy * cr).toFixed(1)} `;
+      // Down to midY2
+      d += `L ${detourX.toFixed(1)} ${(midY2 - sy * cr).toFixed(1)} `;
+      // Elbow back
+      d += `Q ${detourX.toFixed(1)} ${midY2.toFixed(1)} ${(detourX - sx * cr).toFixed(1)} ${midY2.toFixed(1)} `;
+      // Across back to qx
+      d += `L ${(qx + sx * cr).toFixed(1)} ${midY2.toFixed(1)} `;
+      // Elbow down
+      d += `Q ${qx.toFixed(1)} ${midY2.toFixed(1)} ${qx.toFixed(1)} ${(midY2 + sy * cr).toFixed(1)} `;
+      // Down to destination
+      d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+
+      grid.placeLine(px, py, px, midY1, lineThickness, owner);
+      grid.placeLine(px, midY1, detourX, midY1, lineThickness, owner);
+      grid.placeLine(detourX, midY1, detourX, midY2, lineThickness, owner);
+      grid.placeLine(detourX, midY2, qx, midY2, lineThickness, owner);
+      grid.placeLine(qx, midY2, qx, qy, lineThickness, owner);
+      return d;
     }
 
-    // Try multiple midFrac values, pick the first that avoids collisions
+    // Non-straight: try multiple midFrac values, score ALL segments
     const midFracs = [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];
     let bestD = null;
+    let bestMf = 0.5;
     let bestCollisions = Infinity;
 
     for (const mf of midFracs) {
       const { d, jogY } = buildVHV(px, py, qx, qy, mf, r);
-      if (jogY === null) return d; // straight line
+      if (jogY === null) return d;
 
-      // Check collision of the horizontal jog segment
-      const jogRect = {
-        x: Math.min(px, qx) - lineThickness,
-        y: jogY - lineThickness * 2,
-        w: Math.abs(qx - px) + lineThickness * 2,
-        h: lineThickness * 4,
-        type: 'track',
-        owner,
-      };
-
-      const collisions = grid.overlapCount(jogRect, owner);
+      const collisions = scoreVHV(px, py, qx, qy, jogY, owner);
       if (collisions === 0) {
-        // Register the path in the grid
-        grid.placeLine(px, py, px, jogY, lineThickness, owner);
-        grid.placeLine(px, jogY, qx, jogY, lineThickness, owner);
-        grid.placeLine(qx, jogY, qx, qy, lineThickness, owner);
+        registerVHV(px, py, qx, qy, jogY, owner);
         return d;
       }
       if (collisions < bestCollisions) {
         bestCollisions = collisions;
         bestD = d;
+        bestMf = mf;
       }
     }
 
-    // No collision-free option — use the best one
+    // Register the best option even if it has collisions
+    const bestJogY = py + (qy - py) * bestMf;
+    registerVHV(px, py, qx, qy, bestJogY, owner);
     return bestD;
   }
 
