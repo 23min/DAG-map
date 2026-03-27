@@ -144,8 +144,29 @@ export function layoutProcess(dag, options = {}) {
 
   const positions = new Map();
   nodes.forEach(nd => {
-    const pri = nodePrimary.get(nd.id);
-    const x = columnX.get(pri) ?? 0;
+    const memberRoutes = nodeRoutes.get(nd.id);
+    let x;
+    if (memberRoutes.size <= 1) {
+      // Single-route: use primary column
+      const pri = nodePrimary.get(nd.id);
+      x = columnX.get(pri) ?? 0;
+    } else {
+      // Multi-route: centroid of the columns that member routes belong to.
+      // Each route's "column" is determined by which column has that route's nodes.
+      // For simplicity: each route index maps to its own column (if active).
+      // Collect the unique column X values for all routes through this node.
+      const colXs = [];
+      for (const ri of memberRoutes) {
+        const cx = columnX.get(ri);
+        if (cx !== undefined) colXs.push(cx);
+      }
+      if (colXs.length > 0) {
+        const uniqueXs = [...new Set(colXs)];
+        x = uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length;
+      } else {
+        x = columnX.get(nodePrimary.get(nd.id)) ?? 0;
+      }
+    }
     const y = layer.get(nd.id) * layerSpacing;
     positions.set(nd.id, { x, y });
   });
