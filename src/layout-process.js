@@ -177,11 +177,64 @@ export function layoutProcess(dag, options = {}) {
   const nodeRoute = new Map();
   nodes.forEach(nd => nodeRoute.set(nd.id, nodePrimary.get(nd.id)));
 
+  // ── Pre-compute jog assignments for crossing avoidance ──
+  // For each pair of layers, find all routes that bend (dx != 0) and assign
+  // staggered midFrac values so their horizontal jogs don't overlap.
+  // Key: "fromLayer→toLayer", Value: Map<routeIdx, midFrac>
+  const jogAssignments = new Map();
+
+  // First pass: collect all bending segments per layer gap
+  const gapBenders = new Map(); // "layerA→layerB" → [{ri, fromX, toX}]
+  routes.forEach((route, ri) => {
+    for (let i = 1; i < route.nodes.length; i++) {
+      const fromId = route.nodes[i - 1], toId = route.nodes[i];
+      const fromPos = positions.get(fromId), toPos = positions.get(toId);
+      if (!fromPos || !toPos) continue;
+
+      const fromLayer = layer.get(fromId), toLayer = layer.get(toId);
+      const memberFrom = nodeRoutes.get(fromId);
+      const memberTo = nodeRoutes.get(toId);
+
+      // Compute this route's waypoint X at each end
+      let fromX = fromPos.x, toX = toPos.x;
+      if (memberFrom.size > 1) {
+        const ml = [...memberFrom].sort((a, b) => a - b);
+        fromX = fromPos.x + (ri - (ml[0] + ml[ml.length - 1]) / 2) * dotSpacing;
+      }
+      if (memberTo.size > 1) {
+        const ml = [...memberTo].sort((a, b) => a - b);
+        toX = toPos.x + (ri - (ml[0] + ml[ml.length - 1]) / 2) * dotSpacing;
+      }
+
+      const dx = toX - fromX;
+      if (Math.abs(dx) < 1) continue; // straight segment, no bend
+
+      const gapKey = `${fromLayer}\u2192${toLayer}`;
+      if (!gapBenders.has(gapKey)) gapBenders.set(gapKey, []);
+      gapBenders.get(gapKey).push({ ri, fromX, toX, dx });
+    }
+  });
+
+  // Assign staggered midFrac for crossing avoidance.
+  // Sort by destination X: routes ending further LEFT jog EARLIER (higher Y fraction = closer to source).
+  // Routes ending further RIGHT jog LATER (lower Y fraction = closer to destination).
+  // This prevents crossings because left-bound routes clear out of the way first.
+  for (const [gapKey, benders] of gapBenders) {
+    // Sort by toX ascending — leftmost destination gets earliest jog
+    benders.sort((a, b) => a.toX - b.toX);
+    const n = benders.length;
+    const assignment = new Map();
+    benders.forEach((b, i) => {
+      // Spread jogs across 0.2-0.8 range (leaving room at top/bottom for straight runs)
+      const frac = n === 1 ? 0.5 : 0.2 + (i / (n - 1)) * 0.6;
+      assignment.set(b.ri, frac);
+    });
+    jogAssignments.set(gapKey, assignment);
+  }
+
   const routePaths = routes.map((route, ri) => {
     const color = classColor[route.cls] || Object.values(classColor)[0];
 
-    // Waypoints: for each node in this route, the line passes through
-    // the node's position but at this route's dot slot within the station.
     const waypoints = route.nodes.map(id => {
       const pos = positions.get(id);
       if (!pos) return null;
@@ -191,12 +244,14 @@ export function layoutProcess(dag, options = {}) {
       if (memberRoutes.size <= 1) {
         wx = pos.x;
       } else {
-        // Dot position: route's column X relative to node position
-        // This creates the horizontal spread within multi-type stations
+        // Use GLOBAL route index as slot position. This keeps each route's
+        // dot at a consistent X across all stations, eliminating zigzag.
+        // The station centroid is at the midpoint of the min/max global slots.
         const memberList = [...memberRoutes].sort((a, b) => a - b);
-        const idx = memberList.indexOf(ri);
-        const n = memberList.length;
-        wx = pos.x + (idx - (n - 1) / 2) * dotSpacing;
+        const minSlot = memberList[0];
+        const maxSlot = memberList[memberList.length - 1];
+        const slotCenter = (minSlot + maxSlot) / 2;
+        wx = pos.x + (ri - slotCenter) * dotSpacing;
       }
 
       return { id, x: wx, y: pos.y };
@@ -205,8 +260,16 @@ export function layoutProcess(dag, options = {}) {
     const segments = [];
     for (let i = 1; i < waypoints.length; i++) {
       const p = waypoints[i - 1], q = waypoints[i];
+      const fromId = route.nodes[i - 1], toId = route.nodes[i];
+      const fromLayer = layer.get(fromId), toLayer = layer.get(toId);
+      const gapKey = `${fromLayer}\u2192${toLayer}`;
+
+      // Look up staggered jog fraction for crossing avoidance
+      const gapAssign = jogAssignments.get(gapKey);
+      const midFrac = gapAssign?.get(ri) ?? 0.5;
+
       const d = `M ${p.x.toFixed(1)} ${p.y.toFixed(1)} ` +
-        pathFn(p.x, p.y, q.x, q.y, ri, i, 0, { cornerRadius, bendStyle: 'v-first' });
+        pathFn(p.x, p.y, q.x, q.y, ri, i, 0, { cornerRadius, bendStyle: 'v-first', midFrac });
       segments.push({ d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
     }
     return segments;

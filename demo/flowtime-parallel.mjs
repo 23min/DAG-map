@@ -110,10 +110,13 @@ function renderStation(node, pos, ctx) {
   });
   const n = routeIndices.length;
 
-  // Compute dot positions (must match layout waypoint logic)
-  const dotPositions = routeIndices.map((ri, i) => {
+  // Compute dot positions using GLOBAL slot index (must match layout waypoint logic)
+  const dotPositions = routeIndices.map(ri => {
     if (n <= 1) return pos.x;
-    return pos.x + (i - (n - 1) / 2) * dSpacing;
+    const minSlot = routeIndices[0];
+    const maxSlot = routeIndices[routeIndices.length - 1];
+    const slotCenter = (minSlot + maxSlot) / 2;
+    return pos.x + (ri - slotCenter) * dSpacing;
   });
 
   if (n > 1) {

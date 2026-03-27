@@ -42,16 +42,13 @@ export function metroPath(px, py, qx, qy, routeIdx, segIdx, refY, options = {}) 
 
   if (useHFirst) {
     // H-V path: horizontal run → rounded corner → vertical run
-    // Midpoint X: split the horizontal distance
-    const hash = ((routeIdx * 7 + segIdx * 13) % 17) / 17;
-    const midFrac = 0.45 + hash * 0.10; // 45-55% for slight variation
+    const midFrac = options.midFrac ?? (0.45 + (((routeIdx * 7 + segIdx * 13) % 17) / 17) * 0.10);
     const midX = px + dx * midFrac;
 
     return hvPath(px, py, midX, qx, qy, r);
   } else {
     // V-H path: vertical run → rounded corner → horizontal run
-    const hash = ((routeIdx * 7 + segIdx * 13) % 17) / 17;
-    const midFrac = 0.45 + hash * 0.10;
+    const midFrac = options.midFrac ?? (0.45 + (((routeIdx * 7 + segIdx * 13) % 17) / 17) * 0.10);
     const midY = py + dy * midFrac;
 
     return vhPath(px, py, midY, qx, qy, r);
