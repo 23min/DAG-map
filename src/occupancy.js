@@ -27,13 +27,13 @@ export class OccupancyGrid {
   /**
    * Check if a rect can be placed without collision.
    * @param {Rect} rect
-   * @param {string} [ignoreOwner] - ignore items with this owner
+   * @param {string|Set<string>} [ignoreOwner] - ignore items with this owner (string or Set)
    * @returns {boolean}
    */
   canPlace(rect, ignoreOwner) {
     const p = this.padding;
     for (const item of this.items) {
-      if (ignoreOwner && item.owner === ignoreOwner) continue;
+      if (this._ignored(item, ignoreOwner)) continue;
       if (this._overlaps(rect, item, p)) return false;
     }
     return true;
@@ -74,14 +74,14 @@ export class OccupancyGrid {
   /**
    * Count overlaps for a candidate rect (for scoring).
    * @param {Rect} rect
-   * @param {string} [ignoreOwner]
+   * @param {string|Set<string>} [ignoreOwner]
    * @returns {number}
    */
   overlapCount(rect, ignoreOwner) {
     const p = this.padding;
     let count = 0;
     for (const item of this.items) {
-      if (ignoreOwner && item.owner === ignoreOwner) continue;
+      if (this._ignored(item, ignoreOwner)) continue;
       if (this._overlaps(rect, item, p)) count++;
     }
     return count;
@@ -115,6 +115,13 @@ export class OccupancyGrid {
    */
   removeOwner(owner) {
     this.items = this.items.filter(item => item.owner !== owner);
+  }
+
+  /** @private */
+  _ignored(item, ignoreOwner) {
+    if (!ignoreOwner || !item.owner) return false;
+    if (typeof ignoreOwner === 'string') return item.owner === ignoreOwner;
+    return ignoreOwner.has(item.owner);
   }
 
   /**

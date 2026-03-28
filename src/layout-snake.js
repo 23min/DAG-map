@@ -123,6 +123,27 @@ export function layoutSnake(dag, options = {}) {
     positions.set(nd.id, { x, y: layer.get(nd.id) * layerSpacing });
   });
 
+  // ── STEP 4b: Separate same-layer nodes that overlap in X ──
+  const layerNodes = new Map(); // layer → [nodeId]
+  nodes.forEach(nd => {
+    const l = layer.get(nd.id);
+    if (!layerNodes.has(l)) layerNodes.set(l, []);
+    layerNodes.get(l).push(nd.id);
+  });
+  for (const [, ids] of layerNodes) {
+    if (ids.length < 2) continue;
+    // Sort by X, then spread overlapping nodes
+    ids.sort((a, b) => positions.get(a).x - positions.get(b).x);
+    for (let i = 1; i < ids.length; i++) {
+      const prev = positions.get(ids[i - 1]);
+      const curr = positions.get(ids[i]);
+      const minGap = columnSpacing * 0.5; // minimum separation
+      if (curr.x - prev.x < minGap) {
+        curr.x = prev.x + minGap;
+      }
+    }
+  }
+
   // Normalize
   const margin = { top: 50 * s, left: 80 * s, bottom: 40 * s, right: 140 * s };
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -134,7 +155,8 @@ export function layoutSnake(dag, options = {}) {
   positions.forEach(pos => { pos.x += xShift; pos.y = pos.y - minY + margin.top; });
 
   // ── STEP 5: Snake layout — sequential, obstacle-aware ──
-  const grid = new OccupancyGrid(lineThickness);
+  const grid = new OccupancyGrid(2);        // tracks + cards + dots
+  const badgeGrid = new OccupancyGrid(2);   // edge labels only (don't block routes)
 
   // Sort routes: longest first (trunk gets best placement)
   const routeOrder = routes.map((_, ri) => ri)
@@ -147,17 +169,70 @@ export function layoutSnake(dag, options = {}) {
   const cardPlacements = new Map(); // nodeId → { rect, side }
   const placedNodes = new Set();
 
-  // For each route, compute dot X at a given node
+  // For each route at a node, compute the average X of neighboring nodes
+  // in that route (prev + next). Used to order dots so lines don't cross.
+  function neighborX(nodeId, ri) {
+    const route = routes[ri];
+    if (!route) return positions.get(nodeId)?.x ?? 0;
+    const idx = route.nodes.indexOf(nodeId);
+    if (idx < 0) return positions.get(nodeId)?.x ?? 0;
+    let sum = 0, count = 0;
+    if (idx > 0) {
+      const p = positions.get(route.nodes[idx - 1]);
+      if (p) { sum += p.x; count++; }
+    }
+    if (idx < route.nodes.length - 1) {
+      const p = positions.get(route.nodes[idx + 1]);
+      if (p) { sum += p.x; count++; }
+    }
+    return count > 0 ? sum / count : (positions.get(nodeId)?.x ?? 0);
+  }
+
+  // Determine if a node needs dot reordering (convergence node:
+  // 3+ routes arriving from very different directions).
+  const dotOrderCache = new Map();
+  function getDotOrder(nodeId) {
+    if (dotOrderCache.has(nodeId)) return dotOrderCache.get(nodeId);
+    const memberRoutes = nodeRoutes.get(nodeId);
+    if (!memberRoutes || memberRoutes.size <= 1) {
+      const list = memberRoutes ? [...memberRoutes] : [];
+      dotOrderCache.set(nodeId, list);
+      return list;
+    }
+    const globalOrder = [...memberRoutes].sort((a, b) => a - b);
+
+    // Only reorder at nodes with 3+ routes where routes span a full column
+    if (memberRoutes.size >= 3) {
+      const nxValues = [...memberRoutes].map(ri => neighborX(nodeId, ri));
+      const span = Math.max(...nxValues) - Math.min(...nxValues);
+      if (span >= columnSpacing) {
+        const sorted = [...memberRoutes].sort((a, b) => {
+          const diff = neighborX(nodeId, a) - neighborX(nodeId, b);
+          return diff !== 0 ? diff : a - b;
+        });
+        dotOrderCache.set(nodeId, sorted);
+        return sorted;
+      }
+    }
+
+    dotOrderCache.set(nodeId, globalOrder);
+    return globalOrder;
+  }
+
+  // For each route, compute dot X at a given node.
+  // Dense centering keeps shared-station dots compact (no index gaps).
+  // Convergence nodes get neighbor-aware reordering to reduce crossings.
   function dotX(nodeId, ri) {
     const memberRoutes = nodeRoutes.get(nodeId);
     const pos = positions.get(nodeId);
     if (!memberRoutes || !pos) return pos?.x ?? 0;
     if (memberRoutes.size <= 1) return pos.x;
-    const memberList = [...memberRoutes].sort((a, b) => a - b);
-    const minSlot = memberList[0];
-    const maxSlot = memberList[memberList.length - 1];
-    const slotCenter = (minSlot + maxSlot) / 2;
-    return pos.x + (ri - slotCenter) * dotSpacing;
+    const sorted = getDotOrder(nodeId);
+    const localIdx = sorted.indexOf(ri);
+    if (localIdx < 0) return pos.x;
+    const n = sorted.length;
+    const center = (n - 1) / 2;
+    return pos.x + (localIdx - center) * dotSpacing;
   }
 
   // Place a station card, trying multiple positions
@@ -190,15 +265,23 @@ export function layoutSnake(dag, options = {}) {
     const cardH = fsLabel + fsData + cardPadY * 2 + 3 * s;
     const cardGap = 4 * s;
 
-    // Try positions: RIGHT, LEFT, then fallback to RIGHT regardless
+    // Try positions: RIGHT, LEFT, then shifted up/down variants
+    const baseRight = rightmostDot + dotR + cardGap;
+    const baseLeft = leftmostDot - dotR - cardGap - cardW;
+    const yCenter = pos.y - cardH / 2;
+    const yShift = cardH + 4 * s; // shift by full card height + gap
     const candidates = [
-      { side: 'right', x: rightmostDot + dotR + cardGap, y: pos.y - cardH / 2 },
-      { side: 'left',  x: leftmostDot - dotR - cardGap - cardW, y: pos.y - cardH / 2 },
+      { side: 'right', x: baseRight, y: yCenter },
+      { side: 'left',  x: baseLeft,  y: yCenter },
+      { side: 'right', x: baseRight, y: yCenter - yShift },  // right, above
+      { side: 'right', x: baseRight, y: yCenter + yShift },  // right, below
+      { side: 'left',  x: baseLeft,  y: yCenter - yShift },  // left, above
+      { side: 'left',  x: baseLeft,  y: yCenter + yShift },  // left, below
     ];
 
     let placed = false;
     for (const c of candidates) {
-      const rect = { x: c.x, y: c.y, w: cardW, h: cardH, type: 'card', owner: nodeId };
+      const rect = { x: c.x, y: c.y, w: cardW, h: cardH, type: 'card', owner: `card_${nodeId}` };
       if (grid.tryPlace(rect)) {
         cardPlacements.set(nodeId, { rect, side: c.side, cardW, cardH, cardPadX, cardPadY });
         placed = true;
@@ -209,15 +292,10 @@ export function layoutSnake(dag, options = {}) {
     // Fallback: place right regardless of collision (better than nothing)
     if (!placed) {
       const c = candidates[0];
-      const rect = { x: c.x, y: c.y, w: cardW, h: cardH, type: 'card', owner: nodeId };
+      const rect = { x: c.x, y: c.y, w: cardW, h: cardH, type: 'card', owner: `card_${nodeId}` };
       grid.place(rect);
       cardPlacements.set(nodeId, { rect, side: 'right', cardW, cardH, cardPadX, cardPadY });
     }
-
-    // Register dot positions in grid
-    dxs.forEach(dx => {
-      grid.place({ x: dx - dotR, y: pos.y - dotR, w: dotR * 2, h: dotR * 2, type: 'dot', owner: nodeId });
-    });
   }
 
   // Build V-H-V path string with rounded elbows
@@ -248,16 +326,16 @@ export function layoutSnake(dag, options = {}) {
   }
 
   // Check collision for all 3 segments of a V-H-V path
-  function scoreVHV(px, py, qx, qy, jogY, owner) {
+  function scoreVHV(px, py, qx, qy, jogY, ignore) {
     const t = lineThickness;
     // Vertical run 1: (px, py) to (px, jogY)
-    const v1 = { x: px - t, y: Math.min(py, jogY), w: t * 2, h: Math.abs(jogY - py), type: 'track', owner };
+    const v1 = { x: px - t, y: Math.min(py, jogY), w: t * 2, h: Math.abs(jogY - py), type: 'track' };
     // Horizontal jog: (px, jogY) to (qx, jogY)
-    const hj = { x: Math.min(px, qx) - t, y: jogY - t * 2, w: Math.abs(qx - px) + t * 2, h: t * 4, type: 'track', owner };
+    const hj = { x: Math.min(px, qx) - t, y: jogY - t * 2, w: Math.abs(qx - px) + t * 2, h: t * 4, type: 'track' };
     // Vertical run 2: (qx, jogY) to (qx, qy)
-    const v2 = { x: qx - t, y: Math.min(jogY, qy), w: t * 2, h: Math.abs(qy - jogY), type: 'track', owner };
+    const v2 = { x: qx - t, y: Math.min(jogY, qy), w: t * 2, h: Math.abs(qy - jogY), type: 'track' };
 
-    return grid.overlapCount(v1, owner) + grid.overlapCount(hj, owner) + grid.overlapCount(v2, owner);
+    return grid.overlapCount(v1, ignore) + grid.overlapCount(hj, ignore) + grid.overlapCount(v2, ignore);
   }
 
   // Register all 3 segments of a V-H-V path in the grid
@@ -267,32 +345,41 @@ export function layoutSnake(dag, options = {}) {
     grid.placeLine(qx, jogY, qx, qy, lineThickness, owner);
   }
 
-  // Route a segment with collision avoidance
-  function routeSegment(px, py, qx, qy, ri, owner) {
+  // Route a segment with collision avoidance.
+  // Returns { d, jogY } — jogY is the Y of the horizontal jog (null for straight).
+  // ignore: Set of owners to ignore in collision checks (segment + endpoint nodes)
+  function routeSegment(px, py, qx, qy, ri, owner, ignore) {
     const r = cornerRadius;
 
-    // Straight vertical — still check for card collisions
+    // Straight vertical — check for card collisions (excluding endpoint nodes)
     if (Math.abs(qx - px) < 1) {
-      const vRect = { x: px - lineThickness, y: Math.min(py, qy), w: lineThickness * 2, h: Math.abs(qy - py), type: 'track', owner };
-      const collisions = grid.overlapCount(vRect, owner);
+      // Shrink Y by lineThickness at each end to avoid false positives
+      // from adjacent segments that terminate at the same node
+      const yShrink = lineThickness;
+      const checkY = Math.min(py, qy) + yShrink;
+      const checkH = Math.abs(qy - py) - 2 * yShrink;
+      if (checkH <= 0) {
+        grid.placeLine(px, py, qx, qy, lineThickness, owner);
+        return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogY: null };
+      }
+      const vRect = { x: px - lineThickness, y: checkY, w: lineThickness * 2, h: checkH, type: 'track' };
+      const collisions = grid.overlapCount(vRect, ignore);
 
       if (collisions === 0) {
         grid.placeLine(px, py, qx, qy, lineThickness, owner);
-        return `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+        return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogY: null };
       }
 
-      // Vertical segment hits an obstacle — detour around it
-      // Find which side has more room and route V-H-V with a small horizontal offset
-      const detourDist = 25 * s;
+      // Vertical segment hits a real obstacle — detour around it
+      const detourDist = 15 * s;
       const leftX = px - detourDist;
       const rightX = px + detourDist;
 
-      const leftScore = scoreVHV(px, py, leftX, qy, (py + qy) / 2, owner)
-        + scoreVHV(leftX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, owner);
-      const rightScore = scoreVHV(px, py, rightX, qy, (py + qy) / 2, owner)
-        + scoreVHV(rightX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, owner);
+      const leftScore = scoreVHV(px, py, leftX, qy, (py + qy) / 2, ignore)
+        + scoreVHV(leftX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, ignore);
+      const rightScore = scoreVHV(px, py, rightX, qy, (py + qy) / 2, ignore)
+        + scoreVHV(rightX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, ignore);
 
-      // Simple detour: go out to the side, then back
       const detourX = leftScore <= rightScore ? leftX : rightX;
       const midY1 = py + (qy - py) * 0.3;
       const midY2 = py + (qy - py) * 0.7;
@@ -300,30 +387,21 @@ export function layoutSnake(dag, options = {}) {
       const cr = Math.min(r, detourDist / 2, Math.abs(midY1 - py) / 2);
       if (cr < 1) {
         grid.placeLine(px, py, qx, qy, lineThickness, owner);
-        return `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+        return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogY: null };
       }
 
       // V-H-V-H-V detour path
       const sx = Math.sign(detourX - px);
       const sy = Math.sign(qy - py);
       let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
-      // Down to midY1
       d += `L ${px.toFixed(1)} ${(midY1 - sy * cr).toFixed(1)} `;
-      // Elbow out
       d += `Q ${px.toFixed(1)} ${midY1.toFixed(1)} ${(px + sx * cr).toFixed(1)} ${midY1.toFixed(1)} `;
-      // Across to detourX
       d += `L ${(detourX - sx * cr).toFixed(1)} ${midY1.toFixed(1)} `;
-      // Elbow down
       d += `Q ${detourX.toFixed(1)} ${midY1.toFixed(1)} ${detourX.toFixed(1)} ${(midY1 + sy * cr).toFixed(1)} `;
-      // Down to midY2
       d += `L ${detourX.toFixed(1)} ${(midY2 - sy * cr).toFixed(1)} `;
-      // Elbow back
       d += `Q ${detourX.toFixed(1)} ${midY2.toFixed(1)} ${(detourX - sx * cr).toFixed(1)} ${midY2.toFixed(1)} `;
-      // Across back to qx
       d += `L ${(qx + sx * cr).toFixed(1)} ${midY2.toFixed(1)} `;
-      // Elbow down
       d += `Q ${qx.toFixed(1)} ${midY2.toFixed(1)} ${qx.toFixed(1)} ${(midY2 + sy * cr).toFixed(1)} `;
-      // Down to destination
       d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
 
       grid.placeLine(px, py, px, midY1, lineThickness, owner);
@@ -331,23 +409,28 @@ export function layoutSnake(dag, options = {}) {
       grid.placeLine(detourX, midY1, detourX, midY2, lineThickness, owner);
       grid.placeLine(detourX, midY2, qx, midY2, lineThickness, owner);
       grid.placeLine(qx, midY2, qx, qy, lineThickness, owner);
-      return d;
+      return { d, jogY: midY1 };
     }
 
-    // Non-straight: try multiple midFrac values, score ALL segments
-    const midFracs = [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];
+    // Non-straight: try multiple midFrac values, score ALL segments.
+    // For small dx (dot centering shifts), prefer extreme midFrac to push
+    // the elbow close to a node — makes the short horizontal run less visible.
+    const dx = Math.abs(qx - px);
+    const midFracs = dx < 2 * dotSpacing
+      ? [0.85, 0.15, 0.75, 0.25, 0.5, 0.35, 0.65]  // extreme first for small jogs
+      : [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];  // balanced first for big bends
     let bestD = null;
     let bestMf = 0.5;
     let bestCollisions = Infinity;
 
     for (const mf of midFracs) {
       const { d, jogY } = buildVHV(px, py, qx, qy, mf, r);
-      if (jogY === null) return d;
+      if (jogY === null) return { d, jogY: null };
 
-      const collisions = scoreVHV(px, py, qx, qy, jogY, owner);
+      const collisions = scoreVHV(px, py, qx, qy, jogY, ignore);
       if (collisions === 0) {
         registerVHV(px, py, qx, qy, jogY, owner);
-        return d;
+        return { d, jogY };
       }
       if (collisions < bestCollisions) {
         bestCollisions = collisions;
@@ -359,7 +442,7 @@ export function layoutSnake(dag, options = {}) {
     // Register the best option even if it has collisions
     const bestJogY = py + (qy - py) * bestMf;
     registerVHV(px, py, qx, qy, bestJogY, owner);
-    return bestD;
+    return { d: bestD, jogY: bestJogY };
   }
 
   // ── STEP 6: Lay routes sequentially ──
@@ -368,59 +451,76 @@ export function layoutSnake(dag, options = {}) {
   const routePaths = routes.map(() => []);
   const edgeLabelPositions = new Map(); // "from→to" → {x, y, color}
 
+  // Phase A: Register all dots + place ALL cards BEFORE routing.
+  // This ensures routes will avoid all cards.
+  const dotR = 3.2 * s;
+  for (const ri of routeOrder) {
+    for (const nodeId of routes[ri].nodes) {
+      if (!placedNodes.has(nodeId)) {
+        const dxs = [...nodeRoutes.get(nodeId)].map(r => dotX(nodeId, r));
+        dxs.forEach(dx => {
+          const py = positions.get(nodeId)?.y ?? 0;
+          grid.place({ x: dx - dotR, y: py - dotR, w: dotR * 2, h: dotR * 2, type: 'dot', owner: nodeId });
+        });
+        placedNodes.add(nodeId);
+      }
+    }
+  }
+  placedNodes.clear(); // reset for card placement
+  for (const ri of routeOrder) {
+    for (const nodeId of routes[ri].nodes) {
+      placeCard(nodeId, fsLabel, fsData);
+    }
+  }
+
+  // Phase B: Route ALL segments (grid has dots + cards as obstacles)
   for (const ri of routeOrder) {
     const route = routes[ri];
     const color = classColor[route.cls] || Object.values(classColor)[0];
-
-    // a. Place station cards for nodes first encountered on this route
-    for (const nodeId of route.nodes) {
-      placeCard(nodeId, fsLabel, fsData);
-    }
-
-    // b. Route segments
     const waypoints = route.nodes.map(id => {
       const pos = positions.get(id);
       if (!pos) return null;
       return { id, x: dotX(id, ri), y: pos.y };
     }).filter(Boolean);
 
+    const routeOwner = `route${ri}`;
     const segments = [];
     for (let i = 1; i < waypoints.length; i++) {
       const p = waypoints[i - 1], q = waypoints[i];
-      const segOwner = `route${ri}_seg${i}`;
-      const d = routeSegment(p.x, p.y, q.x, q.y, ri, segOwner);
-      segments.push({ d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
+      const ignore = new Set([routeOwner, p.id, q.id]);
+      const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignore);
+      segments.push({ d: result.d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
 
-      // c. Try to place edge label
-      const edgeKey = `${p.id}\u2192${q.id}`;
+      // Try to place edge label — per route, on vertical runs
+      const edgeKey = `${ri}:${p.id}\u2192${q.id}`;
       if (!edgeLabelPositions.has(edgeKey)) {
-        const fromPos = positions.get(p.id);
-        const toPos = positions.get(q.id);
-        if (fromPos && toPos) {
-          const midY = (fromPos.y + toPos.y) / 2;
-          const fs = 2.4 * s;
-          const tw = 28 * s; // approximate max badge width
-          const th = fs + 2.5 * s;
+        const fs = 2.4 * s;
+        const tw = 12 * s;
+        const th = fs + 2.5 * s;
 
-          // Try left of line, then right
-          const candidates = [
-            { x: p.x - tw / 2 - 3 * s, y: midY - th / 2 },
-            { x: p.x + tw / 2 + 3 * s, y: midY - th / 2 },
-          ];
+        const candidates = [];
+        if (result.jogY !== null) {
+          const jy = result.jogY;
+          candidates.push({ x: p.x, y: (p.y + jy) / 2 - th / 2 });
+          candidates.push({ x: q.x, y: (jy + q.y) / 2 - th / 2 });
+          candidates.push({ x: (p.x + q.x) / 2, y: jy - th / 2 });
+        } else {
+          candidates.push({ x: p.x, y: (p.y + q.y) / 2 - th / 2 });
+        }
 
-          for (const c of candidates) {
-            const rect = { x: c.x - tw / 2, y: c.y, w: tw, h: th, type: 'badge', owner: edgeKey };
-            if (grid.tryPlace(rect)) {
-              edgeLabelPositions.set(edgeKey, { x: c.x, y: midY, color });
-              break;
-            }
+        let placed = false;
+        for (const c of candidates) {
+          const labelY = c.y + th / 2;
+          const rect = { x: c.x - tw / 2, y: c.y, w: tw, h: th, type: 'badge', owner: edgeKey };
+          if (badgeGrid.tryPlace(rect)) {
+            edgeLabelPositions.set(edgeKey, { x: c.x, y: labelY, color });
+            placed = true;
+            break;
           }
-
-          // Fallback: place left regardless
-          if (!edgeLabelPositions.has(edgeKey)) {
-            const c = candidates[0];
-            edgeLabelPositions.set(edgeKey, { x: c.x, y: midY, color });
-          }
+        }
+        if (!placed) {
+          const c = candidates[0];
+          edgeLabelPositions.set(edgeKey, { x: c.x, y: c.y + th / 2, color });
         }
       }
     }
@@ -428,20 +528,38 @@ export function layoutSnake(dag, options = {}) {
     routePaths[ri] = segments;
   }
 
-  // ── STEP 7: Extra edges ──
+  // ── STEP 7: Extra edges (DAG edges not covered by any route) ──
   const routeEdgeSet = new Set();
   routes.forEach(route => {
     for (let i = 1; i < route.nodes.length; i++)
       routeEdgeSet.add(`${route.nodes[i - 1]}\u2192${route.nodes[i]}`);
   });
 
+  // For each node, track how many extra-edge slots have been assigned.
+  // Extra dots go to the LEFT of route dots (cards are on the right).
+  const extraSlotCount = new Map();
+  function extraDotX(nodeId) {
+    const pos = positions.get(nodeId);
+    if (!pos) return 0;
+    const memberRoutes = nodeRoutes.get(nodeId);
+    if (!memberRoutes || memberRoutes.size === 0) return pos.x;
+    const leftmost = Math.min(...[...memberRoutes].map(ri => dotX(nodeId, ri)));
+    const slotIdx = extraSlotCount.get(nodeId) || 0;
+    extraSlotCount.set(nodeId, slotIdx + 1);
+    return leftmost - (slotIdx + 1) * dotSpacing;
+  }
+
   const extraEdges = [];
+  const extraDotPositions = new Map(); // "from→to" → {fromX, fromY, toX, toY}
   edges.forEach(([f, t]) => {
     if (routeEdgeSet.has(`${f}\u2192${t}`)) return;
-    const p = positions.get(f), q = positions.get(t);
-    if (!p || !q) return;
-    const d = routeSegment(p.x, p.y, q.x, q.y, 999, `extra_${f}_${t}`);
-    extraEdges.push({ d, color: theme.muted, thickness: 1.5 * s, opacity: 0.3, dashed: true });
+    const pBase = positions.get(f), qBase = positions.get(t);
+    if (!pBase || !qBase) return;
+    const fx = extraDotX(f), tx = extraDotX(t);
+    const extraOwner = `extra_${f}_${t}`;
+    const result = routeSegment(fx, pBase.y, tx, qBase.y, 999, extraOwner, new Set([extraOwner, f, t]));
+    extraEdges.push({ d: result.d, color: theme.muted, thickness: 1.5 * s, opacity: 0.3, dashed: true });
+    extraDotPositions.set(`${f}\u2192${t}`, { fromX: fx, fromY: pBase.y, toX: tx, toY: qBase.y });
   });
 
   const maxLayer = Math.max(...[...layer.values()], 0);
@@ -457,8 +575,10 @@ export function layoutSnake(dag, options = {}) {
     nodeRoutes,
     nodePrimary,
     dotSpacing,
+    dotX,
     cardPlacements,
     edgeLabelPositions,
+    extraDotPositions,
     scale: s,
     theme,
     orientation: 'ttb',

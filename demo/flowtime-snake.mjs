@@ -77,20 +77,37 @@ const routes = [
   },
 ];
 
+// Per-route edge volumes: "routeIndex:from→to" → volume string
 const edgeVolumes = new Map([
-  ['create_order\u2192change_order', '840K'],
-  ['create_order\u2192gen_delivery', '1.32M'],
-  ['change_order\u2192gen_delivery', '229K'],
-  ['gen_delivery\u2192release_delivery', '1.22M'],
-  ['release_delivery\u2192pick_goods', '725K'],
-  ['pick_goods\u2192ship_goods', '672K'],
-  ['ship_goods\u2192create_invoice', '1.29M'],
-  ['ship_goods\u2192receive_confirm', '1.08M'],
-  ['create_invoice\u2192send_invoice', '1.29M'],
-  ['send_invoice\u2192clear_invoice', '883K'],
-  ['receive_confirm\u2192delivery_passed', '1.12M'],
-  ['clear_invoice\u2192record_payment', '562K'],
-  ['delivery_passed\u2192record_payment', '573K'],
+  // Order (route 0, pink)
+  ['0:create_order\u2192change_order', '840K'],
+  ['0:change_order\u2192gen_delivery', '229K'],
+  ['0:gen_delivery\u2192release_delivery', '1.22M'],
+  ['0:release_delivery\u2192pick_goods', '725K'],
+  ['0:pick_goods\u2192ship_goods', '672K'],
+  ['0:ship_goods\u2192create_invoice', '1.29M'],
+  ['0:create_invoice\u2192send_invoice', '1.29M'],
+  ['0:send_invoice\u2192clear_invoice', '883K'],
+  ['0:clear_invoice\u2192record_payment', '562K'],
+  // Delivery (route 1, teal)
+  ['1:create_order\u2192gen_delivery', '1.32M'],
+  ['1:gen_delivery\u2192release_delivery', '1.15M'],
+  ['1:release_delivery\u2192pick_goods', '680K'],
+  ['1:pick_goods\u2192ship_goods', '650K'],
+  ['1:ship_goods\u2192receive_confirm', '1.08M'],
+  ['1:receive_confirm\u2192delivery_passed', '1.12M'],
+  ['1:delivery_passed\u2192record_payment', '573K'],
+  // Invoice (route 2, navy)
+  ['2:ship_goods\u2192create_invoice', '1.18M'],
+  ['2:create_invoice\u2192send_invoice', '1.18M'],
+  ['2:send_invoice\u2192clear_invoice', '820K'],
+  ['2:clear_invoice\u2192record_payment', '510K'],
+  // Shipping (route 3, mint)
+  ['3:release_delivery\u2192pick_goods', '620K'],
+  ['3:pick_goods\u2192ship_goods', '590K'],
+  ['3:ship_goods\u2192receive_confirm', '985K'],
+  // Payment (route 4, amber)
+  ['4:delivery_passed\u2192record_payment', '480K'],
 ]);
 
 const layout = layoutSnake(dag, {
@@ -119,13 +136,7 @@ function renderStation(node, pos, ctx) {
   });
   const n = routeIndices.length;
 
-  const dotPositions = routeIndices.map(ri => {
-    if (n <= 1) return pos.x;
-    const minSlot = routeIndices[0];
-    const maxSlot = routeIndices[routeIndices.length - 1];
-    const slotCenter = (minSlot + maxSlot) / 2;
-    return pos.x + (ri - slotCenter) * dSpacing;
-  });
+  const dotPositions = routeIndices.map(ri => layout.dotX(node.id, ri));
 
   // Punched-out dots ON the line
   routeIndices.forEach((ri, i) => {
@@ -162,10 +173,7 @@ function renderStation(node, pos, ctx) {
   return svg;
 }
 
-// Track rendered edge badges
-const renderedEdgeBadges = new Set();
-
-// Edge renderer — uses layout's obstacle-aware label positions
+// Edge renderer — uses layout's per-route label positions
 function renderEdgeWithLabel(edge, segment, ctx) {
   const s = ctx.scale;
   let svg = '';
@@ -175,15 +183,14 @@ function renderEdgeWithLabel(edge, segment, ctx) {
   if (segment.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
   svg += `/>`;
 
-  if (!ctx.isExtraEdge && edge) {
-    const edgeKey = `${edge.from}\u2192${edge.to}`;
-    const vol = edgeVolumes.get(edgeKey);
+  if (!ctx.isExtraEdge && edge && ctx.routeIndex !== undefined) {
+    const ri = ctx.routeIndex;
+    const routeEdgeKey = `${ri}:${edge.from}\u2192${edge.to}`;
+    const vol = edgeVolumes.get(routeEdgeKey);
 
-    if (vol && !renderedEdgeBadges.has(edgeKey)) {
-      const labelPos = layout.edgeLabelPositions?.get(edgeKey);
+    if (vol) {
+      const labelPos = layout.edgeLabelPositions?.get(routeEdgeKey);
       if (labelPos) {
-        renderedEdgeBadges.add(edgeKey);
-
         const fs = 2.4 * s;
         const tw = vol.length * fs * 0.55 + 3.5 * s;
         const th = fs + 2.5 * s;
