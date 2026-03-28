@@ -306,35 +306,35 @@ export function layoutSnake(dag, options = {}) {
     return sorted;
   }
 
-  // Precompute trunk's stable dot offset: propagate from node to node
-  // so the trunk never zig-zags. Other routes pack around the trunk.
-  const trunkDotOffset = new Map(); // nodeId → trunk's offset from pos.x
+  // Precompute trunk's ABSOLUTE X position: propagate from node to node
+  // so the trunk forms a perfectly straight spine. At single-route nodes
+  // the trunk is at pos.x. Once established, the absolute X propagates
+  // forward regardless of column changes at merge/fork points.
+  const trunkAbsX = new Map(); // nodeId → absolute X for trunk dot
   {
-    let prevOffset = null;
-    let prevBaseX = null;
+    let prevAbsX = null;
     for (const nodeId of routes[trunkRi].nodes) {
       const pos = positions.get(nodeId);
       if (!pos) continue;
       const memberRoutes = nodeRoutes.get(nodeId);
-      if (!memberRoutes || memberRoutes.size <= 1) {
-        trunkDotOffset.set(nodeId, 0);
-        prevOffset = 0;
-        prevBaseX = pos.x;
-        continue;
-      }
-      const sorted = getDotOrder(nodeId);
-      const localIdx = sorted.indexOf(trunkRi);
-      const n = sorted.length;
-      const defaultOffset = (localIdx - (n - 1) / 2) * dotSpacing;
 
-      // Propagate if same column
-      if (prevOffset !== null && prevBaseX !== null && Math.abs(pos.x - prevBaseX) < 1) {
-        trunkDotOffset.set(nodeId, prevOffset);
+      if (!memberRoutes || memberRoutes.size <= 1) {
+        // Single-route node: trunk at node center
+        const absX = pos.x;
+        trunkAbsX.set(nodeId, absX);
+        prevAbsX = absX;
+      } else if (prevAbsX !== null) {
+        // Propagate previous absolute X — trunk stays straight
+        trunkAbsX.set(nodeId, prevAbsX);
       } else {
-        trunkDotOffset.set(nodeId, defaultOffset);
-        prevOffset = defaultOffset;
+        // First multi-route node: compute default position
+        const sorted = getDotOrder(nodeId);
+        const localIdx = sorted.indexOf(trunkRi);
+        const n = sorted.length;
+        const absX = pos.x + (localIdx - (n - 1) / 2) * dotSpacing;
+        trunkAbsX.set(nodeId, absX);
+        prevAbsX = absX;
       }
-      prevBaseX = pos.x;
     }
   }
 
@@ -352,12 +352,11 @@ export function layoutSnake(dag, options = {}) {
       for (const ri of memberRoutes) dotMap.set(ri, pos.x);
     } else {
       const sorted = getDotOrder(nodeId);
-      const trunkOffset = trunkDotOffset.get(nodeId);
-      const hasTrunk = sorted.includes(trunkRi) && trunkOffset !== undefined;
+      const hasTrunk = sorted.includes(trunkRi) && trunkAbsX.has(nodeId);
 
-      if (hasTrunk) {
-        // Anchor: trunk at its fixed position. Pack others evenly around it.
-        const trunkX = pos.x + trunkOffset;
+      const trunkX = trunkAbsX.get(nodeId);
+      if (hasTrunk && trunkX !== undefined) {
+        // Anchor: trunk at its fixed absolute position. Pack others around it.
         const trunkIdx = sorted.indexOf(trunkRi);
         for (let i = 0; i < sorted.length; i++) {
           dotMap.set(sorted[i], trunkX + (i - trunkIdx) * dotSpacing);
