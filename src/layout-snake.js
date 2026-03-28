@@ -188,8 +188,11 @@ export function layoutSnake(dag, options = {}) {
     return count > 0 ? sum / count : (positions.get(nodeId)?.x ?? 0);
   }
 
-  // Determine if a node needs dot reordering (convergence node:
-  // 3+ routes arriving from very different directions).
+  // Trunk-centered dot ordering.
+  // The trunk (longest route = routeOrder[0]) gets the CENTER slot.
+  // Other routes arrange around it by neighbor direction: left-branching
+  // routes to the left, right-branching to the right.
+  const trunkRi = routeOrder[0]; // longest route
   const dotOrderCache = new Map();
   function getDotOrder(nodeId) {
     if (dotOrderCache.has(nodeId)) return dotOrderCache.get(nodeId);
@@ -199,22 +202,39 @@ export function layoutSnake(dag, options = {}) {
       dotOrderCache.set(nodeId, list);
       return list;
     }
-    const globalOrder = [...memberRoutes].sort((a, b) => a - b);
 
-    // Only reorder at nodes with 3+ routes where routes span a full column
-    if (memberRoutes.size >= 3) {
-      const nxValues = [...memberRoutes].map(ri => neighborX(nodeId, ri));
-      const span = Math.max(...nxValues) - Math.min(...nxValues);
-      if (span >= columnSpacing) {
-        const sorted = [...memberRoutes].sort((a, b) => {
-          const diff = neighborX(nodeId, a) - neighborX(nodeId, b);
-          return diff !== 0 ? diff : a - b;
-        });
-        dotOrderCache.set(nodeId, sorted);
-        return sorted;
+    const members = [...memberRoutes];
+    const hasTrunk = members.includes(trunkRi);
+
+    if (hasTrunk && members.length >= 2) {
+      // Sort non-trunk routes by neighbor direction relative to trunk's direction
+      const trunkNx = neighborX(nodeId, trunkRi);
+      const others = members.filter(ri => ri !== trunkRi);
+
+      // Split into left-of-trunk and right-of-trunk by neighbor direction
+      const left = others.filter(ri => neighborX(nodeId, ri) < trunkNx - 1).sort((a, b) => neighborX(nodeId, a) - neighborX(nodeId, b));
+      const right = others.filter(ri => neighborX(nodeId, ri) > trunkNx + 1).sort((a, b) => neighborX(nodeId, a) - neighborX(nodeId, b));
+      const center = others.filter(ri => Math.abs(neighborX(nodeId, ri) - trunkNx) <= 1).sort((a, b) => a - b);
+
+      // Order: left routes, center routes, trunk, right routes
+      // This puts left-branching routes to the left of the trunk
+      const sorted = [...left, ...center, trunkRi, ...right];
+
+      // If no clear directional split, fall back to trunk-in-middle
+      if (left.length === 0 && right.length === 0) {
+        const byIdx = others.sort((a, b) => a - b);
+        const mid = Math.floor(byIdx.length / 2);
+        const fallback = [...byIdx.slice(0, mid), trunkRi, ...byIdx.slice(mid)];
+        dotOrderCache.set(nodeId, fallback);
+        return fallback;
       }
+
+      dotOrderCache.set(nodeId, sorted);
+      return sorted;
     }
 
+    // No trunk at this node — use global index order
+    const globalOrder = members.sort((a, b) => a - b);
     dotOrderCache.set(nodeId, globalOrder);
     return globalOrder;
   }
