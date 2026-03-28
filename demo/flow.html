@@ -1,47 +1,508 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>dag-map flow layout</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dag-map flow layout demo</title>
 <style>
-  body { margin: 0; background: #1E1E2E; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-  svg { max-width: 95vw; max-height: 95vh; }
-</style></head><body><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 522 1192.5" width="522" height="1192.5" font-family="'Inter', 'Segoe UI', system-ui, sans-serif">
-<rect width="522" height="1192.5" fill="#1E1E2E"/>
-<text x="43.2" y="39.6" font-size="18" fill="#CDD6F4" letter-spacing="0.06em" opacity="0.5">Order-to-Cash — Flow Layout</text>
-<text x="43.2" y="61.2" font-size="11.700000000000001" fill="#6C7086">Order (pink) | Delivery (teal) | Invoice (navy) | Shipping (mint) | Payment (amber)</text>
-<path d="M 196.2 90.0 L 196.2 144.0 Q 196.2 153.0 187.2 153.0 L 153.0 153.0 Q 144.0 153.0 144.0 162.0 L 144.0 216.0" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="188.298" y="117.09" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="196.2" y="123.012" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">840K</text>
-<path d="M 144.0 216.0 L 144.0 342.0" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="136.098" y="274.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="144" y="280.512" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">229K</text>
-<path d="M 144.0 342.0 L 144.0 432.0" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="134.91" y="382.59" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="144" y="388.512" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">1.22M</text>
-<path d="M 144.0 432.0 L 144.0 522.0" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="136.098" y="472.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="144" y="478.512" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">725K</text>
-<path d="M 144.0 522.0 L 144.0 612.0" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="136.098" y="562.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="144" y="568.512" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">672K</text>
-<path d="M 144.0 612.0 L 144.0 792.0" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="134.91" y="697.59" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="144" y="703.512" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">1.29M</text>
-<path d="M 144.0 792.0 L 144.0 882.0" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="134.91" y="832.59" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="144" y="838.512" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">1.29M</text>
-<path d="M 144.0 882.0 L 144.0 972.0" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="136.098" y="922.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="144" y="928.512" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">883K</text>
-<path d="M 144.0 972.0 L 144.0 1120.5" stroke="#E06C9F" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="136.098" y="1041.84" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#E06C9F" stroke-width="0.9" opacity="0.9"/><text x="144" y="1047.762" font-size="4.32" fill="#E06C9F" text-anchor="middle" opacity="0.9">562K</text>
-<path d="M 217.8 90.0 L 217.8 169.2 Q 217.8 178.2 208.8 178.2 L 174.6 178.2 Q 165.6 178.2 165.6 187.2 L 165.6 342.0" stroke="#2B9DB5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="208.70999999999998" y="129.69" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#2B9DB5" stroke-width="0.9" opacity="0.9"/><text x="217.79999999999998" y="135.612" font-size="4.32" fill="#2B9DB5" text-anchor="middle" opacity="0.9">1.32M</text>
-<path d="M 165.6 342.0 L 165.6 432.0" stroke="#2B9DB5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="156.51" y="382.59" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#2B9DB5" stroke-width="0.9" opacity="0.9"/><text x="165.6" y="388.512" font-size="4.32" fill="#2B9DB5" text-anchor="middle" opacity="0.9">1.15M</text>
-<path d="M 165.6 432.0 L 165.6 522.0" stroke="#2B9DB5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="157.69799999999998" y="472.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#2B9DB5" stroke-width="0.9" opacity="0.9"/><text x="165.6" y="478.512" font-size="4.32" fill="#2B9DB5" text-anchor="middle" opacity="0.9">680K</text>
-<path d="M 165.6 522.0 L 165.6 612.0" stroke="#2B9DB5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="157.69799999999998" y="562.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#2B9DB5" stroke-width="0.9" opacity="0.9"/><text x="165.6" y="568.512" font-size="4.32" fill="#2B9DB5" text-anchor="middle" opacity="0.9">650K</text>
-<path d="M 165.6 612.0 L 165.6 693.0 Q 165.6 702.0 174.6 702.0 L 250.2 702.0 Q 259.2 702.0 259.2 711.0 L 259.2 792.0" stroke="#2B9DB5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="156.51" y="652.59" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#2B9DB5" stroke-width="0.9" opacity="0.9"/><text x="165.6" y="658.512" font-size="4.32" fill="#2B9DB5" text-anchor="middle" opacity="0.9">1.08M</text>
-<path d="M 259.2 792.0 L 259.2 882.0" stroke="#2B9DB5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="250.10999999999999" y="832.59" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#2B9DB5" stroke-width="0.9" opacity="0.9"/><text x="259.2" y="838.512" font-size="4.32" fill="#2B9DB5" text-anchor="middle" opacity="0.9">1.12M</text>
-<path d="M 259.2 882.0 L 259.2 992.3 Q 259.2 1001.3 250.2 1001.3 L 174.6 1001.3 Q 165.6 1001.3 165.6 1010.3 L 165.6 1120.5" stroke="#2B9DB5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="251.298" y="937.215" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#2B9DB5" stroke-width="0.9" opacity="0.9"/><text x="259.2" y="943.137" font-size="4.32" fill="#2B9DB5" text-anchor="middle" opacity="0.9">573K</text>
-<path d="M 122.4 612.0 L 122.4 792.0" stroke="#3D5BA9" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="113.31" y="697.59" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#3D5BA9" stroke-width="0.9" opacity="0.9"/><text x="122.4" y="703.512" font-size="4.32" fill="#3D5BA9" text-anchor="middle" opacity="0.9">1.18M</text>
-<path d="M 122.4 792.0 L 122.4 882.0" stroke="#3D5BA9" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="113.31" y="832.59" width="18.180000000000003" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#3D5BA9" stroke-width="0.9" opacity="0.9"/><text x="122.4" y="838.512" font-size="4.32" fill="#3D5BA9" text-anchor="middle" opacity="0.9">1.18M</text>
-<path d="M 122.4 882.0 L 122.4 972.0" stroke="#3D5BA9" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="114.498" y="922.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#3D5BA9" stroke-width="0.9" opacity="0.9"/><text x="122.4" y="928.512" font-size="4.32" fill="#3D5BA9" text-anchor="middle" opacity="0.9">820K</text>
-<path d="M 122.4 972.0 L 122.4 1120.5" stroke="#3D5BA9" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="114.498" y="1041.84" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#3D5BA9" stroke-width="0.9" opacity="0.9"/><text x="122.4" y="1047.762" font-size="4.32" fill="#3D5BA9" text-anchor="middle" opacity="0.9">510K</text>
-<path d="M 187.2 432.0 L 187.2 522.0" stroke="#94E2D5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="179.298" y="472.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#94E2D5" stroke-width="0.9" opacity="0.9"/><text x="187.2" y="478.512" font-size="4.32" fill="#94E2D5" text-anchor="middle" opacity="0.9">620K</text>
-<path d="M 187.2 522.0 L 187.2 612.0" stroke="#94E2D5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="179.298" y="562.59" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#94E2D5" stroke-width="0.9" opacity="0.9"/><text x="187.2" y="568.512" font-size="4.32" fill="#94E2D5" text-anchor="middle" opacity="0.9">590K</text>
-<path d="M 187.2 612.0 L 187.2 666.0 Q 187.2 675.0 196.2 675.0 L 271.8 675.0 Q 280.8 675.0 280.8 684.0 L 280.8 792.0" stroke="#94E2D5" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="179.298" y="639.09" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#94E2D5" stroke-width="0.9" opacity="0.9"/><text x="187.2" y="645.012" font-size="4.32" fill="#94E2D5" text-anchor="middle" opacity="0.9">985K</text>
-<path d="M 165.6 972.0 L 165.6 936.0 Q 165.6 927.0 174.6 927.0 L 271.8 927.0 Q 280.8 927.0 280.8 918.0 L 280.8 882.0" stroke="#D4944C" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
-<path d="M 280.8 882.0 L 280.8 1028.0 Q 280.8 1037.0 271.8 1037.0 L 196.2 1037.0 Q 187.2 1037.0 187.2 1046.0 L 187.2 1120.5" stroke="#D4944C" stroke-width="5.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><rect x="272.898" y="955.1025000000001" width="15.804000000000002" height="8.82" rx="2.7" fill="#1E1E2E" stroke="#D4944C" stroke-width="0.9" opacity="0.9"/><text x="280.8" y="961.0245" font-size="4.32" fill="#D4944C" text-anchor="middle" opacity="0.9">480K</text>
-<g data-node-id="create_order" data-node-cls="pure"><circle cx="196.2" cy="90" r="5.760000000000001" fill="#E06C9F"/><circle cx="196.2" cy="90" r="2.016" fill="#1E1E2E"/><circle cx="217.79999999999998" cy="90" r="5.760000000000001" fill="#2B9DB5"/><circle cx="217.79999999999998" cy="90" r="2.016" fill="#1E1E2E"/><rect x="230.75999999999996" y="76.14" width="78.65280000000001" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="239.75999999999996" y="87.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Create Sales Order</text><rect x="239.75999999999996" y="93.96000000000001" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="248.75999999999996" y="93.96000000000001" width="6.3" height="6.3" rx="0.9" fill="#2B9DB5"/><text x="261.36" y="97.48800000000001" font-size="5.04" fill="#6C7086" text-anchor="start">1.32M Times</text></g>
-<g data-node-id="change_order" data-node-cls="pure"><circle cx="144" cy="216" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="216" r="2.016" fill="#1E1E2E"/><rect x="156.95999999999998" y="202.14" width="78.65280000000001" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="165.95999999999998" y="213.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Change Sales Order</text><rect x="165.95999999999998" y="219.96" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><text x="178.55999999999997" y="223.488" font-size="5.04" fill="#6C7086" text-anchor="start">27.7K Times</text></g>
-<g data-node-id="gen_delivery" data-node-cls="pure"><circle cx="144" cy="342" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="342" r="2.016" fill="#1E1E2E"/><circle cx="165.6" cy="342" r="5.760000000000001" fill="#2B9DB5"/><circle cx="165.6" cy="342" r="2.016" fill="#1E1E2E"/><rect x="178.55999999999997" y="328.14" width="75.28320000000001" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="187.55999999999997" y="339.04799999999994" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Generate Delivery</text><rect x="187.55999999999997" y="345.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="196.55999999999997" y="345.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#2B9DB5"/><text x="209.15999999999997" y="349.48799999999994" font-size="5.04" fill="#6C7086" text-anchor="start">1.2M Times</text></g>
-<g data-node-id="release_delivery" data-node-cls="pure"><circle cx="144" cy="432" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="432" r="2.016" fill="#1E1E2E"/><circle cx="165.6" cy="432" r="5.760000000000001" fill="#2B9DB5"/><circle cx="165.6" cy="432" r="2.016" fill="#1E1E2E"/><circle cx="187.2" cy="432" r="5.760000000000001" fill="#94E2D5"/><circle cx="187.2" cy="432" r="2.016" fill="#1E1E2E"/><rect x="200.15999999999997" y="418.14" width="71.9136" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="209.15999999999997" y="429.04799999999994" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Release Delivery</text><rect x="209.15999999999997" y="435.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="218.15999999999997" y="435.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#2B9DB5"/><rect x="227.15999999999997" y="435.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#94E2D5"/><text x="239.75999999999996" y="439.48799999999994" font-size="5.04" fill="#6C7086" text-anchor="start">1.3M Times</text></g>
-<g data-node-id="pick_goods" data-node-cls="pure"><circle cx="144" cy="522" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="522" r="2.016" fill="#1E1E2E"/><circle cx="165.6" cy="522" r="5.760000000000001" fill="#2B9DB5"/><circle cx="165.6" cy="522" r="2.016" fill="#1E1E2E"/><circle cx="187.2" cy="522" r="5.760000000000001" fill="#94E2D5"/><circle cx="187.2" cy="522" r="2.016" fill="#1E1E2E"/><rect x="200.15999999999997" y="508.14" width="63.288000000000004" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="209.15999999999997" y="519.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Pick Goods</text><rect x="209.15999999999997" y="525.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="218.15999999999997" y="525.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#2B9DB5"/><rect x="227.15999999999997" y="525.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#94E2D5"/><text x="239.75999999999996" y="529.4879999999999" font-size="5.04" fill="#6C7086" text-anchor="start">330K Times</text></g>
-<g data-node-id="ship_goods" data-node-cls="pure"><circle cx="144" cy="612" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="612" r="2.016" fill="#1E1E2E"/><circle cx="165.6" cy="612" r="5.760000000000001" fill="#2B9DB5"/><circle cx="165.6" cy="612" r="2.016" fill="#1E1E2E"/><circle cx="122.4" cy="612" r="5.760000000000001" fill="#3D5BA9"/><circle cx="122.4" cy="612" r="2.016" fill="#1E1E2E"/><circle cx="187.2" cy="612" r="5.760000000000001" fill="#94E2D5"/><circle cx="187.2" cy="612" r="2.016" fill="#1E1E2E"/><rect x="200.15999999999997" y="598.14" width="75.06" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="209.15999999999997" y="609.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Ship Goods</text><rect x="209.15999999999997" y="615.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="218.15999999999997" y="615.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#2B9DB5"/><rect x="227.15999999999997" y="615.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#3D5BA9"/><rect x="236.15999999999997" y="615.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#94E2D5"/><text x="248.75999999999996" y="619.4879999999999" font-size="5.04" fill="#6C7086" text-anchor="start">1.29M Times</text></g>
-<g data-node-id="create_invoice" data-node-cls="pure"><circle cx="144" cy="792" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="792" r="2.016" fill="#1E1E2E"/><circle cx="122.4" cy="792" r="5.760000000000001" fill="#3D5BA9"/><circle cx="122.4" cy="792" r="2.016" fill="#1E1E2E"/><rect x="156.95999999999998" y="778.14" width="65.17439999999999" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="165.95999999999998" y="789.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Create Invoice</text><rect x="165.95999999999998" y="795.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="174.95999999999998" y="795.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#3D5BA9"/><text x="187.55999999999997" y="799.4879999999999" font-size="5.04" fill="#6C7086" text-anchor="start">1.29M Times</text></g>
-<g data-node-id="send_invoice" data-node-cls="pure"><circle cx="144" cy="882" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="882" r="2.016" fill="#1E1E2E"/><circle cx="122.4" cy="882" r="5.760000000000001" fill="#3D5BA9"/><circle cx="122.4" cy="882" r="2.016" fill="#1E1E2E"/><rect x="156.95999999999998" y="868.14" width="58.4352" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="165.95999999999998" y="879.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Send Invoice</text><rect x="165.95999999999998" y="885.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="174.95999999999998" y="885.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#3D5BA9"/><text x="187.55999999999997" y="889.4879999999999" font-size="5.04" fill="#6C7086" text-anchor="start">1.29M Times</text></g>
-<g data-node-id="receive_confirm" data-node-cls="pure"><circle cx="259.2" cy="792" r="5.760000000000001" fill="#2B9DB5"/><circle cx="259.2" cy="792" r="2.016" fill="#1E1E2E"/><circle cx="280.8" cy="792" r="5.760000000000001" fill="#94E2D5"/><circle cx="280.8" cy="792" r="2.016" fill="#1E1E2E"/><rect x="293.76" y="778.14" width="85.39200000000001" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="302.76" y="789.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Receive Confirmation</text><rect x="302.76" y="795.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#2B9DB5"/><rect x="311.76" y="795.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#94E2D5"/><text x="324.36" y="799.4879999999999" font-size="5.04" fill="#6C7086" text-anchor="start">1M Times</text></g>
-<g data-node-id="clear_invoice" data-node-cls="pure"><circle cx="144" cy="972" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="972" r="2.016" fill="#1E1E2E"/><circle cx="122.4" cy="972" r="5.760000000000001" fill="#3D5BA9"/><circle cx="122.4" cy="972" r="2.016" fill="#1E1E2E"/><circle cx="165.6" cy="972" r="5.760000000000001" fill="#D4944C"/><circle cx="165.6" cy="972" r="2.016" fill="#1E1E2E"/><rect x="178.55999999999997" y="958.14" width="66.06" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="187.55999999999997" y="969.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Clear Invoice</text><rect x="187.55999999999997" y="975.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="196.55999999999997" y="975.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#3D5BA9"/><rect x="205.55999999999997" y="975.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#D4944C"/><text x="218.15999999999997" y="979.4879999999999" font-size="5.04" fill="#6C7086" text-anchor="start">1.29M Times</text></g>
-<g data-node-id="delivery_passed" data-node-cls="pure"><circle cx="259.2" cy="882" r="5.760000000000001" fill="#2B9DB5"/><circle cx="259.2" cy="882" r="2.016" fill="#1E1E2E"/><circle cx="280.8" cy="882" r="5.760000000000001" fill="#D4944C"/><circle cx="280.8" cy="882" r="2.016" fill="#1E1E2E"/><rect x="293.76" y="868.14" width="85.39200000000001" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="302.76" y="879.048" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Delivery Date Passed</text><rect x="302.76" y="885.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#2B9DB5"/><rect x="311.76" y="885.9599999999999" width="6.3" height="6.3" rx="0.9" fill="#D4944C"/><text x="324.36" y="889.4879999999999" font-size="5.04" fill="#6C7086" text-anchor="start">1.21M Times</text></g>
-<g data-node-id="record_payment" data-node-cls="pure"><circle cx="144" cy="1120.5" r="5.760000000000001" fill="#E06C9F"/><circle cx="144" cy="1120.5" r="2.016" fill="#1E1E2E"/><circle cx="165.6" cy="1120.5" r="5.760000000000001" fill="#2B9DB5"/><circle cx="165.6" cy="1120.5" r="2.016" fill="#1E1E2E"/><circle cx="122.4" cy="1120.5" r="5.760000000000001" fill="#3D5BA9"/><circle cx="122.4" cy="1120.5" r="2.016" fill="#1E1E2E"/><circle cx="187.2" cy="1120.5" r="5.760000000000001" fill="#D4944C"/><circle cx="187.2" cy="1120.5" r="2.016" fill="#1E1E2E"/><rect x="200.15999999999997" y="1106.64" width="72.28800000000001" height="27.72" rx="4.5" fill="#1E1E2E" stroke="#6C7086" stroke-width="1.26"/><text x="209.15999999999997" y="1117.5480000000002" font-size="6.48" fill="#CDD6F4" text-anchor="start" font-weight="500">Record Payment</text><rect x="209.15999999999997" y="1124.4600000000003" width="6.3" height="6.3" rx="0.9" fill="#E06C9F"/><rect x="218.15999999999997" y="1124.4600000000003" width="6.3" height="6.3" rx="0.9" fill="#2B9DB5"/><rect x="227.15999999999997" y="1124.4600000000003" width="6.3" height="6.3" rx="0.9" fill="#3D5BA9"/><rect x="236.15999999999997" y="1124.4600000000003" width="6.3" height="6.3" rx="0.9" fill="#D4944C"/><text x="248.75999999999996" y="1127.9880000000003" font-size="5.04" fill="#6C7086" text-anchor="start">892K Times</text></g>
-</svg></body></html>
+  :root {
+    --dm-paper: #1E1E2E;
+    --dm-ink: #CDD6F4;
+    --dm-muted: #6C7086;
+    --dm-border: #313244;
+    --dm-font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --dm-radius: 4px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--dm-font);
+    background: var(--dm-paper);
+    color: var(--dm-ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Nav bar ── */
+  .dm-nav {
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--dm-border);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  .dm-nav-title {
+    font-weight: 600;
+    color: var(--dm-ink);
+    opacity: 0.8;
+  }
+
+  .dm-nav a {
+    color: var(--dm-muted);
+    text-decoration: none;
+    padding: 2px 8px;
+    border-radius: var(--dm-radius);
+    transition: all 0.15s;
+  }
+
+  .dm-nav a:hover {
+    color: var(--dm-ink);
+    background: var(--dm-border);
+  }
+
+  .dm-nav a.active {
+    color: var(--dm-ink);
+    background: var(--dm-border);
+  }
+
+  /* ── Controls bar ── */
+  .dm-controls {
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--dm-border);
+  }
+
+  .dm-controls label {
+    font-size: 11px;
+    color: var(--dm-muted);
+    letter-spacing: 0.06em;
+  }
+
+  .dm-controls select {
+    font-family: var(--dm-font);
+    font-size: 11px;
+    padding: 4px 8px;
+    border: 1px solid var(--dm-border);
+    background: var(--dm-paper);
+    color: var(--dm-ink);
+    border-radius: var(--dm-radius);
+    cursor: pointer;
+  }
+
+  /* ── Parameter sliders ── */
+  .dm-params {
+    padding: 8px 24px;
+    font-size: 11px;
+    color: var(--dm-muted);
+    border-bottom: 1px solid var(--dm-border);
+  }
+
+  .dm-params summary {
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    padding: 4px 0;
+    font-weight: 500;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .dm-params .dm-grid {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 8px 0;
+    align-items: center;
+  }
+
+  .dm-param {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--dm-muted);
+  }
+
+  .dm-param input[type="range"] {
+    width: 72px;
+    accent-color: #89B4FA;
+  }
+
+  .dm-val {
+    min-width: 28px;
+    font-size: 9px;
+    color: var(--dm-muted);
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── SVG container ── */
+  .dm-canvas {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px;
+    overflow: auto;
+  }
+
+  .dm-canvas svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* ── Status bar ── */
+  .dm-status {
+    padding: 6px 24px;
+    font-size: 9px;
+    color: var(--dm-muted);
+    opacity: 0.6;
+    border-top: 1px solid var(--dm-border);
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<div class="dm-nav">
+  <span class="dm-nav-title">dag-map</span>
+  <a href="dag.html">dag</a>
+  <a href="hasse.html">hasse</a>
+  <a href="flow.html" class="active">flow</a>
+</div>
+
+<!-- Model selector -->
+<div class="dm-controls">
+  <label for="dm-model">MODEL</label>
+  <select id="dm-model"></select>
+</div>
+
+<!-- Parameter sliders -->
+<div class="dm-params">
+  <details open>
+    <summary>PARAMETERS</summary>
+    <div class="dm-grid">
+      <div class="dm-param">
+        <label for="dm-scale">scale</label>
+        <input type="range" id="dm-scale" min="0.5" max="4" step="0.1" value="1.8">
+        <span class="dm-val" id="dm-scale-val">1.8</span>
+      </div>
+      <div class="dm-param">
+        <label for="dm-layerSpacing">layerSpacing</label>
+        <input type="range" id="dm-layerSpacing" min="20" max="120" step="5" value="50">
+        <span class="dm-val" id="dm-layerSpacing-val">50</span>
+      </div>
+      <div class="dm-param">
+        <label for="dm-columnSpacing">columnSpacing</label>
+        <input type="range" id="dm-columnSpacing" min="30" max="160" step="5" value="70">
+        <span class="dm-val" id="dm-columnSpacing-val">70</span>
+      </div>
+      <div class="dm-param">
+        <label for="dm-dotSpacing">dotSpacing</label>
+        <input type="range" id="dm-dotSpacing" min="4" max="30" step="1" value="12">
+        <span class="dm-val" id="dm-dotSpacing-val">12</span>
+      </div>
+      <div class="dm-param">
+        <label for="dm-cornerRadius">cornerRadius</label>
+        <input type="range" id="dm-cornerRadius" min="0" max="20" step="1" value="5">
+        <span class="dm-val" id="dm-cornerRadius-val">5</span>
+      </div>
+      <div class="dm-param">
+        <label for="dm-lineThickness">lineThickness</label>
+        <input type="range" id="dm-lineThickness" min="1" max="8" step="0.5" value="3">
+        <span class="dm-val" id="dm-lineThickness-val">3</span>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- SVG output -->
+<div class="dm-canvas" id="dm-canvas"></div>
+
+<!-- Status -->
+<div class="dm-status" id="dm-status">Ready</div>
+
+<script type="module">
+import { layoutFlow } from '../src/layout-flow.js';
+import { renderSVG } from '../src/render.js';
+import { createStationRenderer, createEdgeRenderer } from '../src/render-flow-station.js';
+
+// ================================================================
+// Inline model data (extracted from test/models.js)
+// ================================================================
+
+const palette = {
+  paper: '#1E1E2E', ink: '#CDD6F4', muted: '#6C7086', border: '#313244',
+  classes: {
+    a: '#E06C9F', b: '#2B9DB5', c: '#3D5BA9', d: '#94E2D5', e: '#D4944C',
+    f: '#A6E3A1', g: '#CBA6F7', h: '#F38BA8', i: '#89B4FA', j: '#FAB387',
+  },
+};
+
+function m(id, label, subtitle, nodes, edges, routes, opts = {}) {
+  return {
+    id,
+    label,
+    subtitle,
+    dag: {
+      nodes: nodes.map(n => ({ id: n[0], label: n[1], count: n[2] || '' })),
+      edges,
+    },
+    routes: routes.map(r => ({ id: r.id, cls: r.cls, nodes: r.nodes })),
+    theme: {
+      ...palette,
+      classes: Object.fromEntries(routes.map(r => [r.cls, palette.classes[r.cls]])),
+    },
+    opts: {
+      scale: 1.8,
+      layerSpacing: 50,
+      columnSpacing: 70,
+      dotSpacing: 12,
+      cornerRadius: 5,
+      lineThickness: 3,
+      ...opts,
+    },
+  };
+}
+
+const models = [
+
+  // ── O2C Full (5 classes, 12 nodes) ──
+  m('o2c_full', 'Order-to-Cash', 'Order | Delivery | Invoice | Shipping | Payment', [
+    ['create_order', 'Create Sales Order', '1.32M'],
+    ['change_order', 'Change Sales Order', '253K'],
+    ['gen_delivery', 'Generate Delivery', '1.22M'],
+    ['release_delivery', 'Release Delivery', '1.3M'],
+    ['pick_goods', 'Pick Goods', '330K'],
+    ['ship_goods', 'Ship Goods', '1.29M'],
+    ['create_invoice', 'Create Invoice', '1.29M'],
+    ['send_invoice', 'Send Invoice', '1.29M'],
+    ['receive_confirm', 'Receive Confirmation', '1.29M'],
+    ['clear_invoice', 'Clear Invoice', '1.29M'],
+    ['delivery_passed', 'Delivery Date Passed', '1.21M'],
+    ['record_payment', 'Record Payment', '892K'],
+  ], [
+    ['create_order','change_order'],['create_order','gen_delivery'],['change_order','gen_delivery'],
+    ['gen_delivery','release_delivery'],['release_delivery','pick_goods'],['pick_goods','ship_goods'],
+    ['ship_goods','create_invoice'],['ship_goods','receive_confirm'],['create_invoice','send_invoice'],
+    ['send_invoice','clear_invoice'],['receive_confirm','delivery_passed'],
+    ['clear_invoice','record_payment'],['delivery_passed','record_payment'],
+  ], [
+    { id: 'order', cls: 'a', nodes: ['create_order','change_order','gen_delivery','release_delivery','pick_goods','ship_goods','create_invoice','send_invoice','clear_invoice','record_payment'] },
+    { id: 'delivery', cls: 'b', nodes: ['create_order','gen_delivery','release_delivery','pick_goods','ship_goods','receive_confirm','delivery_passed','record_payment'] },
+    { id: 'invoice', cls: 'c', nodes: ['ship_goods','create_invoice','send_invoice','clear_invoice','record_payment'] },
+    { id: 'shipping', cls: 'd', nodes: ['release_delivery','pick_goods','ship_goods','receive_confirm'] },
+    { id: 'payment', cls: 'e', nodes: ['clear_invoice','record_payment'] },
+  ]),
+
+  // ── Healthcare (5 classes, 9 nodes) ──
+  m('healthcare', 'Healthcare Patient Flow', 'Patient | Doctor | Lab | Radiology | Nursing', [
+    ['register', 'Register Patient'],
+    ['triage', 'Triage'],
+    ['consult', 'Doctor Consult'],
+    ['lab', 'Lab Tests'],
+    ['imaging', 'Imaging'],
+    ['diagnose', 'Diagnosis'],
+    ['treat', 'Treatment'],
+    ['discharge', 'Discharge'],
+    ['followup', 'Follow-up'],
+  ], [
+    ['register','triage'],['triage','consult'],['consult','lab'],['consult','imaging'],
+    ['lab','diagnose'],['imaging','diagnose'],['diagnose','treat'],['treat','discharge'],
+    ['discharge','followup'],
+  ], [
+    { id: 'patient', cls: 'a', nodes: ['register','triage','consult','lab','diagnose','treat','discharge','followup'] },
+    { id: 'doctor', cls: 'b', nodes: ['triage','consult','lab','diagnose','treat'] },
+    { id: 'lab_tech', cls: 'c', nodes: ['lab','diagnose'] },
+    { id: 'radiology', cls: 'd', nodes: ['imaging','diagnose'] },
+    { id: 'nursing', cls: 'e', nodes: ['treat','discharge'] },
+  ]),
+
+  // ── Event Planning (5 classes, 9 nodes) ──
+  m('event_planning', 'Event Planning', 'Organizer | Marketing | Venue | Speaker | Attendee', [
+    ['concept', 'Event Concept'],
+    ['budget', 'Budget'],
+    ['venue', 'Book Venue'],
+    ['speakers', 'Book Speakers'],
+    ['promo', 'Promote'],
+    ['tickets', 'Ticket Sales'],
+    ['setup', 'Setup'],
+    ['event', 'Event Day'],
+    ['feedback', 'Feedback'],
+  ], [
+    ['concept','budget'],['budget','venue'],['budget','speakers'],['venue','promo'],
+    ['speakers','promo'],['promo','tickets'],['tickets','setup'],['setup','event'],
+    ['event','feedback'],
+  ], [
+    { id: 'organizer', cls: 'a', nodes: ['concept','budget','venue','promo','tickets','setup','event'] },
+    { id: 'marketing', cls: 'b', nodes: ['promo','tickets'] },
+    { id: 'venue_mgr', cls: 'c', nodes: ['venue','promo','tickets','setup'] },
+    { id: 'speaker', cls: 'd', nodes: ['speakers','promo','tickets','setup','event'] },
+    { id: 'attendee', cls: 'e', nodes: ['tickets','setup','event','feedback'] },
+  ]),
+
+  // ── Procurement (3 classes, 6 nodes) ──
+  m('procurement', 'Procurement', 'Purchasing | Warehouse | Finance', [
+    ['req', 'Create Requisition', '45K'],
+    ['approve', 'Approve', '42K'],
+    ['po', 'Create PO', '40K'],
+    ['receive', 'Receive Goods', '38K'],
+    ['invoice', 'Match Invoice', '37K'],
+    ['pay', 'Payment', '36K'],
+  ], [
+    ['req','approve'],['approve','po'],['po','receive'],['receive','invoice'],['invoice','pay'],
+  ], [
+    { id: 'purchasing', cls: 'a', nodes: ['req','approve','po','receive'] },
+    { id: 'warehouse', cls: 'b', nodes: ['receive','invoice'] },
+    { id: 'finance', cls: 'c', nodes: ['invoice','pay'] },
+  ]),
+
+  // ── Movie Production (6 classes, 9 nodes) ──
+  m('movie_production', 'Movie Production', 'Writer | Director | Producer | VFX | Composer | Distributor', [
+    ['script', 'Script'],
+    ['cast', 'Casting'],
+    ['location', 'Location Scout'],
+    ['film', 'Principal Photography'],
+    ['vfx', 'VFX'],
+    ['edit', 'Editing'],
+    ['score', 'Score Music'],
+    ['market', 'Marketing'],
+    ['release', 'Release'],
+  ], [
+    ['script','cast'],['script','location'],['cast','film'],['location','film'],
+    ['film','vfx'],['film','edit'],['vfx','edit'],['edit','score'],
+    ['score','market'],['market','release'],
+  ], [
+    { id: 'writer', cls: 'a', nodes: ['script'] },
+    { id: 'director', cls: 'b', nodes: ['script','cast','film','edit'] },
+    { id: 'producer', cls: 'c', nodes: ['cast','film','edit','score','market','release'] },
+    { id: 'vfx_studio', cls: 'd', nodes: ['vfx','edit'] },
+    { id: 'composer', cls: 'e', nodes: ['score'] },
+    { id: 'distributor', cls: 'f', nodes: ['market','release'] },
+  ]),
+
+  // ── Insurance Claim (4 classes, 6 nodes) ──
+  m('insurance_claim', 'Insurance Claim', 'Claimant | Adjuster | Reject | Repair', [
+    ['report', 'Report Claim', '150K'],
+    ['assess', 'Assess Damage', '145K'],
+    ['approve', 'Approve Claim', '130K'],
+    ['reject', 'Reject Claim', '20K'],
+    ['repair', 'Arrange Repair', '110K'],
+    ['pay', 'Pay Out', '125K'],
+  ], [
+    ['report','assess'],['assess','approve'],['assess','reject'],
+    ['approve','repair'],['approve','pay'],['repair','pay'],
+  ], [
+    { id: 'claimant', cls: 'a', nodes: ['report','assess','approve','pay'] },
+    { id: 'adjuster', cls: 'b', nodes: ['report','assess','approve'] },
+    { id: 'reject_flow', cls: 'c', nodes: ['assess','reject'] },
+    { id: 'repair', cls: 'd', nodes: ['approve','repair','pay'] },
+  ]),
+
+];
+
+// ================================================================
+// UI wiring
+// ================================================================
+
+const $model = document.getElementById('dm-model');
+const $canvas = document.getElementById('dm-canvas');
+const $status = document.getElementById('dm-status');
+
+const paramIds = ['scale', 'layerSpacing', 'columnSpacing', 'dotSpacing', 'cornerRadius', 'lineThickness'];
+const $params = {};
+const $vals = {};
+paramIds.forEach(id => {
+  $params[id] = document.getElementById(`dm-${id}`);
+  $vals[id] = document.getElementById(`dm-${id}-val`);
+});
+
+// Populate model selector
+models.forEach((m, i) => {
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = `${m.label} (${m.dag.nodes.length} nodes, ${m.routes.length} routes)`;
+  $model.appendChild(opt);
+});
+
+function getParams() {
+  return {
+    scale: parseFloat($params.scale.value),
+    layerSpacing: parseFloat($params.layerSpacing.value),
+    columnSpacing: parseFloat($params.columnSpacing.value),
+    dotSpacing: parseFloat($params.dotSpacing.value),
+    cornerRadius: parseFloat($params.cornerRadius.value),
+    lineThickness: parseFloat($params.lineThickness.value),
+  };
+}
+
+function render() {
+  const t0 = performance.now();
+  const idx = parseInt($model.value, 10);
+  const model = models[idx];
+  const params = getParams();
+
+  // Update value displays
+  paramIds.forEach(id => {
+    $vals[id].textContent = $params[id].value;
+  });
+
+  try {
+    const layout = layoutFlow(model.dag, {
+      routes: model.routes,
+      theme: model.theme,
+      scale: params.scale,
+      layerSpacing: params.layerSpacing,
+      columnSpacing: params.columnSpacing,
+      dotSpacing: params.dotSpacing,
+      cornerRadius: params.cornerRadius,
+      lineThickness: params.lineThickness,
+    });
+
+    const renderNode = createStationRenderer(layout, model.routes);
+    const renderEdge = createEdgeRenderer(layout);
+
+    const svg = renderSVG(model.dag, layout, {
+      title: model.label,
+      subtitle: model.subtitle || '',
+      font: "'Inter', 'Segoe UI', system-ui, sans-serif",
+      showLegend: false,
+      renderNode,
+      renderEdge,
+    });
+
+    $canvas.innerHTML = svg;
+    const ms = (performance.now() - t0).toFixed(1);
+    $status.textContent = `${model.label} | ${model.dag.nodes.length} nodes, ${model.dag.edges.length} edges, ${model.routes.length} routes | rendered in ${ms}ms`;
+  } catch (err) {
+    $canvas.innerHTML = `<pre style="color:#F38BA8;padding:24px;font-size:12px;">${err.message}\n${err.stack}</pre>`;
+    $status.textContent = `Error: ${err.message}`;
+    console.error(err);
+  }
+}
+
+// Apply model defaults when switching models
+function onModelChange() {
+  const idx = parseInt($model.value, 10);
+  const model = models[idx];
+  const defaults = model.opts;
+
+  paramIds.forEach(id => {
+    if (defaults[id] !== undefined) {
+      $params[id].value = defaults[id];
+      $vals[id].textContent = defaults[id];
+    }
+  });
+
+  render();
+}
+
+// Event listeners
+$model.addEventListener('change', onModelChange);
+paramIds.forEach(id => {
+  $params[id].addEventListener('input', render);
+});
+
+// Initial render
+onModelChange();
+</script>
+</body>
+</html>
