@@ -145,7 +145,80 @@ export function layoutSnake(dag, options = {}) {
   const columnX = new Map();
   activeColumns.forEach((col, ci) => columnX.set(col.ri, (ci - (nCols - 1) / 2) * columnSpacing));
 
-  // 3c. Compute raw positions (centroid-based)
+  // 3c. Adaptive layer spacing — detect congested gaps, give them more room
+  const maxLayer = Math.max(...[...layer.values()], 0);
+  const layerY = new Array(maxLayer + 1);
+  {
+    // For each gap between layer L and L+1, count complexity:
+    // - routes that pass through (have nodes in both layers or straddle)
+    // - routes that bend (different column at source vs dest)
+    // - nodes that merge (multiple parents) or fork (multiple children)
+    const layerNodeIds = new Map(); // layer → [nodeId]
+    nodes.forEach(nd => {
+      const l = layer.get(nd.id);
+      if (!layerNodeIds.has(l)) layerNodeIds.set(l, []);
+      layerNodeIds.get(l).push(nd.id);
+    });
+
+    // Compute raw X per node for congestion analysis (before positions exist)
+    const rawX = new Map();
+    nodes.forEach(nd => {
+      const memberRoutes = nodeRoutes.get(nd.id);
+      let x;
+      if (memberRoutes.size <= 1) {
+        x = columnX.get(nodePrimary.get(nd.id)) ?? 0;
+      } else {
+        const colXs = [...memberRoutes].map(ri => columnX.get(ri)).filter(v => v !== undefined);
+        const uniqueXs = [...new Set(colXs)];
+        x = uniqueXs.length > 0 ? uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length : 0;
+      }
+      rawX.set(nd.id, x);
+    });
+
+    layerY[0] = 0;
+    for (let l = 0; l < maxLayer; l++) {
+      const topNodes = layerNodeIds.get(l) || [];
+      const botNodes = layerNodeIds.get(l + 1) || [];
+
+      // Count routes that cross this gap (have a node in layer l and l+1)
+      const topRouteSet = new Set();
+      const botRouteSet = new Set();
+      topNodes.forEach(id => nodeRoutes.get(id)?.forEach(ri => topRouteSet.add(ri)));
+      botNodes.forEach(id => nodeRoutes.get(id)?.forEach(ri => botRouteSet.add(ri)));
+      const crossingRoutes = [...topRouteSet].filter(ri => botRouteSet.has(ri));
+
+      // Count bending routes (different X at top vs bottom of this gap)
+      let benders = 0;
+      for (const ri of crossingRoutes) {
+        const route = routes[ri];
+        for (let i = 1; i < route.nodes.length; i++) {
+          const fId = route.nodes[i - 1], tId = route.nodes[i];
+          const fL = layer.get(fId), tL = layer.get(tId);
+          if (fL === l && tL === l + 1) {
+            const fx = rawX.get(fId) ?? 0, tx = rawX.get(tId) ?? 0;
+            if (Math.abs(tx - fx) > dotSpacing) benders++;
+          }
+        }
+      }
+
+      // Count merge/fork complexity at bottom layer nodes
+      let mergeFork = 0;
+      for (const id of botNodes) {
+        const pCount = parentsOf.get(id)?.length ?? 0;
+        if (pCount > 1) mergeFork += pCount - 1;
+      }
+      for (const id of topNodes) {
+        const cCount = childrenOf.get(id)?.length ?? 0;
+        if (cCount > 1) mergeFork += cCount - 1;
+      }
+
+      // Compute multiplier: base 1.0, +0.25 per bender, +0.15 per merge/fork, capped at 2.0
+      const multiplier = Math.min(2.0, 1.0 + benders * 0.25 + mergeFork * 0.15);
+      layerY[l + 1] = layerY[l] + layerSpacing * multiplier;
+    }
+  }
+
+  // 3d. Compute raw positions (centroid-based) with adaptive Y
   const positions = new Map();
   nodes.forEach(nd => {
     const memberRoutes = nodeRoutes.get(nd.id);
@@ -157,7 +230,7 @@ export function layoutSnake(dag, options = {}) {
       const uniqueXs = [...new Set(colXs)];
       x = uniqueXs.length > 0 ? uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length : 0;
     }
-    positions.set(nd.id, { x, y: layer.get(nd.id) * layerSpacing });
+    positions.set(nd.id, { x, y: layerY[layer.get(nd.id)] ?? (layer.get(nd.id) * layerSpacing) });
   });
 
   // 3d. Pull backbone nodes toward their spine (reduces drift)
@@ -768,8 +841,6 @@ export function layoutSnake(dag, options = {}) {
     extraDotPositions.set(`${f}\u2192${t}`, { fromX: fx, fromY: pBase.y, toX: tx, toY: qBase.y });
   });
 
-  const maxLayer = Math.max(...[...layer.values()], 0);
-
   return {
     positions,
     routePaths,
@@ -789,6 +860,6 @@ export function layoutSnake(dag, options = {}) {
     theme,
     orientation: 'ttb',
     minY: margin.top,
-    maxY: margin.top + maxLayer * layerSpacing,
+    maxY: margin.top + (layerY[maxLayer] ?? maxLayer * layerSpacing),
   };
 }
