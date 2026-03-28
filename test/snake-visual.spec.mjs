@@ -228,6 +228,35 @@ function validateSVG(svgString, layout, model) {
     }
   }
 
+  // 9. Station dots must be on their route's line
+  if (layout.routePaths && layout.dotX) {
+    model.routes.forEach((route, ri) => {
+      const segs = layout.routePaths[ri];
+      if (!segs) return;
+      for (let si = 0; si < segs.length; si++) {
+        const fromId = route.nodes[si], toId = route.nodes[si + 1];
+        if (!fromId || !toId) continue;
+        const seg = segs[si];
+        // Check that the path starts at fromId's dotX and ends at toId's dotX
+        const startM = seg.d.match(/^M\s+(-?[\d.]+)\s+(-?[\d.]+)/);
+        const nums = seg.d.match(/-?[\d.]+/g)?.map(Number);
+        if (!startM || !nums) continue;
+        const pathStartX = parseFloat(startM[1]);
+        const pathEndX = nums[nums.length - 2];
+        const dotStartX = layout.dotX(fromId, ri);
+        const dotEndX = layout.dotX(toId, ri);
+        if (Math.abs(pathStartX - dotStartX) > 2) {
+          issues.push({ rule: 'dot-off-line', severity: 'error',
+            detail: `Route ${ri} seg ${si}: start x=${pathStartX.toFixed(0)} but ${fromId} dot at ${dotStartX.toFixed(0)}` });
+        }
+        if (Math.abs(pathEndX - dotEndX) > 2) {
+          issues.push({ rule: 'dot-off-line', severity: 'error',
+            detail: `Route ${ri} seg ${si}: end x=${pathEndX.toFixed(0)} but ${toId} dot at ${dotEndX.toFixed(0)}` });
+        }
+      }
+    });
+  }
+
   // Count metrics
   const routeSegments = layout.routePaths ? layout.routePaths.reduce((a, segs) => a + segs.length, 0) : 0;
   const straightCount = layout.routePaths ? layout.routePaths.reduce((a, segs) =>
