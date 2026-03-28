@@ -98,10 +98,6 @@ export function layoutSnake(dag, options = {}) {
   });
 
   // ── STEP 3: Column assignment ──
-  // The trunk (longest route) anchors the central spine.
-  const trunkRi = routes.map((_, ri) => ri)
-    .sort((a, b) => routes[b].nodes.length - routes[a].nodes.length)[0];
-
   const columns = routes.map(() => []);
   nodes.forEach(nd => columns[nodePrimary.get(nd.id)]?.push(nd.id));
   columns.forEach(col => col.sort((a, b) => layer.get(a) - layer.get(b)));
@@ -113,8 +109,6 @@ export function layoutSnake(dag, options = {}) {
   activeColumns.forEach((col, ci) => columnX.set(col.ri, (ci - (nCols - 1) / 2) * columnSpacing));
 
   // ── STEP 4: Node positions ──
-  // Multi-route nodes are weighted toward the trunk's column (3x weight)
-  // to keep the spine centered and reduce horizontal drift.
   const positions = new Map();
   nodes.forEach(nd => {
     const memberRoutes = nodeRoutes.get(nd.id);
@@ -123,23 +117,8 @@ export function layoutSnake(dag, options = {}) {
       x = columnX.get(nodePrimary.get(nd.id)) ?? 0;
     } else {
       const colXs = [...memberRoutes].map(ri => columnX.get(ri)).filter(v => v !== undefined);
-      if (colXs.length === 0) { x = 0; }
-      else if (memberRoutes.has(trunkRi) && colXs.length >= 3) {
-        // 3+ columns including trunk: weight toward trunk to reduce LTR drift
-        let sumW = 0, sumX = 0;
-        for (const ri of memberRoutes) {
-          const cx = columnX.get(ri);
-          if (cx === undefined) continue;
-          const w = (ri === trunkRi) ? 2 : 1;
-          sumX += cx * w;
-          sumW += w;
-        }
-        x = sumX / sumW;
-      } else {
-        // Simple centroid for 2-column nodes
-        const uniqueXs = [...new Set(colXs)];
-        x = uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length;
-      }
+      const uniqueXs = [...new Set(colXs)];
+      x = uniqueXs.length > 0 ? uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length : 0;
     }
     positions.set(nd.id, { x, y: layer.get(nd.id) * layerSpacing });
   });
@@ -213,7 +192,7 @@ export function layoutSnake(dag, options = {}) {
   // The trunk (longest route = routeOrder[0]) gets the CENTER slot.
   // Other routes arrange around it by neighbor direction: left-branching
   // routes to the left, right-branching to the right.
-  // trunkRi already computed in Step 3
+  const trunkRi = routeOrder[0]; // longest route
   const dotOrderCache = new Map();
   function getDotOrder(nodeId) {
     if (dotOrderCache.has(nodeId)) return dotOrderCache.get(nodeId);
