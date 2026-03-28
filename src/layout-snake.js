@@ -144,6 +144,27 @@ export function layoutSnake(dag, options = {}) {
     }
   }
 
+  // ── STEP 4c: Pull trunk nodes toward their spine ──
+  // The trunk (longest route) should form a near-vertical spine.
+  // Pull each trunk node toward the median X to reduce horizontal drift.
+  const trunkRiPos = routes.map((_, ri) => ri).sort((a, b) => routes[b].nodes.length - routes[a].nodes.length)[0];
+  const trunkRouteNodes = routes[trunkRiPos]?.nodes || [];
+  if (trunkRouteNodes.length >= 3) {
+    const trunkXs = trunkRouteNodes.map(nid => positions.get(nid)?.x).filter(v => v !== undefined);
+    const trunkSpan = Math.max(...trunkXs) - Math.min(...trunkXs);
+    // Only pull when the trunk drifts more than 2 columns worth
+    if (trunkSpan > columnSpacing * 2) {
+      trunkXs.sort((a, b) => a - b);
+      const spineX = trunkXs[Math.floor(trunkXs.length / 2)]; // median
+      const pull = 0.5; // 50% pull toward spine
+      for (const nid of trunkRouteNodes) {
+        const pos = positions.get(nid);
+        if (!pos) continue;
+        pos.x = pos.x * (1 - pull) + spineX * pull;
+      }
+    }
+  }
+
   // Normalize
   const margin = { top: 50 * s, left: 80 * s, bottom: 40 * s, right: 140 * s };
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
