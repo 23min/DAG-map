@@ -1858,9 +1858,19 @@ function doRender() {
   // Update slider value displays
   for (const [k, s] of Object.entries(sliders)) s.val.textContent = s.el.value;
 
-  // Merge the model's route-class colors into the selected theme
+  // Map route class keys (a, b, c...) to colors from the selected theme.
+  // The 'dark' theme uses the model's curated palette; other themes derive
+  // route colors from their own class palette (cycling through 4 colors).
   const baseTheme = resolveTheme(themeName);
-  const theme = { ...baseTheme, classes: { ...baseTheme.classes, ...model.theme.classes } };
+  let routeClassColors;
+  if (themeName === 'dark') {
+    routeClassColors = model.theme.classes;
+  } else {
+    const themeColors = Object.values(baseTheme.classes);
+    routeClassColors = {};
+    model.routes.forEach((r, i) => { routeClassColors[r.cls] = themeColors[i % themeColors.length]; });
+  }
+  const theme = { ...baseTheme, classes: { ...baseTheme.classes, ...routeClassColors } };
 
   // Update CSS custom properties so controls, code block, etc. follow the theme
   const root = document.documentElement.style;
