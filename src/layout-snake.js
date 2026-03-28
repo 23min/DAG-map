@@ -491,7 +491,12 @@ export function layoutSnake(dag, options = {}) {
     const segments = [];
     for (let i = 1; i < waypoints.length; i++) {
       const p = waypoints[i - 1], q = waypoints[i];
-      const ignore = new Set([routeOwner, p.id, q.id]);
+      // Ignore endpoint dots. For small dx (centering shifts), also ignore
+      // endpoint cards so the hidden-elbow midFrac can push close to the station.
+      const smallDx = Math.abs(q.x - p.x) <= dotSpacing;
+      const ignore = smallDx
+        ? new Set([routeOwner, p.id, q.id, `card_${p.id}`, `card_${q.id}`])
+        : new Set([routeOwner, p.id, q.id]);
       const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignore);
       segments.push({ d: result.d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
 

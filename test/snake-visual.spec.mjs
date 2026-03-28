@@ -228,7 +228,46 @@ function validateSVG(svgString, layout, model) {
     }
   }
 
-  // 9. Station dots must be on their route's line
+  // 9. Line crossings — two route V-H-V horizontal jogs crossing each other
+  if (layout.routePaths) {
+    // Collect all horizontal jog segments: {ri, y, x1, x2}
+    const hJogs = [];
+    layout.routePaths.forEach((segs, ri) => {
+      segs.forEach(seg => {
+        if (!seg.d.includes('Q')) return;
+        // Find horizontal segments by looking for consecutive points at same Y
+        const nums = seg.d.match(/-?[\d.]+/g)?.map(Number);
+        if (!nums || nums.length < 8) return;
+        // V-H-V pattern: the middle horizontal run is at the jog Y
+        // Approximate by finding the start and end X and the midpoint Y
+        const startX = nums[0], startY = nums[1];
+        const endX = nums[nums.length - 2], endY = nums[nums.length - 1];
+        if (Math.abs(startX - endX) < 1) return; // straight, no jog
+        const jogY = startY + (endY - startY) * 0.5; // approximate
+        const x1 = Math.min(startX, endX), x2 = Math.max(startX, endX);
+        hJogs.push({ ri, y: jogY, x1, x2, startX, endX });
+      });
+    });
+    // Check for crossings: two jogs at similar Y where one goes left→right and the other right→left
+    for (let i = 0; i < hJogs.length; i++) {
+      for (let j = i + 1; j < hJogs.length; j++) {
+        const a = hJogs[i], b = hJogs[j];
+        if (a.ri === b.ri) continue;
+        if (Math.abs(a.y - b.y) > 30) continue; // different Y range
+        // Check if the horizontal spans overlap AND go in opposite directions
+        const aDir = Math.sign(a.endX - a.startX);
+        const bDir = Math.sign(b.endX - b.startX);
+        if (aDir === bDir) continue; // same direction, won't cross
+        // Check X span overlap
+        if (a.x1 < b.x2 && a.x2 > b.x1) {
+          issues.push({ rule: 'line-crossing', severity: 'warn',
+            detail: `Route ${a.ri} and ${b.ri} jogs cross near y≈${a.y.toFixed(0)}` });
+        }
+      }
+    }
+  }
+
+  // 10. Station dots must be on their route's line
   if (layout.routePaths && layout.dotX) {
     model.routes.forEach((route, ri) => {
       const segs = layout.routePaths[ri];
@@ -279,6 +318,8 @@ function validateSVG(svgString, layout, model) {
       cardOverLines,
       lineOverlaps,
       shortElbows,
+      width: layout.width?.toFixed(0) || 'N/A',
+      height: layout.height?.toFixed(0) || 'N/A',
     },
   };
 }
