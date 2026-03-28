@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// FlowTime parallel lines demo — complex order management flow
-// Usage: node flowtime-parallel.mjs > flowtime-parallel.html
+// FlowTime process layout demo — Celonis-style clustered columns
+// Usage: node flowtime-process.mjs > flowtime-process.html
 
 import { layoutProcess } from '../src/layout-process.js';
 import { renderSVG } from '../src/render.js';

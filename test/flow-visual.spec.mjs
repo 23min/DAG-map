@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 // ================================================================
-// Snake layout visual test suite
+// Flow layout visual test suite
 // ================================================================
 // Generates each model, takes a Playwright screenshot, and runs
 // structural validation on the SVG. Results saved to test/results/.
 //
-// Usage: node test/snake-visual.spec.mjs
+// Usage: node test/flow-visual.spec.mjs
 //
 // Output:
 //   test/results/<model-id>.png   — screenshot
 //   test/results/report.json      — structural validation results
 
 import { chromium } from 'playwright';
-import { layoutSnake } from '../src/layout-snake.js';
+import { layoutFlow } from '../src/layout-flow.js';
 import { renderSVG } from '../src/render.js';
-import { createStationRenderer, createEdgeRenderer } from '../src/render-snake-station.js';
+import { createStationRenderer, createEdgeRenderer } from '../src/render-flow-station.js';
 import { models } from './models.js';
 import { mkdirSync, writeFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
@@ -337,7 +337,7 @@ async function main() {
 
     let layout, svg, validation;
     try {
-      layout = layoutSnake(model.dag, { routes: model.routes, theme: model.theme, ...model.opts });
+      layout = layoutFlow(model.dag, { routes: model.routes, theme: model.theme, ...model.opts });
 
       const renderNode = createStationRenderer(layout, model.routes);
       const renderEdge = createEdgeRenderer(layout, null); // no volumes for structural tests

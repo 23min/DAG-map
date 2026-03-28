@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// FlowTime snake layout demo — obstacle-aware sequential layout
-// Usage: node flowtime-snake.mjs > flowtime-snake.html
+// Flow layout demo — obstacle-aware process flow
+// Usage: node flow.mjs > flow.html
 
-import { layoutSnake } from '../src/layout-snake.js';
+import { layoutFlow } from '../src/layout-flow.js';
 import { renderSVG } from '../src/render.js';
 
 const theme = {
@@ -110,7 +110,7 @@ const edgeVolumes = new Map([
   ['4:delivery_passed\u2192record_payment', '480K'],
 ]);
 
-const layout = layoutSnake(dag, {
+const layout = layoutFlow(dag, {
   routes,
   theme,
   scale: 1.8,
@@ -206,7 +206,7 @@ function renderEdgeWithLabel(edge, segment, ctx) {
 }
 
 const svg = renderSVG(dag, layout, {
-  title: 'Order-to-Cash — Snake Layout',
+  title: 'Order-to-Cash — Flow Layout',
   subtitle: 'Order (pink) | Delivery (teal) | Invoice (navy) | Shipping (mint) | Payment (amber)',
   font: "'Inter', 'Segoe UI', system-ui, sans-serif",
   showLegend: false,
@@ -215,7 +215,7 @@ const svg = renderSVG(dag, layout, {
 });
 
 const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>FlowTime snake layout</title>
+<html><head><meta charset="UTF-8"><title>dag-map flow layout</title>
 <style>
   body { margin: 0; background: #1E1E2E; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
   svg { max-width: 95vw; max-height: 95vh; }

@@ -3,11 +3,9 @@
 // ================================================================
 // Public API
 
-import { layoutMetro, C, CLASS_COLOR, dominantClass } from './layout.js';
+import { layoutMetro, C, CLASS_COLOR, dominantClass } from './layout-metro.js';
 import { layoutHasse } from './layout-hasse.js';
-import { layoutLanes } from './layout-lanes.js';
-import { layoutProcess } from './layout-process.js';
-import { layoutSnake } from './layout-snake.js';
+import { layoutFlow } from './layout-flow.js';
 import { renderSVG } from './render.js';
 import { bezierPath } from './route-bezier.js';
 import { angularPath, progressiveCurve } from './route-angular.js';
@@ -16,9 +14,7 @@ import { THEMES, resolveTheme } from './themes.js';
 
 export { layoutMetro, C, CLASS_COLOR, dominantClass };
 export { layoutHasse };
-export { layoutLanes };
-export { layoutProcess };
-export { layoutSnake };
+export { layoutFlow };
 export { renderSVG };
 export { bezierPath };
 export { angularPath, progressiveCurve };

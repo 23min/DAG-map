@@ -1,12 +1,12 @@
 // ================================================================
-// render-snake-station.js — Station card + edge label renderers
+// render-flow-station.js — Station card + edge label renderers
 // ================================================================
-// Reusable renderers for the snake layout's Celonis-style visuals:
+// Reusable renderers for the flow layout's Celonis-style visuals:
 // punched-out dots on the line, rich cards to the side, on-line badges.
 
 /**
- * Create a station (node) renderer for snake layouts.
- * @param {object} layout - result from layoutSnake()
+ * Create a station (node) renderer for flow layouts.
+ * @param {object} layout - result from layoutFlow()
  * @param {Array} routes - route definitions [{id, cls, nodes}]
  * @returns {function} renderNode(node, pos, ctx) => SVG string
  */
@@ -63,7 +63,7 @@ export function createStationRenderer(layout, routes) {
 
 /**
  * Create an edge renderer that draws route paths + on-line volume badges.
- * @param {object} layout - result from layoutSnake()
+ * @param {object} layout - result from layoutFlow()
  * @param {Map<string,string>} [edgeVolumes] - per-route volumes: "ri:from→to" → label
  * @returns {function} renderEdge(edge, segment, ctx) => SVG string
  */

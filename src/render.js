@@ -10,7 +10,7 @@
 //   cssVars: true — CSS var() references, themeable from CSS
 
 // Backward-compat import — only used if layout.theme is missing
-import { C, CLASS_COLOR } from './layout.js';
+import { C, CLASS_COLOR } from './layout-metro.js';
 
 /**
  * Render a DAG layout as an SVG string.

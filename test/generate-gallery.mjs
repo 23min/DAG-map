@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Generate an HTML gallery of all test models rendered with layoutSnake.
+// Generate an HTML gallery of all test models rendered with layoutFlow.
 // Uses the same Celonis-style station cards + edge renderers as the demo.
 // Usage: node test/generate-gallery.mjs > test/gallery.html
 
-import { layoutSnake } from '../src/layout-snake.js';
+import { layoutFlow } from '../src/layout-flow.js';
 import { renderSVG } from '../src/render.js';
-import { createStationRenderer, createEdgeRenderer } from '../src/render-snake-station.js';
+import { createStationRenderer, createEdgeRenderer } from '../src/render-flow-station.js';
 import { models } from './models.js';
 
 // Auto-generate per-route edge volumes from model structure
@@ -29,7 +29,7 @@ function generateVolumes(model) {
 }
 
 let html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Snake Layout Gallery — ${models.length} models</title>
+<html><head><meta charset="UTF-8"><title>Flow Layout Gallery — ${models.length} models</title>
 <style>
   body { margin: 0; background: #1E1E2E; color: #CDD6F4; font-family: 'Inter', system-ui, sans-serif; padding: 20px; }
   h1 { font-size: 24px; opacity: 0.7; margin-bottom: 30px; }
@@ -39,7 +39,7 @@ let html = `<!DOCTYPE html>
   .model svg { max-width: 100%; height: auto; display: block; }
   .error { color: #F38BA8; font-size: 13px; padding: 10px; }
 </style></head><body>
-<h1>Snake Layout Gallery — ${models.length} models</h1>\n`;
+<h1>Flow Layout Gallery — ${models.length} models</h1>\n`;
 
 for (const model of models) {
   html += `<div class="model" id="${model.id}">\n`;
@@ -51,7 +51,7 @@ for (const model of models) {
   html += `<div class="meta">${nNodes} nodes, ${nEdges} edges, ${nRoutes} route${nRoutes !== 1 ? 's' : ''}</div>\n`;
 
   try {
-    const layout = layoutSnake(model.dag, { routes: model.routes, theme: model.theme, ...model.opts });
+    const layout = layoutFlow(model.dag, { routes: model.routes, theme: model.theme, ...model.opts });
 
     const edgeVolumes = generateVolumes(model);
     const renderNode = createStationRenderer(layout, model.routes);

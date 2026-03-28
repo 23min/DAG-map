@@ -1,15 +1,15 @@
 // ================================================================
-// layout-snake.js — Obstacle-aware sequential "snake" layout
+// layout-flow.js — Obstacle-aware process flow layout
 // ================================================================
 //
-// Lays down routes one at a time like snakes on a board game.
+// Lays down routes one at a time, trunk-first with obstacle avoidance.
 // Each element (track segment, station card, edge label) is placed
 // into an occupancy grid. Subsequent elements route around obstacles.
 //
 // Algorithm:
-//   1. Topological sort, layer assignment, column assignment (same as layoutProcess)
+//   1. Topological sort, layer assignment, column assignment (topo sort + layers)
 //   2. Order routes by length (longest = trunk, laid first)
-//   3. For each route ("snake"):
+//   3. For each route:
 //      a. Place station dots + cards (try RIGHT, then LEFT, then fallback)
 //      b. Route segments between stations (V-H-V with collision avoidance)
 //      c. Place edge labels on straight runs
@@ -21,7 +21,7 @@
 import { resolveTheme } from './themes.js';
 import { OccupancyGrid } from './occupancy.js';
 
-export function layoutSnake(dag, options = {}) {
+export function layoutFlow(dag, options = {}) {
   const { nodes, edges } = dag;
   const theme = resolveTheme(options.theme);
   const s = options.scale ?? 1.5;
@@ -280,7 +280,7 @@ export function layoutSnake(dag, options = {}) {
   const xShift = -minX + margin.left;
   positions.forEach(pos => { pos.x += xShift; pos.y = pos.y - minY + margin.top; });
 
-  // ── STEP 5: Snake layout — sequential, obstacle-aware ──
+  // ── STEP 5: Flow layout — sequential, obstacle-aware ──
   const grid = new OccupancyGrid(2);        // tracks + cards + dots
   const badgeGrid = new OccupancyGrid(2);   // edge labels only (don't block routes)
 

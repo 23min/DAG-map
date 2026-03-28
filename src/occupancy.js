@@ -1,7 +1,7 @@
 // ================================================================
 // occupancy.js — Spatial occupancy tracker for collision detection
 // ================================================================
-// Tracks placed rectangles in 2D space. Used by layoutSnake to
+// Tracks placed rectangles in 2D space. Used by layoutFlow to
 // detect and avoid collisions between tracks, cards, and labels.
 //
 // Uses a simple array of axis-aligned bounding boxes (AABBs).
