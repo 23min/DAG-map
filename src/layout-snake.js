@@ -241,11 +241,50 @@ export function layoutSnake(dag, options = {}) {
     return count > 0 ? sum / count : (positions.get(nodeId)?.x ?? 0);
   }
 
-  // Trunk-centered dot ordering.
-  // The trunk (longest route = routeOrder[0]) gets the CENTER slot.
-  // Other routes arrange around it by neighbor direction: left-branching
-  // routes to the left, right-branching to the right.
+  // Global side assignment: each non-trunk route gets a FIXED side
+  // (left or right of the trunk) that it maintains at every node.
+  // This prevents crossings — once a route is on the left, it stays left.
   const trunkRi = routeOrder[0]; // longest route
+
+  // Compute the trunk's average X as the spine reference
+  const trunkAvgX = (() => {
+    const xs = routes[trunkRi].nodes.map(id => positions.get(id)?.x).filter(v => v !== undefined);
+    return xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+  })();
+
+  // For each non-trunk route, determine its side by where its nodes
+  // tend to be relative to the trunk spine.
+  const routeSide = new Map(); // ri → -1 (left) | 0 (on trunk) | 1 (right)
+  routeSide.set(trunkRi, 0);
+
+  routes.forEach((route, ri) => {
+    if (ri === trunkRi) return;
+    // Compute avg X of this route's nodes that are NOT shared with trunk
+    const trunkNodeSet = new Set(routes[trunkRi].nodes);
+    const uniqueNodes = route.nodes.filter(id => !trunkNodeSet.has(id));
+    let avgX;
+    if (uniqueNodes.length > 0) {
+      const xs = uniqueNodes.map(id => positions.get(id)?.x).filter(v => v !== undefined);
+      avgX = xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : trunkAvgX;
+    } else {
+      // All nodes shared with trunk — use neighbor direction at first shared node
+      const firstShared = route.nodes.find(id => trunkNodeSet.has(id));
+      avgX = firstShared ? neighborX(firstShared, ri) : trunkAvgX;
+    }
+    routeSide.set(ri, avgX < trunkAvgX - 1 ? -1 : avgX > trunkAvgX + 1 ? 1 : 1);
+  });
+
+  // Assign a global sort key: left routes get negative keys, trunk=0, right=positive
+  // Within same side, sort by route index for consistency
+  const routeSortKey = new Map();
+  {
+    const leftRoutes = [...routeSide.entries()].filter(([, s]) => s < 0).map(([ri]) => ri).sort((a, b) => a - b);
+    const rightRoutes = [...routeSide.entries()].filter(([, s]) => s > 0).map(([ri]) => ri).sort((a, b) => a - b);
+    leftRoutes.forEach((ri, i) => routeSortKey.set(ri, -(leftRoutes.length - i)));
+    routeSortKey.set(trunkRi, 0);
+    rightRoutes.forEach((ri, i) => routeSortKey.set(ri, i + 1));
+  }
+
   const dotOrderCache = new Map();
   function getDotOrder(nodeId) {
     if (dotOrderCache.has(nodeId)) return dotOrderCache.get(nodeId);
@@ -256,40 +295,15 @@ export function layoutSnake(dag, options = {}) {
       return list;
     }
 
-    const members = [...memberRoutes];
-    const hasTrunk = members.includes(trunkRi);
+    // Sort by global side assignment — consistent at every node
+    const sorted = [...memberRoutes].sort((a, b) => {
+      const ka = routeSortKey.get(a) ?? a;
+      const kb = routeSortKey.get(b) ?? b;
+      return ka !== kb ? ka - kb : a - b;
+    });
 
-    if (hasTrunk && members.length >= 2) {
-      // Sort non-trunk routes by neighbor direction relative to trunk's direction
-      const trunkNx = neighborX(nodeId, trunkRi);
-      const others = members.filter(ri => ri !== trunkRi);
-
-      // Split into left-of-trunk and right-of-trunk by neighbor direction
-      const left = others.filter(ri => neighborX(nodeId, ri) < trunkNx - 1).sort((a, b) => neighborX(nodeId, a) - neighborX(nodeId, b));
-      const right = others.filter(ri => neighborX(nodeId, ri) > trunkNx + 1).sort((a, b) => neighborX(nodeId, a) - neighborX(nodeId, b));
-      const center = others.filter(ri => Math.abs(neighborX(nodeId, ri) - trunkNx) <= 1).sort((a, b) => a - b);
-
-      // Order: left routes, center routes, trunk, right routes
-      // This puts left-branching routes to the left of the trunk
-      const sorted = [...left, ...center, trunkRi, ...right];
-
-      // If no clear directional split, fall back to trunk-in-middle
-      if (left.length === 0 && right.length === 0) {
-        const byIdx = others.sort((a, b) => a - b);
-        const mid = Math.floor(byIdx.length / 2);
-        const fallback = [...byIdx.slice(0, mid), trunkRi, ...byIdx.slice(mid)];
-        dotOrderCache.set(nodeId, fallback);
-        return fallback;
-      }
-
-      dotOrderCache.set(nodeId, sorted);
-      return sorted;
-    }
-
-    // No trunk at this node — use global index order
-    const globalOrder = members.sort((a, b) => a - b);
-    dotOrderCache.set(nodeId, globalOrder);
-    return globalOrder;
+    dotOrderCache.set(nodeId, sorted);
+    return sorted;
   }
 
   // For each route, compute dot X at a given node.
