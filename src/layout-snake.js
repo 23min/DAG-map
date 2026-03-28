@@ -134,63 +134,48 @@ export function layoutSnake(dag, options = {}) {
   }
   const backboneSet = new Set(backbone);
 
-  // 3b. Assign X positions: backbone at X=0, others offset by "hop distance"
-  // For each non-backbone node, find the closest backbone node at the same
-  // or nearest layer, then offset left or right.
+  // 3b. Route-based columns (same as before) but with a width cap
+  const columns = routes.map(() => []);
+  nodes.forEach(nd => columns[nodePrimary.get(nd.id)]?.push(nd.id));
+  columns.forEach(col => col.sort((a, b) => layer.get(a) - layer.get(b)));
+
+  const activeColumns = [];
+  columns.forEach((col, ri) => { if (col.length > 0) activeColumns.push({ ri, nodes: col }); });
+  const nCols = activeColumns.length;
+  const columnX = new Map();
+  activeColumns.forEach((col, ci) => columnX.set(col.ri, (ci - (nCols - 1) / 2) * columnSpacing));
+
+  // 3c. Compute raw positions (centroid-based)
   const positions = new Map();
-  const nodeOffset = new Map(); // nodeId → offset from backbone (signed)
-
-  // Backbone nodes all at X=0
-  for (const id of backbone) {
-    nodeOffset.set(id, 0);
-  }
-
-  // Non-backbone nodes: BFS from backbone to assign offsets
-  // Nodes connected to the LEFT of their backbone neighbor get negative offset,
-  // nodes to the RIGHT get positive offset.
-  const offsetQueue = [...backbone];
-  const visited = new Set(backbone);
-  let slotCounter = 0;
-  const slotMap = new Map(); // nodeId → assigned slot for same-layer separation
-
-  for (const id of topo) {
-    if (backboneSet.has(id)) continue;
-    if (nodeOffset.has(id)) continue;
-
-    // Find connection to nearest backbone or already-positioned node
-    const parents = parentsOf.get(id);
-    const children = childrenOf.get(id);
-    const neighbors = [...parents, ...children];
-
-    let anchorOffset = 0;
-    let found = false;
-    for (const n of neighbors) {
-      if (nodeOffset.has(n)) {
-        anchorOffset = nodeOffset.get(n);
-        found = true;
-        break;
-      }
-    }
-
-    // Assign offset: alternate left/right based on layer position
-    // Nodes at even distance go right, odd go left
-    const myLayer = layer.get(id);
-    const sign = (myLayer % 2 === 0) ? 1 : -1;
-    const offset = found ? anchorOffset + sign * columnSpacing : (++slotCounter) * columnSpacing;
-    nodeOffset.set(id, offset);
-  }
-
-  // Pass 2: refine — ensure same-layer nodes don't overlap
-  for (const id of topo) {
-    if (nodeOffset.has(id)) continue;
-    nodeOffset.set(id, (++slotCounter) * columnSpacing);
-  }
-
-  // Build positions from offsets
   nodes.forEach(nd => {
-    const x = nodeOffset.get(nd.id) ?? 0;
+    const memberRoutes = nodeRoutes.get(nd.id);
+    let x;
+    if (memberRoutes.size <= 1) {
+      x = columnX.get(nodePrimary.get(nd.id)) ?? 0;
+    } else {
+      const colXs = [...memberRoutes].map(ri => columnX.get(ri)).filter(v => v !== undefined);
+      const uniqueXs = [...new Set(colXs)];
+      x = uniqueXs.length > 0 ? uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length : 0;
+    }
     positions.set(nd.id, { x, y: layer.get(nd.id) * layerSpacing });
   });
+
+  // 3d. Pull backbone nodes toward their spine (reduces drift)
+  if (backbone.length >= 3) {
+    const boneXs = backbone.map(id => positions.get(id)?.x).filter(v => v !== undefined);
+    const boneSpan = Math.max(...boneXs) - Math.min(...boneXs);
+    if (boneSpan > columnSpacing * 1.5) {
+      boneXs.sort((a, b) => a - b);
+      const spineX = boneXs[Math.floor(boneXs.length / 2)];
+      // Pull strength proportional to how badly it drifts
+      const pull = Math.min(0.6, boneSpan / (columnSpacing * 8));
+      for (const id of backbone) {
+        const pos = positions.get(id);
+        if (!pos) continue;
+        pos.x = pos.x * (1 - pull) + spineX * pull;
+      }
+    }
+  }
 
   // ── STEP 4: Separate same-layer nodes that overlap in X ──
   const layerNodes = new Map();
@@ -211,10 +196,6 @@ export function layoutSnake(dag, options = {}) {
       }
     }
   }
-
-  // Keep columnX for backward compat (used by some route helpers)
-  const columnX = new Map();
-  routes.forEach((_, ri) => columnX.set(ri, 0));
 
   // Normalize
   const margin = { top: 50 * s, left: 80 * s, bottom: 40 * s, right: 140 * s };
