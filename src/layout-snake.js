@@ -219,20 +219,64 @@ export function layoutSnake(dag, options = {}) {
     return globalOrder;
   }
 
+  // Precompute stable dot offsets per route.
+  // When consecutive nodes share the same base X (same column) AND
+  // the route's slot index hasn't changed, propagate the previous offset.
+  // This eliminates short elbows from dense centering shifts.
+  const stableDotOffset = new Map(); // "nodeId:ri" → offset from pos.x
+
+  for (const ri of routeOrder) {
+    const route = routes[ri];
+    let prevOffset = null;
+    let prevBaseX = null;
+    let prevLocalIdx = null;
+
+    for (const nodeId of route.nodes) {
+      const pos = positions.get(nodeId);
+      if (!pos) continue;
+      const baseX = pos.x;
+      const memberRoutes = nodeRoutes.get(nodeId);
+      if (!memberRoutes || memberRoutes.size <= 1) {
+        stableDotOffset.set(`${nodeId}:${ri}`, 0);
+        prevOffset = 0;
+        prevBaseX = baseX;
+        prevLocalIdx = 0;
+        continue;
+      }
+
+      const sorted = getDotOrder(nodeId);
+      const localIdx = sorted.indexOf(ri);
+      const n = sorted.length;
+      const defaultOffset = (localIdx - (n - 1) / 2) * dotSpacing;
+
+      // Propagate if same column AND same slot position
+      if (prevOffset !== null && Math.abs(baseX - prevBaseX) < 1 && localIdx === prevLocalIdx) {
+        stableDotOffset.set(`${nodeId}:${ri}`, prevOffset);
+        // prevOffset stays the same
+      } else {
+        stableDotOffset.set(`${nodeId}:${ri}`, defaultOffset);
+        prevOffset = defaultOffset;
+      }
+      prevBaseX = baseX;
+      prevLocalIdx = localIdx;
+    }
+  }
+
   // For each route, compute dot X at a given node.
-  // Dense centering keeps shared-station dots compact (no index gaps).
-  // Convergence nodes get neighbor-aware reordering to reduce crossings.
+  // Uses precomputed stable offsets to eliminate short elbows.
   function dotX(nodeId, ri) {
     const memberRoutes = nodeRoutes.get(nodeId);
     const pos = positions.get(nodeId);
     if (!memberRoutes || !pos) return pos?.x ?? 0;
     if (memberRoutes.size <= 1) return pos.x;
+    const offset = stableDotOffset.get(`${nodeId}:${ri}`);
+    if (offset !== undefined) return pos.x + offset;
+    // Fallback to dense centering
     const sorted = getDotOrder(nodeId);
     const localIdx = sorted.indexOf(ri);
     if (localIdx < 0) return pos.x;
     const n = sorted.length;
-    const center = (n - 1) / 2;
-    return pos.x + (localIdx - center) * dotSpacing;
+    return pos.x + (localIdx - (n - 1) / 2) * dotSpacing;
   }
 
   // Place a station card, trying multiple positions
