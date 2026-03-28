@@ -97,34 +97,103 @@ export function layoutSnake(dag, options = {}) {
     nodePrimary.set(nd.id, bestRi);
   });
 
-  // ── STEP 3: Column assignment ──
-  const columns = routes.map(() => []);
-  nodes.forEach(nd => columns[nodePrimary.get(nd.id)]?.push(nd.id));
-  columns.forEach(col => col.sort((a, b) => layer.get(a) - layer.get(b)));
+  // ── STEP 3: Topology-based column assignment ──
+  // Instead of assigning columns by route membership, position nodes
+  // based on DAG structure: the backbone (longest path) gets X=0,
+  // and other nodes offset based on their distance from the backbone.
 
-  const activeColumns = [];
-  columns.forEach((col, ri) => { if (col.length > 0) activeColumns.push({ ri, nodes: col }); });
-  const nCols = activeColumns.length;
-  const columnX = new Map();
-  activeColumns.forEach((col, ci) => columnX.set(col.ri, (ci - (nCols - 1) / 2) * columnSpacing));
-
-  // ── STEP 4: Node positions ──
-  const positions = new Map();
-  nodes.forEach(nd => {
-    const memberRoutes = nodeRoutes.get(nd.id);
-    let x;
-    if (memberRoutes.size <= 1) {
-      x = columnX.get(nodePrimary.get(nd.id)) ?? 0;
-    } else {
-      const colXs = [...memberRoutes].map(ri => columnX.get(ri)).filter(v => v !== undefined);
-      const uniqueXs = [...new Set(colXs)];
-      x = uniqueXs.length > 0 ? uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length : 0;
+  // 3a. Find the DAG backbone — longest path from any source to any sink
+  const backbone = [];
+  {
+    // Dynamic programming: for each node, compute longest path ending there
+    const longestTo = new Map(); // nodeId → { length, prev }
+    for (const id of topo) {
+      const parents = parentsOf.get(id);
+      if (parents.length === 0) {
+        longestTo.set(id, { length: 0, prev: null });
+      } else {
+        let best = { length: -1, prev: null };
+        for (const p of parents) {
+          const pl = longestTo.get(p);
+          if (pl && pl.length > best.length) best = { length: pl.length, prev: p };
+        }
+        longestTo.set(id, { length: best.length + 1, prev: best.prev });
+      }
     }
+    // Find the sink with longest path
+    let endNode = topo[0], maxLen = -1;
+    for (const [id, info] of longestTo) {
+      if (info.length > maxLen) { maxLen = info.length; endNode = id; }
+    }
+    // Trace back to build backbone
+    let cur = endNode;
+    while (cur) {
+      backbone.unshift(cur);
+      cur = longestTo.get(cur)?.prev;
+    }
+  }
+  const backboneSet = new Set(backbone);
+
+  // 3b. Assign X positions: backbone at X=0, others offset by "hop distance"
+  // For each non-backbone node, find the closest backbone node at the same
+  // or nearest layer, then offset left or right.
+  const positions = new Map();
+  const nodeOffset = new Map(); // nodeId → offset from backbone (signed)
+
+  // Backbone nodes all at X=0
+  for (const id of backbone) {
+    nodeOffset.set(id, 0);
+  }
+
+  // Non-backbone nodes: BFS from backbone to assign offsets
+  // Nodes connected to the LEFT of their backbone neighbor get negative offset,
+  // nodes to the RIGHT get positive offset.
+  const offsetQueue = [...backbone];
+  const visited = new Set(backbone);
+  let slotCounter = 0;
+  const slotMap = new Map(); // nodeId → assigned slot for same-layer separation
+
+  for (const id of topo) {
+    if (backboneSet.has(id)) continue;
+    if (nodeOffset.has(id)) continue;
+
+    // Find connection to nearest backbone or already-positioned node
+    const parents = parentsOf.get(id);
+    const children = childrenOf.get(id);
+    const neighbors = [...parents, ...children];
+
+    let anchorOffset = 0;
+    let found = false;
+    for (const n of neighbors) {
+      if (nodeOffset.has(n)) {
+        anchorOffset = nodeOffset.get(n);
+        found = true;
+        break;
+      }
+    }
+
+    // Assign offset: alternate left/right based on layer position
+    // Nodes at even distance go right, odd go left
+    const myLayer = layer.get(id);
+    const sign = (myLayer % 2 === 0) ? 1 : -1;
+    const offset = found ? anchorOffset + sign * columnSpacing : (++slotCounter) * columnSpacing;
+    nodeOffset.set(id, offset);
+  }
+
+  // Pass 2: refine — ensure same-layer nodes don't overlap
+  for (const id of topo) {
+    if (nodeOffset.has(id)) continue;
+    nodeOffset.set(id, (++slotCounter) * columnSpacing);
+  }
+
+  // Build positions from offsets
+  nodes.forEach(nd => {
+    const x = nodeOffset.get(nd.id) ?? 0;
     positions.set(nd.id, { x, y: layer.get(nd.id) * layerSpacing });
   });
 
-  // ── STEP 4b: Separate same-layer nodes that overlap in X ──
-  const layerNodes = new Map(); // layer → [nodeId]
+  // ── STEP 4: Separate same-layer nodes that overlap in X ──
+  const layerNodes = new Map();
   nodes.forEach(nd => {
     const l = layer.get(nd.id);
     if (!layerNodes.has(l)) layerNodes.set(l, []);
@@ -132,38 +201,20 @@ export function layoutSnake(dag, options = {}) {
   });
   for (const [, ids] of layerNodes) {
     if (ids.length < 2) continue;
-    // Sort by X, then spread overlapping nodes
     ids.sort((a, b) => positions.get(a).x - positions.get(b).x);
     for (let i = 1; i < ids.length; i++) {
       const prev = positions.get(ids[i - 1]);
       const curr = positions.get(ids[i]);
-      const minGap = columnSpacing * 0.5; // minimum separation
+      const minGap = columnSpacing * 0.5;
       if (curr.x - prev.x < minGap) {
         curr.x = prev.x + minGap;
       }
     }
   }
 
-  // ── STEP 4c: Pull trunk nodes toward their spine ──
-  // The trunk (longest route) should form a near-vertical spine.
-  // Pull each trunk node toward the median X to reduce horizontal drift.
-  const trunkRiPos = routes.map((_, ri) => ri).sort((a, b) => routes[b].nodes.length - routes[a].nodes.length)[0];
-  const trunkRouteNodes = routes[trunkRiPos]?.nodes || [];
-  if (trunkRouteNodes.length >= 3) {
-    const trunkXs = trunkRouteNodes.map(nid => positions.get(nid)?.x).filter(v => v !== undefined);
-    const trunkSpan = Math.max(...trunkXs) - Math.min(...trunkXs);
-    // Only pull when the trunk drifts more than 2 columns worth
-    if (trunkSpan > columnSpacing * 2) {
-      trunkXs.sort((a, b) => a - b);
-      const spineX = trunkXs[Math.floor(trunkXs.length / 2)]; // median
-      const pull = 0.5; // 50% pull toward spine
-      for (const nid of trunkRouteNodes) {
-        const pos = positions.get(nid);
-        if (!pos) continue;
-        pos.x = pos.x * (1 - pull) + spineX * pull;
-      }
-    }
-  }
+  // Keep columnX for backward compat (used by some route helpers)
+  const columnX = new Map();
+  routes.forEach((_, ri) => columnX.set(ri, 0));
 
   // Normalize
   const margin = { top: 50 * s, left: 80 * s, bottom: 40 * s, right: 140 * s };
