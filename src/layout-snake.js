@@ -338,40 +338,47 @@ export function layoutSnake(dag, options = {}) {
     }
   }
 
-  // For each route, compute dot X at a given node.
-  // Trunk uses its precomputed stable offset. Other routes use dense
-  // centering but skip the trunk's slot to avoid collision.
-  function dotX(nodeId, ri) {
-    const memberRoutes = nodeRoutes.get(nodeId);
+  // Precompute dot positions for all routes at each node.
+  // The trunk gets its propagated fixed position. Other routes are
+  // spaced evenly around it, maintaining consistent dotSpacing.
+  const nodeDotPositions = new Map(); // nodeId → Map<ri, x>
+
+  for (const [nodeId, memberRoutes] of nodeRoutes) {
     const pos = positions.get(nodeId);
-    if (!memberRoutes || !pos) return pos?.x ?? 0;
-    if (memberRoutes.size <= 1) return pos.x;
+    if (!pos) continue;
+    const dotMap = new Map();
 
-    // Trunk gets its stable propagated position
-    if (ri === trunkRi) {
-      const offset = trunkDotOffset.get(nodeId);
-      if (offset !== undefined) return pos.x + offset;
-    }
+    if (memberRoutes.size <= 1) {
+      for (const ri of memberRoutes) dotMap.set(ri, pos.x);
+    } else {
+      const sorted = getDotOrder(nodeId);
+      const trunkOffset = trunkDotOffset.get(nodeId);
+      const hasTrunk = sorted.includes(trunkRi) && trunkOffset !== undefined;
 
-    // Other routes: dense centering
-    const sorted = getDotOrder(nodeId);
-    const localIdx = sorted.indexOf(ri);
-    if (localIdx < 0) return pos.x;
-    const n = sorted.length;
-    const center = (n - 1) / 2;
-    const defaultX = pos.x + (localIdx - center) * dotSpacing;
-
-    // Check if this collides with the trunk's fixed position
-    const trunkOffset = trunkDotOffset.get(nodeId);
-    if (trunkOffset !== undefined) {
-      const trunkX = pos.x + trunkOffset;
-      if (Math.abs(defaultX - trunkX) < dotSpacing * 0.9) {
-        // Shift away from trunk
-        return defaultX < trunkX ? trunkX - dotSpacing : trunkX + dotSpacing;
+      if (hasTrunk) {
+        // Anchor: trunk at its fixed position. Pack others evenly around it.
+        const trunkX = pos.x + trunkOffset;
+        const trunkIdx = sorted.indexOf(trunkRi);
+        for (let i = 0; i < sorted.length; i++) {
+          dotMap.set(sorted[i], trunkX + (i - trunkIdx) * dotSpacing);
+        }
+      } else {
+        // No trunk — standard dense centering
+        const n = sorted.length;
+        const center = (n - 1) / 2;
+        for (let i = 0; i < sorted.length; i++) {
+          dotMap.set(sorted[i], pos.x + (i - center) * dotSpacing);
+        }
       }
     }
 
-    return defaultX;
+    nodeDotPositions.set(nodeId, dotMap);
+  }
+
+  function dotX(nodeId, ri) {
+    const dotMap = nodeDotPositions.get(nodeId);
+    if (dotMap && dotMap.has(ri)) return dotMap.get(ri);
+    return positions.get(nodeId)?.x ?? 0;
   }
 
   // Place a station card, trying multiple positions
