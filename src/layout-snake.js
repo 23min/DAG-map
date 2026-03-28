@@ -224,6 +224,7 @@ export function layoutSnake(dag, options = {}) {
   // the route's slot index hasn't changed, propagate the previous offset.
   // This eliminates short elbows from dense centering shifts.
   const stableDotOffset = new Map(); // "nodeId:ri" → offset from pos.x
+  const takenOffsets = new Map();   // nodeId → Set of taken offsets
 
   for (const ri of routeOrder) {
     const route = routes[ri];
@@ -238,6 +239,8 @@ export function layoutSnake(dag, options = {}) {
       const memberRoutes = nodeRoutes.get(nodeId);
       if (!memberRoutes || memberRoutes.size <= 1) {
         stableDotOffset.set(`${nodeId}:${ri}`, 0);
+        if (!takenOffsets.has(nodeId)) takenOffsets.set(nodeId, new Set());
+        takenOffsets.get(nodeId).add(0);
         prevOffset = 0;
         prevBaseX = baseX;
         prevLocalIdx = 0;
@@ -248,15 +251,33 @@ export function layoutSnake(dag, options = {}) {
       const localIdx = sorted.indexOf(ri);
       const n = sorted.length;
       const defaultOffset = (localIdx - (n - 1) / 2) * dotSpacing;
+      if (!takenOffsets.has(nodeId)) takenOffsets.set(nodeId, new Set());
+      const taken = takenOffsets.get(nodeId);
 
+      let offset;
       // Propagate if same column AND same slot position
       if (prevOffset !== null && Math.abs(baseX - prevBaseX) < 1 && localIdx === prevLocalIdx) {
-        stableDotOffset.set(`${nodeId}:${ri}`, prevOffset);
-        // prevOffset stays the same
+        offset = prevOffset;
       } else {
-        stableDotOffset.set(`${nodeId}:${ri}`, defaultOffset);
-        prevOffset = defaultOffset;
+        offset = defaultOffset;
       }
+
+      // Collision avoidance: if offset is taken, find nearest free slot
+      const isTaken = (o) => [...taken].some(t => Math.abs(t - o) < dotSpacing * 0.5);
+      if (isTaken(offset)) {
+        // Try slots radiating outward from the default position
+        let found = false;
+        for (let delta = 1; delta <= n + 2; delta++) {
+          const tryRight = defaultOffset + delta * dotSpacing;
+          if (!isTaken(tryRight)) { offset = tryRight; found = true; break; }
+          const tryLeft = defaultOffset - delta * dotSpacing;
+          if (!isTaken(tryLeft)) { offset = tryLeft; found = true; break; }
+        }
+      }
+
+      stableDotOffset.set(`${nodeId}:${ri}`, offset);
+      taken.add(offset);
+      prevOffset = offset;
       prevBaseX = baseX;
       prevLocalIdx = localIdx;
     }
