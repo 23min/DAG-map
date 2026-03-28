@@ -271,9 +271,12 @@ function doRender() {
   const baseTheme = resolveTheme(themeName);
   const theme = { ...baseTheme, classes: { ...baseTheme.classes, ...model.theme.classes } };
 
-  // Update page background to match theme
-  document.body.style.background = theme.paper;
-  document.body.style.color = theme.ink;
+  // Update CSS custom properties so controls, code block, etc. follow the theme
+  const root = document.documentElement.style;
+  root.setProperty('--dm-paper', theme.paper);
+  root.setProperty('--dm-ink', theme.ink);
+  root.setProperty('--dm-muted', theme.muted);
+  root.setProperty('--dm-border', theme.border);
 
   try {
     const layout = layoutFlow(model.dag, { routes: model.routes, theme, ...opts });
