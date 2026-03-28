@@ -219,85 +219,19 @@ export function layoutSnake(dag, options = {}) {
     return globalOrder;
   }
 
-  // Precompute stable dot offsets per route.
-  // When consecutive nodes share the same base X (same column) AND
-  // the route's slot index hasn't changed, propagate the previous offset.
-  // This eliminates short elbows from dense centering shifts.
-  const stableDotOffset = new Map(); // "nodeId:ri" → offset from pos.x
-  const takenOffsets = new Map();   // nodeId → Set of taken offsets
-
-  for (const ri of routeOrder) {
-    const route = routes[ri];
-    let prevOffset = null;
-    let prevBaseX = null;
-    let prevLocalIdx = null;
-
-    for (const nodeId of route.nodes) {
-      const pos = positions.get(nodeId);
-      if (!pos) continue;
-      const baseX = pos.x;
-      const memberRoutes = nodeRoutes.get(nodeId);
-      if (!memberRoutes || memberRoutes.size <= 1) {
-        stableDotOffset.set(`${nodeId}:${ri}`, 0);
-        if (!takenOffsets.has(nodeId)) takenOffsets.set(nodeId, new Set());
-        takenOffsets.get(nodeId).add(0);
-        prevOffset = 0;
-        prevBaseX = baseX;
-        prevLocalIdx = 0;
-        continue;
-      }
-
-      const sorted = getDotOrder(nodeId);
-      const localIdx = sorted.indexOf(ri);
-      const n = sorted.length;
-      const defaultOffset = (localIdx - (n - 1) / 2) * dotSpacing;
-      if (!takenOffsets.has(nodeId)) takenOffsets.set(nodeId, new Set());
-      const taken = takenOffsets.get(nodeId);
-
-      let offset;
-      // Propagate if same column AND same slot position
-      if (prevOffset !== null && Math.abs(baseX - prevBaseX) < 1 && localIdx === prevLocalIdx) {
-        offset = prevOffset;
-      } else {
-        offset = defaultOffset;
-      }
-
-      // Collision avoidance: if offset is taken, find nearest free slot
-      const isTaken = (o) => [...taken].some(t => Math.abs(t - o) < dotSpacing * 0.9);
-      if (isTaken(offset)) {
-        // Try slots radiating outward from the default position
-        let found = false;
-        for (let delta = 1; delta <= n + 2; delta++) {
-          const tryRight = defaultOffset + delta * dotSpacing;
-          if (!isTaken(tryRight)) { offset = tryRight; found = true; break; }
-          const tryLeft = defaultOffset - delta * dotSpacing;
-          if (!isTaken(tryLeft)) { offset = tryLeft; found = true; break; }
-        }
-      }
-
-      stableDotOffset.set(`${nodeId}:${ri}`, offset);
-      taken.add(offset);
-      prevOffset = offset;
-      prevBaseX = baseX;
-      prevLocalIdx = localIdx;
-    }
-  }
-
   // For each route, compute dot X at a given node.
-  // Uses precomputed stable offsets to eliminate short elbows.
+  // Pure dense centering — consistent spacing at every node.
   function dotX(nodeId, ri) {
     const memberRoutes = nodeRoutes.get(nodeId);
     const pos = positions.get(nodeId);
     if (!memberRoutes || !pos) return pos?.x ?? 0;
     if (memberRoutes.size <= 1) return pos.x;
-    const offset = stableDotOffset.get(`${nodeId}:${ri}`);
-    if (offset !== undefined) return pos.x + offset;
-    // Fallback to dense centering
     const sorted = getDotOrder(nodeId);
     const localIdx = sorted.indexOf(ri);
     if (localIdx < 0) return pos.x;
     const n = sorted.length;
-    return pos.x + (localIdx - (n - 1) / 2) * dotSpacing;
+    const center = (n - 1) / 2;
+    return pos.x + (localIdx - center) * dotSpacing;
   }
 
   // Place a station card, trying multiple positions
@@ -481,8 +415,13 @@ export function layoutSnake(dag, options = {}) {
     // For small dx (dot centering shifts), prefer extreme midFrac to push
     // the elbow close to a node — makes the short horizontal run less visible.
     const dx = Math.abs(qx - px);
-    const midFracs = dx < 2 * dotSpacing
-      ? [0.85, 0.15, 0.75, 0.25, 0.5, 0.35, 0.65]  // extreme first for small jogs
+    // For small dx (centering shifts ≤ dotSpacing), push the jog so close
+    // to the destination that it's hidden inside the station dot.
+    const dotR = 3.2 * s;
+    const dy = Math.abs(qy - py);
+    const hiddenFrac = dy > 0 ? Math.max(0.5, 1 - dotR / dy) : 0.5; // ~0.94 for typical spacing
+    const midFracs = dx <= dotSpacing
+      ? [hiddenFrac, 1 - hiddenFrac, 0.85, 0.15]     // hidden inside dot first
       : [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];  // balanced first for big bends
     let bestD = null;
     let bestMf = 0.5;
