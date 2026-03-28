@@ -3,223 +3,235 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>dag-map flow layout demo</title>
+<title>dag-map — flow layout demo</title>
 <style>
-  :root {
-    --dm-paper: #1E1E2E;
-    --dm-ink: #CDD6F4;
-    --dm-muted: #6C7086;
-    --dm-border: #313244;
-    --dm-font: 'Inter', 'Segoe UI', system-ui, sans-serif;
-    --dm-radius: 4px;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+/* =================================================================
+ * dag-map.css — Library stylesheet for dag-map
+ * =================================================================
+ * The minimal CSS needed to use dag-map in your application.
+ * Provides CSS custom properties for theming and base container styles.
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="dag-map.css">
+ *   <div class="dm-container" id="my-dag"></div>
+ *
+ * Override theme via CSS custom properties:
+ *   :root { --dm-paper: #1E1E2E; --dm-ink: #CDD6F4; }
+ *
+ * Or via the JS theme system (takes precedence):
+ *   layoutMetro(dag, { theme: 'dark' });
+ */
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── CSS Custom Properties (defaults = cream theme) ── */
+:root {
+  --dm-paper: #F5F0E8;
+  --dm-ink: #2C2C2C;
+  --dm-muted: #8C8680;
+  --dm-border: #D4CFC7;
+  --dm-font: 'IBM Plex Mono', 'Courier New', monospace;
+  --dm-radius: 4px;
 
-  body {
-    font-family: var(--dm-font);
-    background: var(--dm-paper);
-    color: var(--dm-ink);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+  /* Node class colors (used when cssVars: true) */
+  --dm-cls-pure: #2B8A8E;
+  --dm-cls-recordable: #E8846B;
+  --dm-cls-side-effecting: #D4944C;
+  --dm-cls-gate: #C45B4A;
+}
 
-  /* ── Nav bar ── */
-  .dm-nav {
-    padding: 8px 24px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    border-bottom: 1px solid var(--dm-border);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-  }
+/* ── Container ── */
+.dm-container {
+  background: var(--dm-paper);
+  font-family: var(--dm-font);
+  color: var(--dm-ink);
+  transition: background 0.2s;
+}
 
-  .dm-nav-title {
-    font-weight: 600;
-    color: var(--dm-ink);
-    opacity: 0.8;
-  }
+.dm-container svg {
+  display: block;
+}
 
-  .dm-nav a {
-    color: var(--dm-muted);
-    text-decoration: none;
-    padding: 2px 8px;
-    border-radius: var(--dm-radius);
-    transition: all 0.15s;
-  }
+/* ── Code snippet (optional — for showing generated options) ── */
+.dm-code {
+  margin: 12px 24px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius);
+  font-family: var(--dm-font);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--dm-ink);
+  white-space: pre;
+  overflow-x: auto;
+  cursor: text;
+  user-select: all;
+  -webkit-user-select: all;
+}
 
-  .dm-nav a:hover {
-    color: var(--dm-ink);
-    background: var(--dm-border);
-  }
+/* =================================================================
+ * demo.css — Styles for the dag-map interactive demo page
+ * =================================================================
+ * Not needed for library usage. Only for the demo's controls,
+ * sliders, and advanced panel.
+ */
 
-  .dm-nav a.active {
-    color: var(--dm-ink);
-    background: var(--dm-border);
-  }
+/* ── Controls bar ── */
+.dm-controls {
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--dm-border);
+}
 
-  /* ── Controls bar ── */
-  .dm-controls {
-    padding: 12px 24px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--dm-border);
-  }
+.dm-controls label {
+  font-size: 11px;
+  color: var(--dm-muted);
+  letter-spacing: 0.06em;
+}
 
-  .dm-controls label {
-    font-size: 11px;
-    color: var(--dm-muted);
-    letter-spacing: 0.06em;
-  }
+.dm-controls select {
+  font-family: var(--dm-font);
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid var(--dm-border);
+  background: var(--dm-paper);
+  color: var(--dm-ink);
+  border-radius: var(--dm-radius);
+  cursor: pointer;
+}
 
-  .dm-controls select {
-    font-family: var(--dm-font);
-    font-size: 11px;
-    padding: 4px 8px;
-    border: 1px solid var(--dm-border);
-    background: var(--dm-paper);
-    color: var(--dm-ink);
-    border-radius: var(--dm-radius);
-    cursor: pointer;
-  }
+.dm-controls input[type="checkbox"] {
+  cursor: pointer;
+}
 
-  /* ── Parameter sliders ── */
-  .dm-params {
-    padding: 8px 24px;
-    font-size: 11px;
-    color: var(--dm-muted);
-    border-bottom: 1px solid var(--dm-border);
-  }
+.dm-controls input[type="range"] {
+  width: 80px;
+}
 
-  .dm-params summary {
-    cursor: pointer;
-    letter-spacing: 0.06em;
-    padding: 4px 0;
-    font-weight: 500;
-    font-size: 10px;
-    text-transform: uppercase;
-  }
+.dm-version {
+  font-size: 9px;
+  color: var(--dm-muted);
+  margin-left: auto;
+  opacity: 0.7;
+}
 
-  .dm-params .dm-grid {
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
-    padding: 8px 0;
-    align-items: center;
-  }
+/* ── Advanced panel ── */
+.dm-advanced {
+  padding: 8px 24px;
+  font-size: 11px;
+  color: var(--dm-muted);
+  border-bottom: 1px solid var(--dm-border);
+}
 
-  .dm-param {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    color: var(--dm-muted);
-  }
+.dm-advanced summary {
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  padding: 4px 0;
+  font-weight: 500;
+}
 
-  .dm-param input[type="range"] {
-    width: 72px;
-    accent-color: #89B4FA;
-  }
+.dm-advanced .dm-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  align-items: center;
+}
 
-  .dm-val {
-    min-width: 28px;
-    font-size: 9px;
-    color: var(--dm-muted);
-    opacity: 0.7;
-    font-variant-numeric: tabular-nums;
-  }
+.dm-advanced label {
+  font-size: 10px;
+  color: var(--dm-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 
-  /* ── SVG container ── */
-  .dm-canvas {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 24px;
-    overflow: auto;
-  }
+.dm-advanced input[type="range"] {
+  width: 60px;
+}
 
-  .dm-canvas svg {
-    max-width: 100%;
-    height: auto;
-  }
+.dm-advanced .dm-val {
+  min-width: 24px;
+  font-size: 9px;
+  color: var(--dm-muted);
+  opacity: 0.7;
+}
 
-  /* ── Status bar ── */
-  .dm-status {
-    padding: 6px 24px;
-    font-size: 9px;
-    color: var(--dm-muted);
-    opacity: 0.6;
-    border-top: 1px solid var(--dm-border);
-    letter-spacing: 0.04em;
-  }
+/* ── Inline label + control groups ── */
+.dm-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.dm-angle-control {
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.dm-angle-control.visible {
+  display: flex;
+}
+
+/* ── GitHub link ── */
+.dm-github {
+  color: var(--dm-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.dm-github:hover {
+  opacity: 1;
+}
+
 </style>
 </head>
-<body>
-
-<!-- Navigation -->
-<div class="dm-nav">
-  <span class="dm-nav-title">dag-map</span>
-  <a href="dag.html">dag</a>
-  <a href="hasse.html">hasse</a>
-  <a href="flow.html" class="active">flow</a>
-</div>
-
-<!-- Model selector -->
+<body class="dm-container">
 <div class="dm-controls">
-  <label for="dm-model">MODEL</label>
-  <select id="dm-model"></select>
+  <label for="modelSelect">Model:</label>
+  <select id="modelSelect"></select>
+  <label for="themeSelect">Theme:</label>
+  <select id="themeSelect">
+    <option value="dark">dark</option>
+    <option value="cream">cream</option>
+    <option value="light">light</option>
+    <option value="blueprint">blueprint</option>
+    <option value="mono">mono</option>
+    <option value="metro">metro</option>
+  </select>
+  <span class="dm-version">dag-map flow 0.1.0</span>
+  <a href="dag.html" class="dm-version" title="DAG metro demo">dag</a>
+  <a href="hasse.html" class="dm-version" title="Hasse diagram demo">hasse</a>
+  <a href="https://github.com/23min/DAG-map" target="_blank" rel="noopener" class="dm-github" title="View on GitHub">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  </a>
 </div>
-
-<!-- Parameter sliders -->
-<div class="dm-params">
-  <details open>
-    <summary>PARAMETERS</summary>
-    <div class="dm-grid">
-      <div class="dm-param">
-        <label for="dm-scale">scale</label>
-        <input type="range" id="dm-scale" min="0.5" max="4" step="0.1" value="1.8">
-        <span class="dm-val" id="dm-scale-val">1.8</span>
-      </div>
-      <div class="dm-param">
-        <label for="dm-layerSpacing">layerSpacing</label>
-        <input type="range" id="dm-layerSpacing" min="20" max="120" step="5" value="50">
-        <span class="dm-val" id="dm-layerSpacing-val">50</span>
-      </div>
-      <div class="dm-param">
-        <label for="dm-columnSpacing">columnSpacing</label>
-        <input type="range" id="dm-columnSpacing" min="30" max="160" step="5" value="70">
-        <span class="dm-val" id="dm-columnSpacing-val">70</span>
-      </div>
-      <div class="dm-param">
-        <label for="dm-dotSpacing">dotSpacing</label>
-        <input type="range" id="dm-dotSpacing" min="4" max="30" step="1" value="12">
-        <span class="dm-val" id="dm-dotSpacing-val">12</span>
-      </div>
-      <div class="dm-param">
-        <label for="dm-cornerRadius">cornerRadius</label>
-        <input type="range" id="dm-cornerRadius" min="0" max="20" step="1" value="5">
-        <span class="dm-val" id="dm-cornerRadius-val">5</span>
-      </div>
-      <div class="dm-param">
-        <label for="dm-lineThickness">lineThickness</label>
-        <input type="range" id="dm-lineThickness" min="1" max="8" step="0.5" value="3">
-        <span class="dm-val" id="dm-lineThickness-val">3</span>
-      </div>
-    </div>
-  </details>
-</div>
-
-<!-- SVG output -->
-<div class="dm-canvas" id="dm-canvas"></div>
-
-<!-- Status -->
-<div class="dm-status" id="dm-status">Ready</div>
-
+<details class="dm-advanced">
+  <summary>advanced</summary>
+  <div class="dm-grid">
+    <label>scale <input type="range" id="scaleSlider" min="0.5" max="3" step="0.1" value="1.8">
+      <span class="dm-val" id="scaleValue">1.8</span></label>
+    <label>layer spacing <input type="range" id="layerSpacingSlider" min="20" max="120" step="5" value="50">
+      <span class="dm-val" id="layerSpacingValue">50</span></label>
+    <label>column spacing <input type="range" id="columnSpacingSlider" min="30" max="160" step="5" value="70">
+      <span class="dm-val" id="columnSpacingValue">70</span></label>
+    <label>dot spacing <input type="range" id="dotSpacingSlider" min="4" max="30" step="1" value="12">
+      <span class="dm-val" id="dotSpacingValue">12</span></label>
+    <label>corner radius <input type="range" id="cornerRadiusSlider" min="0" max="20" step="1" value="5">
+      <span class="dm-val" id="cornerRadiusValue">5</span></label>
+    <label>line thickness <input type="range" id="lineThicknessSlider" min="1" max="8" step="0.5" value="3">
+      <span class="dm-val" id="lineThicknessValue">3</span></label>
+  </div>
+</details>
+<div id="mapContainer"></div>
+<pre id="optionsBlock" class="dm-code"></pre>
 <script>
 // ============================================================
 // dag-map flow demo — all modules inlined
@@ -1685,10 +1697,9 @@ function createEdgeRenderer(layout, edgeVolumes) {
 }
 
 
-// --- model data + UI ---
-// ================================================================
-// Inline model data (extracted from test/models.js)
-// ================================================================
+// ============================================================
+// Model data
+// ============================================================
 
 const palette = {
   paper: '#1E1E2E', ink: '#CDD6F4', muted: '#6C7086', border: '#313244',
@@ -1698,36 +1709,21 @@ const palette = {
   },
 };
 
-function m(id, label, subtitle, nodes, edges, routes, opts = {}) {
+function mkModel(id, label, subtitle, nodes, edges, routes, opts) {
   return {
-    id,
-    label,
-    subtitle,
+    id, label, subtitle,
     dag: {
       nodes: nodes.map(n => ({ id: n[0], label: n[1], count: n[2] || '' })),
       edges,
     },
     routes: routes.map(r => ({ id: r.id, cls: r.cls, nodes: r.nodes })),
-    theme: {
-      ...palette,
-      classes: Object.fromEntries(routes.map(r => [r.cls, palette.classes[r.cls]])),
-    },
-    opts: {
-      scale: 1.8,
-      layerSpacing: 50,
-      columnSpacing: 70,
-      dotSpacing: 12,
-      cornerRadius: 5,
-      lineThickness: 3,
-      ...opts,
-    },
+    theme: { ...palette, classes: Object.fromEntries(routes.map(r => [r.cls, palette.classes[r.cls]])) },
+    opts: { scale: 1.8, layerSpacing: 50, columnSpacing: 70, dotSpacing: 12, cornerRadius: 5, lineThickness: 3, ...opts },
   };
 }
 
 const models = [
-
-  // ── O2C Full (5 classes, 12 nodes) ──
-  m('o2c_full', 'Order-to-Cash', 'Order | Delivery | Invoice | Shipping | Payment', [
+  mkModel('o2c_full', 'Order-to-Cash', 'Order | Delivery | Invoice | Shipping | Payment', [
     ['create_order', 'Create Sales Order', '1.32M'],
     ['change_order', 'Change Sales Order', '253K'],
     ['gen_delivery', 'Generate Delivery', '1.22M'],
@@ -1753,22 +1749,13 @@ const models = [
     { id: 'shipping', cls: 'd', nodes: ['release_delivery','pick_goods','ship_goods','receive_confirm'] },
     { id: 'payment', cls: 'e', nodes: ['clear_invoice','record_payment'] },
   ]),
-
-  // ── Healthcare (5 classes, 9 nodes) ──
-  m('healthcare', 'Healthcare Patient Flow', 'Patient | Doctor | Lab | Radiology | Nursing', [
-    ['register', 'Register Patient'],
-    ['triage', 'Triage'],
-    ['consult', 'Doctor Consult'],
-    ['lab', 'Lab Tests'],
-    ['imaging', 'Imaging'],
-    ['diagnose', 'Diagnosis'],
-    ['treat', 'Treatment'],
-    ['discharge', 'Discharge'],
-    ['followup', 'Follow-up'],
+  mkModel('healthcare', 'Healthcare Patient Flow', 'Patient | Doctor | Lab | Radiology | Nursing', [
+    ['register', 'Register Patient'],['triage', 'Triage'],['consult', 'Doctor Consult'],
+    ['lab', 'Lab Tests'],['imaging', 'Imaging'],['diagnose', 'Diagnosis'],
+    ['treat', 'Treatment'],['discharge', 'Discharge'],['followup', 'Follow-up'],
   ], [
     ['register','triage'],['triage','consult'],['consult','lab'],['consult','imaging'],
-    ['lab','diagnose'],['imaging','diagnose'],['diagnose','treat'],['treat','discharge'],
-    ['discharge','followup'],
+    ['lab','diagnose'],['imaging','diagnose'],['diagnose','treat'],['treat','discharge'],['discharge','followup'],
   ], [
     { id: 'patient', cls: 'a', nodes: ['register','triage','consult','lab','diagnose','treat','discharge','followup'] },
     { id: 'doctor', cls: 'b', nodes: ['triage','consult','lab','diagnose','treat'] },
@@ -1776,22 +1763,13 @@ const models = [
     { id: 'radiology', cls: 'd', nodes: ['imaging','diagnose'] },
     { id: 'nursing', cls: 'e', nodes: ['treat','discharge'] },
   ]),
-
-  // ── Event Planning (5 classes, 9 nodes) ──
-  m('event_planning', 'Event Planning', 'Organizer | Marketing | Venue | Speaker | Attendee', [
-    ['concept', 'Event Concept'],
-    ['budget', 'Budget'],
-    ['venue', 'Book Venue'],
-    ['speakers', 'Book Speakers'],
-    ['promo', 'Promote'],
-    ['tickets', 'Ticket Sales'],
-    ['setup', 'Setup'],
-    ['event', 'Event Day'],
-    ['feedback', 'Feedback'],
+  mkModel('event_planning', 'Event Planning', 'Organizer | Marketing | Venue | Speaker | Attendee', [
+    ['concept', 'Event Concept'],['budget', 'Budget'],['venue', 'Book Venue'],
+    ['speakers', 'Book Speakers'],['promo', 'Promote'],['tickets', 'Ticket Sales'],
+    ['setup', 'Setup'],['event', 'Event Day'],['feedback', 'Feedback'],
   ], [
     ['concept','budget'],['budget','venue'],['budget','speakers'],['venue','promo'],
-    ['speakers','promo'],['promo','tickets'],['tickets','setup'],['setup','event'],
-    ['event','feedback'],
+    ['speakers','promo'],['promo','tickets'],['tickets','setup'],['setup','event'],['event','feedback'],
   ], [
     { id: 'organizer', cls: 'a', nodes: ['concept','budget','venue','promo','tickets','setup','event'] },
     { id: 'marketing', cls: 'b', nodes: ['promo','tickets'] },
@@ -1799,15 +1777,9 @@ const models = [
     { id: 'speaker', cls: 'd', nodes: ['speakers','promo','tickets','setup','event'] },
     { id: 'attendee', cls: 'e', nodes: ['tickets','setup','event','feedback'] },
   ]),
-
-  // ── Procurement (3 classes, 6 nodes) ──
-  m('procurement', 'Procurement', 'Purchasing | Warehouse | Finance', [
-    ['req', 'Create Requisition', '45K'],
-    ['approve', 'Approve', '42K'],
-    ['po', 'Create PO', '40K'],
-    ['receive', 'Receive Goods', '38K'],
-    ['invoice', 'Match Invoice', '37K'],
-    ['pay', 'Payment', '36K'],
+  mkModel('procurement', 'Procurement', 'Purchasing | Warehouse | Finance', [
+    ['req', 'Create Requisition', '45K'],['approve', 'Approve', '42K'],['po', 'Create PO', '40K'],
+    ['receive', 'Receive Goods', '38K'],['invoice', 'Match Invoice', '37K'],['pay', 'Payment', '36K'],
   ], [
     ['req','approve'],['approve','po'],['po','receive'],['receive','invoice'],['invoice','pay'],
   ], [
@@ -1815,22 +1787,13 @@ const models = [
     { id: 'warehouse', cls: 'b', nodes: ['receive','invoice'] },
     { id: 'finance', cls: 'c', nodes: ['invoice','pay'] },
   ]),
-
-  // ── Movie Production (6 classes, 9 nodes) ──
-  m('movie_production', 'Movie Production', 'Writer | Director | Producer | VFX | Composer | Distributor', [
-    ['script', 'Script'],
-    ['cast', 'Casting'],
-    ['location', 'Location Scout'],
-    ['film', 'Principal Photography'],
-    ['vfx', 'VFX'],
-    ['edit', 'Editing'],
-    ['score', 'Score Music'],
-    ['market', 'Marketing'],
-    ['release', 'Release'],
+  mkModel('movie_production', 'Movie Production', 'Writer | Director | Producer | VFX | Composer | Distributor', [
+    ['script', 'Script'],['cast', 'Casting'],['location', 'Location Scout'],
+    ['film', 'Principal Photography'],['vfx', 'VFX'],['edit', 'Editing'],
+    ['score', 'Score Music'],['market', 'Marketing'],['release', 'Release'],
   ], [
     ['script','cast'],['script','location'],['cast','film'],['location','film'],
-    ['film','vfx'],['film','edit'],['vfx','edit'],['edit','score'],
-    ['score','market'],['market','release'],
+    ['film','vfx'],['film','edit'],['vfx','edit'],['edit','score'],['score','market'],['market','release'],
   ], [
     { id: 'writer', cls: 'a', nodes: ['script'] },
     { id: 'director', cls: 'b', nodes: ['script','cast','film','edit'] },
@@ -1839,88 +1802,74 @@ const models = [
     { id: 'composer', cls: 'e', nodes: ['score'] },
     { id: 'distributor', cls: 'f', nodes: ['market','release'] },
   ]),
-
-  // ── Insurance Claim (4 classes, 6 nodes) ──
-  m('insurance_claim', 'Insurance Claim', 'Claimant | Adjuster | Reject | Repair', [
-    ['report', 'Report Claim', '150K'],
-    ['assess', 'Assess Damage', '145K'],
-    ['approve', 'Approve Claim', '130K'],
-    ['reject', 'Reject Claim', '20K'],
-    ['repair', 'Arrange Repair', '110K'],
-    ['pay', 'Pay Out', '125K'],
+  mkModel('insurance_claim', 'Insurance Claim', 'Claimant | Adjuster | Reject | Repair', [
+    ['report', 'Report Claim', '150K'],['assess', 'Assess Damage', '145K'],
+    ['approve_claim', 'Approve Claim', '130K'],['reject', 'Reject Claim', '20K'],
+    ['repair', 'Arrange Repair', '110K'],['pay', 'Pay Out', '125K'],
   ], [
-    ['report','assess'],['assess','approve'],['assess','reject'],
-    ['approve','repair'],['approve','pay'],['repair','pay'],
+    ['report','assess'],['assess','approve_claim'],['assess','reject'],
+    ['approve_claim','repair'],['approve_claim','pay'],['repair','pay'],
   ], [
-    { id: 'claimant', cls: 'a', nodes: ['report','assess','approve','pay'] },
-    { id: 'adjuster', cls: 'b', nodes: ['report','assess','approve'] },
+    { id: 'claimant', cls: 'a', nodes: ['report','assess','approve_claim','pay'] },
+    { id: 'adjuster', cls: 'b', nodes: ['report','assess','approve_claim'] },
     { id: 'reject_flow', cls: 'c', nodes: ['assess','reject'] },
-    { id: 'repair', cls: 'd', nodes: ['approve','repair','pay'] },
+    { id: 'repair_flow', cls: 'd', nodes: ['approve_claim','repair','pay'] },
   ]),
-
 ];
 
-// ================================================================
+// ============================================================
 // UI wiring
-// ================================================================
+// ============================================================
 
-const $model = document.getElementById('dm-model');
-const $canvas = document.getElementById('dm-canvas');
-const $status = document.getElementById('dm-status');
+const $model = document.getElementById('modelSelect');
+const $theme = document.getElementById('themeSelect');
+const $container = document.getElementById('mapContainer');
+const $options = document.getElementById('optionsBlock');
 
-const paramIds = ['scale', 'layerSpacing', 'columnSpacing', 'dotSpacing', 'cornerRadius', 'lineThickness'];
-const $params = {};
-const $vals = {};
-paramIds.forEach(id => {
-  $params[id] = document.getElementById(`dm-${id}`);
-  $vals[id] = document.getElementById(`dm-${id}-val`);
-});
+const sliders = {
+  scale:         { el: document.getElementById('scaleSlider'),         val: document.getElementById('scaleValue') },
+  layerSpacing:  { el: document.getElementById('layerSpacingSlider'),  val: document.getElementById('layerSpacingValue') },
+  columnSpacing: { el: document.getElementById('columnSpacingSlider'), val: document.getElementById('columnSpacingValue') },
+  dotSpacing:    { el: document.getElementById('dotSpacingSlider'),    val: document.getElementById('dotSpacingValue') },
+  cornerRadius:  { el: document.getElementById('cornerRadiusSlider'),  val: document.getElementById('cornerRadiusValue') },
+  lineThickness: { el: document.getElementById('lineThicknessSlider'), val: document.getElementById('lineThicknessValue') },
+};
 
 // Populate model selector
 models.forEach((m, i) => {
   const opt = document.createElement('option');
   opt.value = i;
-  opt.textContent = `${m.label} (${m.dag.nodes.length} nodes, ${m.routes.length} routes)`;
+  opt.textContent = m.label + ' (' + m.dag.nodes.length + ' nodes, ' + m.routes.length + ' routes)';
   $model.appendChild(opt);
 });
 
-function getParams() {
-  return {
-    scale: parseFloat($params.scale.value),
-    layerSpacing: parseFloat($params.layerSpacing.value),
-    columnSpacing: parseFloat($params.columnSpacing.value),
-    dotSpacing: parseFloat($params.dotSpacing.value),
-    cornerRadius: parseFloat($params.cornerRadius.value),
-    lineThickness: parseFloat($params.lineThickness.value),
-  };
+function getOpts() {
+  const o = {};
+  for (const [k, s] of Object.entries(sliders)) o[k] = parseFloat(s.el.value);
+  return o;
 }
 
-function render() {
-  const t0 = performance.now();
+function doRender() {
   const idx = parseInt($model.value, 10);
   const model = models[idx];
-  const params = getParams();
+  const opts = getOpts();
+  const themeName = $theme.value;
 
-  // Update value displays
-  paramIds.forEach(id => {
-    $vals[id].textContent = $params[id].value;
-  });
+  // Update slider value displays
+  for (const [k, s] of Object.entries(sliders)) s.val.textContent = s.el.value;
+
+  // Merge the model's route-class colors into the selected theme
+  const baseTheme = resolveTheme(themeName);
+  const theme = { ...baseTheme, classes: { ...baseTheme.classes, ...model.theme.classes } };
+
+  // Update page background to match theme
+  document.body.style.background = theme.paper;
+  document.body.style.color = theme.ink;
 
   try {
-    const layout = layoutFlow(model.dag, {
-      routes: model.routes,
-      theme: model.theme,
-      scale: params.scale,
-      layerSpacing: params.layerSpacing,
-      columnSpacing: params.columnSpacing,
-      dotSpacing: params.dotSpacing,
-      cornerRadius: params.cornerRadius,
-      lineThickness: params.lineThickness,
-    });
-
+    const layout = layoutFlow(model.dag, { routes: model.routes, theme, ...opts });
     const renderNode = createStationRenderer(layout, model.routes);
     const renderEdge = createEdgeRenderer(layout);
-
     const svg = renderSVG(model.dag, layout, {
       title: model.label,
       subtitle: model.subtitle || '',
@@ -1929,38 +1878,31 @@ function render() {
       renderNode,
       renderEdge,
     });
+    $container.innerHTML = svg;
 
-    $canvas.innerHTML = svg;
-    const ms = (performance.now() - t0).toFixed(1);
-    $status.textContent = `${model.label} | ${model.dag.nodes.length} nodes, ${model.dag.edges.length} edges, ${model.routes.length} routes | rendered in ${ms}ms`;
+    // Options snippet
+    $options.textContent = 'layoutFlow(dag, {\n'
+      + '  routes,\n'
+      + '  theme: ' + JSON.stringify(themeName) + ',\n'
+      + Object.entries(opts).map(([k, v]) => '  ' + k + ': ' + v + ',').join('\n')
+      + '\n});';
   } catch (err) {
-    $canvas.innerHTML = `<pre style="color:#F38BA8;padding:24px;font-size:12px;">${err.message}\n${err.stack}</pre>`;
-    $status.textContent = `Error: ${err.message}`;
-    console.error(err);
+    $container.innerHTML = '<pre style="color:red;padding:24px">' + err.message + '\n' + err.stack + '</pre>';
   }
 }
 
-// Apply model defaults when switching models
 function onModelChange() {
   const idx = parseInt($model.value, 10);
-  const model = models[idx];
-  const defaults = model.opts;
-
-  paramIds.forEach(id => {
-    if (defaults[id] !== undefined) {
-      $params[id].value = defaults[id];
-      $vals[id].textContent = defaults[id];
-    }
-  });
-
-  render();
+  const defaults = models[idx].opts;
+  for (const [k, s] of Object.entries(sliders)) {
+    if (defaults[k] !== undefined) { s.el.value = defaults[k]; s.val.textContent = defaults[k]; }
+  }
+  doRender();
 }
 
-// Event listeners
 $model.addEventListener('change', onModelChange);
-paramIds.forEach(id => {
-  $params[id].addEventListener('input', render);
-});
+$theme.addEventListener('change', doRender);
+for (const s of Object.values(sliders)) s.el.addEventListener('input', doRender);
 
 // Initial render
 onModelChange();
