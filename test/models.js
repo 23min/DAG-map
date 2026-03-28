@@ -18,7 +18,7 @@ function m(id, name, nodes, edges, routes, opts = {}) {
     dag: { nodes: nodes.map(n => ({ id: n[0], label: n[1], count: n[2] || '' })), edges },
     routes: routes.map((r, i) => ({ id: r.id, cls: r.cls, nodes: r.nodes })),
     theme: { ...palette, classes: Object.fromEntries(routes.map(r => [r.cls, palette.classes[r.cls]])) },
-    opts: { scale: 1.8, layerSpacing: 50, columnSpacing: 100, dotSpacing: 12, cornerRadius: 5, lineThickness: 3, ...opts },
+    opts: { scale: 1.8, layerSpacing: 50, columnSpacing: 70, dotSpacing: 12, cornerRadius: 5, lineThickness: 3, ...opts },
   };
 }
 

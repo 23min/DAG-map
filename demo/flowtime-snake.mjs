@@ -115,7 +115,7 @@ const layout = layoutSnake(dag, {
   theme,
   scale: 1.8,
   layerSpacing: 50,
-  columnSpacing: 100,
+  columnSpacing: 70,
   dotSpacing: 12,
   cornerRadius: 5,
   lineThickness: 3,
