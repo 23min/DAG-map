@@ -263,7 +263,7 @@ export function layoutSnake(dag, options = {}) {
       }
 
       // Collision avoidance: if offset is taken, find nearest free slot
-      const isTaken = (o) => [...taken].some(t => Math.abs(t - o) < dotSpacing * 0.5);
+      const isTaken = (o) => [...taken].some(t => Math.abs(t - o) < dotSpacing * 0.9);
       if (isTaken(offset)) {
         // Try slots radiating outward from the default position
         let found = false;

@@ -184,9 +184,9 @@ export const models = [
     ['carousel', 'Carousel', '22K'],
     ['collect', 'Collect', '21K'],
   ], [['checkin','scan'],['scan','sort'],['sort','load'],['load','fly'],['fly','unload'],['unload','carousel'],['carousel','collect']], [
-    { id: 'passenger', cls: 'a', nodes: ['checkin','scan','sort','load','fly','unload','carousel','collect'] },
+    { id: 'passenger', cls: 'a', nodes: ['checkin','scan','carousel','collect'] },
     { id: 'security', cls: 'b', nodes: ['scan','sort'] },
-    { id: 'ground', cls: 'c', nodes: ['sort','load','fly','unload','carousel'] },
+    { id: 'ground', cls: 'c', nodes: ['sort','load','unload','carousel'] },
     { id: 'airline', cls: 'd', nodes: ['load','fly','unload'] },
   ]),
 
