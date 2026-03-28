@@ -202,8 +202,8 @@ function validateSVG(svgString, layout, model) {
       for (let j = i + 1; j < vertRuns.length; j++) {
         const a = vertRuns[i], b = vertRuns[j];
         if (a.ri === b.ri) continue; // same route is fine
-        const lineSep = layout.dotSpacing || 20;
-        if (Math.abs(a.x - b.x) > lineSep) continue; // far enough apart
+        const lineThick = (layout.scale || 1.5) * 3; // one line thickness
+        if (Math.abs(a.x - b.x) > lineThick) continue; // visually separated
         const overlapY = Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1);
         if (overlapY > 20) {
           issues.push({ rule: 'line-overlap', severity: 'error',

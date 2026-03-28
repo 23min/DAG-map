@@ -483,6 +483,15 @@ export function layoutSnake(dag, options = {}) {
       return { id, x: dotX(id, ri), y: pos.y };
     }).filter(Boolean);
 
+    // Straightening pass: snap small dx shifts to make segments vertical.
+    // This eliminates short elbows from dense centering changes.
+    for (let i = 1; i < waypoints.length; i++) {
+      const dx = Math.abs(waypoints[i].x - waypoints[i - 1].x);
+      if (dx > 0.5 && dx < dotSpacing) {
+        waypoints[i].x = waypoints[i - 1].x;
+      }
+    }
+
     const routeOwner = `route${ri}`;
     const segments = [];
     for (let i = 1; i < waypoints.length; i++) {
