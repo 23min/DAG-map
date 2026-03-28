@@ -306,19 +306,72 @@ export function layoutSnake(dag, options = {}) {
     return sorted;
   }
 
+  // Precompute trunk's stable dot offset: propagate from node to node
+  // so the trunk never zig-zags. Other routes pack around the trunk.
+  const trunkDotOffset = new Map(); // nodeId → trunk's offset from pos.x
+  {
+    let prevOffset = null;
+    let prevBaseX = null;
+    for (const nodeId of routes[trunkRi].nodes) {
+      const pos = positions.get(nodeId);
+      if (!pos) continue;
+      const memberRoutes = nodeRoutes.get(nodeId);
+      if (!memberRoutes || memberRoutes.size <= 1) {
+        trunkDotOffset.set(nodeId, 0);
+        prevOffset = 0;
+        prevBaseX = pos.x;
+        continue;
+      }
+      const sorted = getDotOrder(nodeId);
+      const localIdx = sorted.indexOf(trunkRi);
+      const n = sorted.length;
+      const defaultOffset = (localIdx - (n - 1) / 2) * dotSpacing;
+
+      // Propagate if same column
+      if (prevOffset !== null && prevBaseX !== null && Math.abs(pos.x - prevBaseX) < 1) {
+        trunkDotOffset.set(nodeId, prevOffset);
+      } else {
+        trunkDotOffset.set(nodeId, defaultOffset);
+        prevOffset = defaultOffset;
+      }
+      prevBaseX = pos.x;
+    }
+  }
+
   // For each route, compute dot X at a given node.
-  // Pure dense centering — consistent spacing at every node.
+  // Trunk uses its precomputed stable offset. Other routes use dense
+  // centering but skip the trunk's slot to avoid collision.
   function dotX(nodeId, ri) {
     const memberRoutes = nodeRoutes.get(nodeId);
     const pos = positions.get(nodeId);
     if (!memberRoutes || !pos) return pos?.x ?? 0;
     if (memberRoutes.size <= 1) return pos.x;
+
+    // Trunk gets its stable propagated position
+    if (ri === trunkRi) {
+      const offset = trunkDotOffset.get(nodeId);
+      if (offset !== undefined) return pos.x + offset;
+    }
+
+    // Other routes: dense centering
     const sorted = getDotOrder(nodeId);
     const localIdx = sorted.indexOf(ri);
     if (localIdx < 0) return pos.x;
     const n = sorted.length;
     const center = (n - 1) / 2;
-    return pos.x + (localIdx - center) * dotSpacing;
+    const defaultX = pos.x + (localIdx - center) * dotSpacing;
+
+    // Check if this collides with the trunk's fixed position
+    const trunkOffset = trunkDotOffset.get(nodeId);
+    if (trunkOffset !== undefined) {
+      const trunkX = pos.x + trunkOffset;
+      if (Math.abs(defaultX - trunkX) < dotSpacing * 0.9) {
+        // Shift away from trunk
+        return defaultX < trunkX ? trunkX - dotSpacing : trunkX + dotSpacing;
+      }
+    }
+
+    return defaultX;
   }
 
   // Place a station card, trying multiple positions
