@@ -649,12 +649,21 @@ export function layoutSnake(dag, options = {}) {
       }
     });
     for (const [gapKey, benders] of gapBenders) {
-      // Sort by destination X: leftmost dest gets earliest jog (higher midFrac)
+      if (benders.length < 2) continue;
+
+      // Only stagger when routes bend in OPPOSITE directions.
+      // Routes going the same direction should stay parallel.
+      const hasLeft = benders.some(b => b.toX < b.fromX);
+      const hasRight = benders.some(b => b.toX > b.fromX);
+      if (!hasLeft || !hasRight) continue; // all same direction — skip
+
+      // Sort by destination X: leftmost dest jogs near source,
+      // rightmost dest jogs near destination. This prevents crossings.
       benders.sort((a, b) => a.toX - b.toX);
       const n = benders.length;
       const assignment = new Map();
       benders.forEach((b, i) => {
-        const frac = n === 1 ? 0.5 : 0.2 + (i / (n - 1)) * 0.6;
+        const frac = n === 1 ? 0.5 : 0.25 + (i / (n - 1)) * 0.5;
         assignment.set(b.ri, frac);
       });
       jogAssignments.set(gapKey, assignment);
