@@ -494,7 +494,7 @@ export function layoutSnake(dag, options = {}) {
   // Route a segment with collision avoidance.
   // Returns { d, jogY } — jogY is the Y of the horizontal jog (null for straight).
   // ignore: Set of owners to ignore in collision checks (segment + endpoint nodes)
-  function routeSegment(px, py, qx, qy, ri, owner, ignore) {
+  function routeSegment(px, py, qx, qy, ri, owner, ignore, assignedMidFrac) {
     const r = cornerRadius;
 
     // Straight vertical — check for card collisions (excluding endpoint nodes)
@@ -567,9 +567,14 @@ export function layoutSnake(dag, options = {}) {
     const dotR = 3.2 * s;
     const dy = Math.abs(qy - py);
     const hiddenFrac = dy > 0 ? Math.max(0.5, 1 - dotR / dy) : 0.5; // ~0.94 for typical spacing
-    const midFracs = dx <= dotSpacing
-      ? [hiddenFrac, 1 - hiddenFrac, 0.85, 0.15]     // hidden inside dot first
-      : [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];  // balanced first for big bends
+    // Use pre-assigned staggered midFrac first (crossing avoidance),
+    // then fall back to defaults
+    const baseFracs = dx <= dotSpacing
+      ? [hiddenFrac, 1 - hiddenFrac, 0.85, 0.15]
+      : [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];
+    const midFracs = assignedMidFrac !== undefined
+      ? [assignedMidFrac, ...baseFracs.filter(f => Math.abs(f - assignedMidFrac) > 0.05)]
+      : baseFracs;
     let bestD = null;
     let bestMf = 0.5;
     let bestCollisions = Infinity;
@@ -624,6 +629,38 @@ export function layoutSnake(dag, options = {}) {
     }
   }
 
+  // Pre-compute staggered jog assignments for crossing avoidance.
+  // For each layer gap, routes that bend are assigned different midFrac
+  // values so their horizontal jogs don't overlap.
+  const jogAssignments = new Map(); // "fromLayer→toLayer" → Map<ri, midFrac>
+  {
+    const gapBenders = new Map(); // "layerA→layerB" → [{ri, fromX, toX}]
+    routes.forEach((route, ri) => {
+      for (let i = 1; i < route.nodes.length; i++) {
+        const fromId = route.nodes[i - 1], toId = route.nodes[i];
+        const fromPos = positions.get(fromId), toPos = positions.get(toId);
+        if (!fromPos || !toPos) continue;
+        const fromLayer = layer.get(fromId), toLayer = layer.get(toId);
+        const fx = dotX(fromId, ri), tx = dotX(toId, ri);
+        if (Math.abs(tx - fx) < 1) continue; // straight, no bend
+        const gapKey = `${fromLayer}\u2192${toLayer}`;
+        if (!gapBenders.has(gapKey)) gapBenders.set(gapKey, []);
+        gapBenders.get(gapKey).push({ ri, fromX: fx, toX: tx });
+      }
+    });
+    for (const [gapKey, benders] of gapBenders) {
+      // Sort by destination X: leftmost dest gets earliest jog (higher midFrac)
+      benders.sort((a, b) => a.toX - b.toX);
+      const n = benders.length;
+      const assignment = new Map();
+      benders.forEach((b, i) => {
+        const frac = n === 1 ? 0.5 : 0.2 + (i / (n - 1)) * 0.6;
+        assignment.set(b.ri, frac);
+      });
+      jogAssignments.set(gapKey, assignment);
+    }
+  }
+
   // Phase B: Route ALL segments (grid has dots + cards as obstacles)
   for (const ri of routeOrder) {
     const route = routes[ri];
@@ -638,13 +675,18 @@ export function layoutSnake(dag, options = {}) {
     const segments = [];
     for (let i = 1; i < waypoints.length; i++) {
       const p = waypoints[i - 1], q = waypoints[i];
-      // Ignore endpoint dots. For small dx (centering shifts), also ignore
-      // endpoint cards so the hidden-elbow midFrac can push close to the station.
       const smallDx = Math.abs(q.x - p.x) <= dotSpacing;
       const ignore = smallDx
         ? new Set([routeOwner, p.id, q.id, `card_${p.id}`, `card_${q.id}`])
         : new Set([routeOwner, p.id, q.id]);
-      const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignore);
+
+      // Use pre-assigned staggered midFrac for crossing avoidance
+      const fromLayer = layer.get(p.id), toLayer = layer.get(q.id);
+      const gapKey = `${fromLayer}\u2192${toLayer}`;
+      const gapAssign = jogAssignments.get(gapKey);
+      const assignedMidFrac = gapAssign?.get(ri);
+
+      const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignore, assignedMidFrac);
       segments.push({ d: result.d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
 
       // Try to place edge label — per route, on vertical runs
