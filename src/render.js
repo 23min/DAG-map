@@ -9,7 +9,7 @@
 //   cssVars: false (default) — inline hex colors, portable SVG
 //   cssVars: true — CSS var() references, themeable from CSS
 
-import { resolveTheme as resolveThemeFallback } from './themes.js';
+import { resolveTheme } from './themes.js';
 
 /** Escape user-supplied strings for safe SVG/XML interpolation. */
 function esc(s) {
@@ -60,7 +60,7 @@ export function renderSVG(dag, layout, options = {}) {
   const legendLabels = { ...defaultLegendLabels, ...(options.legendLabels || {}) };
 
   // Resolve colors from theme (with backward-compat fallback)
-  const theme = layout.theme || resolveThemeFallback('cream');
+  const theme = layout.theme || resolveTheme('cream');
 
   // Color resolver: either inline hex or CSS var() reference
   const clsVar = (cls) => `var(--dm-cls-${cls.replace(/_/g, '-')})`;

@@ -358,6 +358,173 @@ function resolveTheme(themeOption) {
 }
 
 
+// --- graph-utils.js ---
+// ================================================================
+// graph-utils.js — Shared graph primitives for dag-map layout engines
+// ================================================================
+// Adjacency map construction and Kahn's algorithm topological sort
+// with longest-path rank assignment. Used by all three layout engines.
+
+/**
+ * Build adjacency maps from nodes and edges.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @returns {{ nodeMap: Map, childrenOf: Map, parentsOf: Map }}
+ */
+function buildGraph(nodes, edges) {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const childrenOf = new Map();
+  const parentsOf = new Map();
+  nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
+  edges.forEach(([f, t]) => {
+    childrenOf.get(f).push(t);
+    parentsOf.get(t).push(f);
+  });
+  return { nodeMap, childrenOf, parentsOf };
+}
+
+/**
+ * Topological sort via Kahn's algorithm with longest-path rank assignment.
+ * @param {Array<{id: string}>} nodes
+ * @param {Map} childrenOf
+ * @param {Map} parentsOf
+ * @returns {{ topo: string[], rank: Map<string, number>, maxRank: number }}
+ */
+function topoSortAndRank(nodes, childrenOf, parentsOf) {
+  const rank = new Map();
+  const inDeg = new Map();
+  nodes.forEach(nd => inDeg.set(nd.id, parentsOf.get(nd.id).length));
+
+  const queue = nodes.filter(nd => inDeg.get(nd.id) === 0).map(nd => nd.id);
+  queue.forEach(id => rank.set(id, 0));
+
+  const topo = [];
+  while (queue.length) {
+    const u = queue.shift();
+    topo.push(u);
+    for (const v of childrenOf.get(u)) {
+      rank.set(v, Math.max(rank.get(v) || 0, rank.get(u) + 1));
+      inDeg.set(v, inDeg.get(v) - 1);
+      if (inDeg.get(v) === 0) queue.push(v);
+    }
+  }
+
+  const maxRank = topo.length > 0 ? Math.max(...topo.map(id => rank.get(id))) : 0;
+  return { topo, rank, maxRank };
+}
+
+/**
+ * Validate a DAG definition and return warnings for common issues.
+ * Non-throwing — returns an array of human-readable warning strings.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @returns {string[]} warnings (empty if valid)
+ */
+function validateDag(nodes, edges) {
+  const warnings = [];
+  const ids = new Set();
+
+  // Duplicate node IDs
+  for (const n of nodes) {
+    if (ids.has(n.id)) warnings.push(`Duplicate node ID: "${n.id}"`);
+    ids.add(n.id);
+  }
+
+  // Edges referencing unknown nodes
+  for (const [f, t] of edges) {
+    if (!ids.has(f)) warnings.push(`Edge source "${f}" is not a known node`);
+    if (!ids.has(t)) warnings.push(`Edge target "${t}" is not a known node`);
+  }
+
+  // Cycle detection via topo sort
+  if (warnings.length === 0 && nodes.length > 0) {
+    const { childrenOf, parentsOf } = buildGraph(nodes, edges);
+    const { topo } = topoSortAndRank(nodes, childrenOf, parentsOf);
+    if (topo.length < nodes.length) {
+      const missing = nodes.filter(n => !topo.includes(n.id)).map(n => n.id);
+      warnings.push(`Cycle detected — ${missing.length} node(s) unreachable: ${missing.join(', ')}`);
+    }
+  }
+
+  return warnings;
+}
+
+// ================================================================
+// SVG path coordinate swap (X↔Y) for orientation transforms
+// ================================================================
+
+// How many coordinate values each SVG command consumes per repetition.
+// Commands that take (x,y) pairs: values are swapped pairwise.
+// H↔V are single-axis and swap command letter instead.
+// A (arc) is not supported — its 7-param layout doesn't pair-swap cleanly.
+const CMD_PARAMS = {
+  M: 2, L: 2, T: 2,      // 1 pair
+  Q: 4, S: 4,             // 2 pairs
+  C: 6,                   // 3 pairs
+  H: 1, V: 1,             // single axis — letter swaps
+  Z: 0,                   // no params
+};
+
+/**
+ * Swap X↔Y coordinates in an SVG path string.
+ * Handles M, L, C, Q, S, T, H, V, Z (both absolute and relative).
+ * Throws on A/a (arc) — arc parameter layout requires special handling.
+ *
+ * @param {string} d - SVG path data string
+ * @returns {string} path with all X and Y coordinates swapped
+ */
+function swapPathXY(d) {
+  if (!d) return '';
+
+  // Tokenize: split into command + numbers sequences.
+  // Regex captures a command letter followed by its numeric arguments.
+  const tokens = [];
+  const re = /([MLCSQTHVZAmlcsqthvza])\s*([^MLCSQTHVZAmlcsqthvza]*)/g;
+  let m;
+  while ((m = re.exec(d)) !== null) {
+    const cmd = m[1];
+    const argStr = m[2].trim();
+    const nums = argStr.length > 0 ? argStr.split(/[\s,]+/).map(Number) : [];
+    tokens.push({ cmd, nums });
+  }
+
+  const parts = [];
+  for (const { cmd, nums } of tokens) {
+    const upper = cmd.toUpperCase();
+
+    if (upper === 'A') {
+      throw new Error('swapPathXY: arc commands (A/a) are not supported');
+    }
+
+    if (upper === 'Z') {
+      parts.push(cmd);
+      continue;
+    }
+
+    if (upper === 'H') {
+      // H x → V x (swap command letter, keep value)
+      parts.push((cmd === 'H' ? 'V' : 'v') + ' ' + nums.join(' '));
+      continue;
+    }
+
+    if (upper === 'V') {
+      // V y → H y
+      parts.push((cmd === 'V' ? 'H' : 'h') + ' ' + nums.join(' '));
+      continue;
+    }
+
+    // Pair-swapping commands: swap every (x, y) → (y, x)
+    const swapped = [];
+    for (let i = 0; i < nums.length; i += 2) {
+      swapped.push(nums[i + 1], nums[i]);
+    }
+    parts.push(cmd + ' ' + swapped.join(' '));
+  }
+
+  return parts.join(' ');
+}
+
+
 // --- occupancy.js ---
 // ================================================================
 // occupancy.js — Spatial occupancy tracker for collision detection
@@ -499,18 +666,6 @@ class OccupancyGrid {
 }
 
 
-// --- layout-metro.js (constants only) ---
-const C = {
-  paper: '#F5F0E8', ink: '#2C2C2C', muted: '#8C8680', border: '#D4CFC7',
-  teal: '#2B8A8E', coral: '#E8846B', amber: '#D4944C', red: '#C45B4A',
-};
-const CLASS_COLOR = {
-  pure: C.teal,
-  recordable: C.coral,
-  side_effecting: C.amber,
-  gate: C.red,
-};
-
 // --- layout-flow.js ---
 // ================================================================
 // layout-flow.js — Obstacle-aware process flow layout
@@ -534,6 +689,7 @@ const CLASS_COLOR = {
 
 
 
+
 function layoutFlow(dag, options = {}) {
   const { nodes, edges } = dag;
   const theme = resolveTheme(options.theme);
@@ -546,37 +702,15 @@ function layoutFlow(dag, options = {}) {
   const lineOpacity = Math.min((theme.lineOpacity ?? 1.0) * 0.7, 1);
   const labelSize = (options.labelSize ?? 3.6) * s;  // station card label font size
   const routes = options.routes || [];
+  const direction = options.direction || 'ttb';
   const cardSide = options.cardSide ?? 'right'; // default card placement
 
-  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
   const classColor = {};
   for (const [cls, hex] of Object.entries(theme.classes)) classColor[cls] = hex;
 
   // ── STEP 1: Topological sort + layers ──
-  const childrenOf = new Map(), parentsOf = new Map();
-  nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
-  edges.forEach(([f, t]) => { childrenOf.get(f).push(t); parentsOf.get(t).push(f); });
-
-  const topo = [];
-  const inDeg = new Map();
-  nodes.forEach(n => inDeg.set(n.id, 0));
-  edges.forEach(([, t]) => inDeg.set(t, inDeg.get(t) + 1));
-  const queue = [];
-  nodes.forEach(n => { if (inDeg.get(n.id) === 0) queue.push(n.id); });
-  while (queue.length > 0) {
-    const u = queue.shift();
-    topo.push(u);
-    for (const v of childrenOf.get(u)) {
-      inDeg.set(v, inDeg.get(v) - 1);
-      if (inDeg.get(v) === 0) queue.push(v);
-    }
-  }
-
-  const layer = new Map();
-  topo.forEach(id => {
-    const parents = parentsOf.get(id);
-    layer.set(id, parents.length === 0 ? 0 : Math.max(...parents.map(p => layer.get(p))) + 1);
-  });
+  const { topo, rank: layer } = topoSortAndRank(nodes, childrenOf, parentsOf);
 
   // ── STEP 2: Route membership + primary type ──
   const nodeRoutes = new Map();
@@ -1355,12 +1489,92 @@ function layoutFlow(dag, options = {}) {
     extraDotPositions.set(`${f}\u2192${t}`, { fromX: fx, fromY: pBase.y, toX: tx, toY: qBase.y });
   });
 
+  const ttbWidth = (maxX - minX) + margin.left + margin.right;
+  const ttbHeight = (maxY - minY) + margin.top + margin.bottom;
+  const ttbMinY = margin.top;
+  const ttbMaxY = margin.top + (layerY[maxLayer] ?? maxLayer * layerSpacing);
+
+  if (direction === 'ltr') {
+    // Swap X↔Y in all positions
+    for (const [id, pos] of positions) {
+      positions.set(id, { x: pos.y, y: pos.x });
+    }
+
+    // Swap route path coordinates
+    for (const segments of routePaths) {
+      for (const seg of segments) {
+        seg.d = swapPathXY(seg.d);
+      }
+    }
+    for (const seg of extraEdges) {
+      seg.d = swapPathXY(seg.d);
+    }
+
+    // Swap card placements
+    for (const [id, cp] of cardPlacements) {
+      const r = cp.rect;
+      cp.rect = { x: r.y, y: r.x, w: r.h, h: r.w, type: r.type, owner: r.owner };
+    }
+
+    // Swap edge label positions
+    for (const [key, pos] of edgeLabelPositions) {
+      edgeLabelPositions.set(key, { x: pos.y, y: pos.x, color: pos.color });
+    }
+
+    // Swap extra dot positions
+    for (const [key, pos] of extraDotPositions) {
+      extraDotPositions.set(key, { fromX: pos.fromY, fromY: pos.fromX, toX: pos.toY, toY: pos.toX });
+    }
+
+    // Wrap dotX so it returns swapped coordinates
+    const ttbDotX = dotX;
+    const ltrDotX = (nodeId, ri) => {
+      // In TTB, dotX returned X position. After swap, that X becomes Y.
+      // For LTR, the "dotX" conceptually returns the position along the
+      // axis perpendicular to the flow — which is now Y.
+      // But the renderer calls dotX expecting the X coordinate of the dot,
+      // and the dot's X in LTR is the swapped Y, i.e. the node's TTB pos.y.
+      // Since positions are already swapped, return the swapped pos.x
+      // (which was the TTB pos.y = layer position).
+      // Actually, dotX in TTB mode returns the column X for the dot.
+      // After swap, column X becomes Y. The renderer draws dots at
+      // (dotX(id, ri), pos.y) — in LTR that should be (pos.x, dotY).
+      // We need dotX to return the swapped value too.
+      return positions.get(nodeId)?.y !== undefined
+        ? ttbDotX(nodeId, ri)  // returns the TTB X, which is now the LTR Y
+        : 0;
+    };
+
+    return {
+      positions,
+      routePaths,
+      extraEdges,
+      width: ttbHeight,
+      height: ttbWidth,
+      routes,
+      nodeRoute: new Map([...nodes.map(nd => [nd.id, nodePrimary.get(nd.id)])]),
+      nodeRoutes,
+      nodePrimary,
+      dotSpacing,
+      dotX,
+      cardPlacements,
+      edgeLabelPositions,
+      extraDotPositions,
+      scale: s,
+      labelSize,
+      theme,
+      orientation: 'ltr',
+      minY: ttbMinY,
+      maxY: ttbMaxY,
+    };
+  }
+
   return {
     positions,
     routePaths,
     extraEdges,
-    width: (maxX - minX) + margin.left + margin.right,
-    height: (maxY - minY) + margin.top + margin.bottom,
+    width: ttbWidth,
+    height: ttbHeight,
     routes,
     nodeRoute: new Map([...nodes.map(nd => [nd.id, nodePrimary.get(nd.id)])]),
     nodeRoutes,
@@ -1374,8 +1588,8 @@ function layoutFlow(dag, options = {}) {
     labelSize,
     theme,
     orientation: 'ttb',
-    minY: margin.top,
-    maxY: margin.top + (layerY[maxLayer] ?? maxLayer * layerSpacing),
+    minY: ttbMinY,
+    maxY: ttbMaxY,
   };
 }
 
@@ -1392,7 +1606,12 @@ function layoutFlow(dag, options = {}) {
 //   cssVars: false (default) — inline hex colors, portable SVG
 //   cssVars: true — CSS var() references, themeable from CSS
 
-// Backward-compat import — only used if layout.theme is missing
+
+/** Escape user-supplied strings for safe SVG/XML interpolation. */
+function esc(s) {
+  if (typeof s !== 'string') return s;
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 /**
  * Render a DAG layout as an SVG string.
@@ -1437,7 +1656,7 @@ function renderSVG(dag, layout, options = {}) {
   const legendLabels = { ...defaultLegendLabels, ...(options.legendLabels || {}) };
 
   // Resolve colors from theme (with backward-compat fallback)
-  const theme = layout.theme || { paper: C.paper, ink: C.ink, muted: C.muted, border: C.border, classes: { pure: C.teal, recordable: C.coral, side_effecting: C.amber, gate: C.red } };
+  const theme = layout.theme || resolveTheme('cream');
 
   // Color resolver: either inline hex or CSS var() reference
   const clsVar = (cls) => `var(--dm-cls-${cls.replace(/_/g, '-')})`;
@@ -1468,9 +1687,9 @@ function renderSVG(dag, layout, options = {}) {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="${font}">\n`;
   svg += `<rect width="${width}" height="${height}" fill="${col.paper}"/>\n`;
 
-  svg += `<text x="${24 * s}" y="${22 * s}" font-size="${10 * s}" fill="${col.ink}" letter-spacing="0.06em" opacity="0.5">${displayTitle}</text>\n`;
+  svg += `<text x="${24 * s}" y="${22 * s}" font-size="${10 * s}" fill="${col.ink}" letter-spacing="0.06em" opacity="0.5">${esc(displayTitle)}</text>\n`;
   if (displaySubtitle) {
-    svg += `<text x="${24 * s}" y="${34 * s}" font-size="${6.5 * s}" fill="${col.muted}">${displaySubtitle}</text>\n`;
+    svg += `<text x="${24 * s}" y="${34 * s}" font-size="${6.5 * s}" fill="${col.muted}">${esc(displaySubtitle)}</text>\n`;
   }
 
   // Route lines — extra edges first (behind)
@@ -1601,17 +1820,17 @@ function renderSVG(dag, layout, options = {}) {
         const textY = tickEndY - r - 1 * s;
         svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
         svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="0.55" `;
-        svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${nd.label}</text>`;
+        svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${esc(nd.label)}</text>`;
       } else if (layout.orientation === 'ttb') {
         // TTB layout: place labels to the right of nodes
         const labelX = pos.x + r + 4 * s;
         const labelY = pos.y + fs * 0.35;
         svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${nd.label}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${esc(nd.label)}</text>`;
       } else {
         const labelY = pos.y + r + 8 * s;
         svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${nd.label}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${esc(nd.label)}</text>`;
       }
 
       svg += `</g>\n`;
@@ -1632,7 +1851,7 @@ function renderSVG(dag, layout, options = {}) {
       svg += `<line x1="${x}" y1="${ly + 16 * s}" x2="${x + 22 * s}" y2="${ly + 16 * s}" stroke="${color}" stroke-width="${3.5 * s}" opacity="0.5" stroke-linecap="round"`;
       if (cls === 'gate') svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
       svg += `/>\n`;
-      svg += `<text x="${x + 28 * s}" y="${ly + 19 * s}" font-size="${6.5 * s}" fill="${col.muted}">${label}</text>\n`;
+      svg += `<text x="${x + 28 * s}" y="${ly + 19 * s}" font-size="${6.5 * s}" fill="${col.muted}">${esc(label)}</text>\n`;
     });
 
     const vertSpread = layout.maxY - layout.minY;
@@ -1650,6 +1869,12 @@ function renderSVG(dag, layout, options = {}) {
 // ================================================================
 // Reusable renderers for the flow layout's Celonis-style visuals:
 // punched-out dots on the line, rich cards to the side, on-line badges.
+
+/** Escape user-supplied strings for safe SVG/XML interpolation. */
+function esc(s) {
+  if (typeof s !== 'string') return s;
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 /**
  * Create a station (node) renderer for flow layouts.
@@ -1689,7 +1914,7 @@ function createStationRenderer(layout, routes) {
       svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${0.7 * s}"/>`;
 
       const labelY = rect.y + cardPadY + fsLabel * 0.85;
-      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500">${node.label}</text>`;
+      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500">${esc(node.label)}</text>`;
 
       const dataY = labelY + fsData + 3 * s;
       let dx = rect.x + cardPadX;
@@ -1700,7 +1925,7 @@ function createStationRenderer(layout, routes) {
         dx += 5 * s;
       });
       if (node.times || node.count) {
-        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${node.times || node.count}</text>`;
+        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${esc(node.times || node.count)}</text>`;
       }
     }
 
@@ -1758,7 +1983,7 @@ function createEdgeRenderer(layout, edgeVolumes) {
 
           svg += `<rect x="${labelPos.x - tw / 2}" y="${labelPos.y - th / 2}" width="${tw}" height="${th}" rx="${1.5 * s}" `;
           svg += `fill="${ctx.theme.paper}" stroke="${labelPos.color}" stroke-width="${0.5 * s}" opacity="0.9"/>`;
-          svg += `<text x="${labelPos.x}" y="${labelPos.y + fs * 0.35}" font-size="${fs}" fill="${labelPos.color}" text-anchor="middle" opacity="0.9">${vol}</text>`;
+          svg += `<text x="${labelPos.x}" y="${labelPos.y + fs * 0.35}" font-size="${fs}" fill="${labelPos.color}" text-anchor="middle" opacity="0.9">${esc(vol)}</text>`;
         }
       }
     }

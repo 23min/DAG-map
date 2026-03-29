@@ -22,14 +22,11 @@ const demoCss = readFileSync(join(root, 'demo/demo.css'), 'utf-8');
 
 // Read and strip module syntax from source files
 const themes = stripModuleSyntax(readFileSync(join(root, 'src/themes.js'), 'utf-8'));
+const graphUtils = stripModuleSyntax(readFileSync(join(root, 'src/graph-utils.js'), 'utf-8'));
 const occupancy = stripModuleSyntax(readFileSync(join(root, 'src/occupancy.js'), 'utf-8'));
 const layoutFlow = stripModuleSyntax(readFileSync(join(root, 'src/layout-flow.js'), 'utf-8'));
 const render = stripModuleSyntax(readFileSync(join(root, 'src/render.js'), 'utf-8'));
 const renderStation = stripModuleSyntax(readFileSync(join(root, 'src/render-flow-station.js'), 'utf-8'));
-// render.js needs C and CLASS_COLOR from layout-metro.js
-const layoutMetro = readFileSync(join(root, 'src/layout-metro.js'), 'utf-8');
-const cBlock = layoutMetro.match(/const C = \{[\s\S]*?\};/)?.[0] || '';
-const classColorBlock = layoutMetro.match(/const CLASS_COLOR = \{[\s\S]*?\};/)?.[0] || '';
 
 const html = `<!DOCTYPE html>
 <html lang="en">
@@ -159,12 +156,11 @@ body.dm-container {
 // --- themes.js ---
 ${themes}
 
+// --- graph-utils.js ---
+${graphUtils}
+
 // --- occupancy.js ---
 ${occupancy}
-
-// --- layout-metro.js (constants only) ---
-${cBlock}
-${classColorBlock}
 
 // --- layout-flow.js ---
 ${layoutFlow}
