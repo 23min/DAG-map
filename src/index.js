@@ -3,26 +3,34 @@
 // ================================================================
 // Public API
 
-import { layoutMetro, C, CLASS_COLOR, dominantClass } from './layout.js';
+import { layoutMetro, dominantClass } from './layout-metro.js';
 import { layoutHasse } from './layout-hasse.js';
+import { layoutFlow } from './layout-flow.js';
 import { renderSVG } from './render.js';
 import { bezierPath } from './route-bezier.js';
 import { angularPath, progressiveCurve } from './route-angular.js';
+import { metroPath } from './route-metro.js';
 import { THEMES, resolveTheme } from './themes.js';
+import { createStationRenderer, createEdgeRenderer } from './render-flow-station.js';
+import { validateDag, swapPathXY } from './graph-utils.js';
 
-export { layoutMetro, C, CLASS_COLOR, dominantClass };
+export { layoutMetro, dominantClass };
 export { layoutHasse };
+export { layoutFlow };
 export { renderSVG };
 export { bezierPath };
 export { angularPath, progressiveCurve };
+export { metroPath };
 export { THEMES, resolveTheme };
+export { createStationRenderer, createEdgeRenderer };
+export { validateDag, swapPathXY };
 
 /**
  * Convenience function: compute layout and render SVG in one call.
  *
  * @param {object} dag - { nodes: [{id, label, cls}], edges: [[from, to]] }
  * @param {object} [options] - combined layout + render options
- * @param {'bezier'|'angular'} [options.routing='angular']
+ * @param {'bezier'|'angular'|'metro'} [options.routing='angular']
  * @param {string|object} [options.theme='cream'] - theme name or custom theme object
  * @param {string} [options.title]
  * @param {boolean} [options.diagonalLabels=false]
@@ -36,7 +44,7 @@ export { THEMES, resolveTheme };
  * @param {number} [options.maxLanes] - max number of lanes to search
  * @returns {{ layout: object, svg: string }}
  */
-export function dag-map(dag, options = {}) {
+export function dagMap(dag, options = {}) {
   const layout = layoutMetro(dag, options);
   const svg = renderSVG(dag, layout, options);
   return { layout, svg };

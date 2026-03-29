@@ -1,12 +1,12 @@
 # dag-map
 
-DAG visualization as metro maps. Decomposes directed acyclic graphs into routes (execution paths) and renders them with a transit-map aesthetic — colored lines for node classes, interchange stations for fan-in/fan-out nodes, and progressive angular or bezier curves for organic edge routing. No build step, no dependencies, raw ES modules.
+DAG visualization as metro maps. Three layout engines — **metro** (transit-map aesthetic), **Hasse** (lattice diagrams), and **flow** (process-mining with multi-class routes) — all rendered as SVG. No build step, no dependencies, raw ES modules.
 
 ![dag-map — 71-node software factory DAG rendered as a metro map](docs/examples/factory-cream-bezier.png)
 
 ## Demo
 
-[**Metro map demo**](https://23min.github.io/DAG-map/demo/dag-map.html) — or open `demo/dag-map.html` directly in a browser. No server needed. Features:
+[**Metro map demo**](https://23min.github.io/DAG-map/demo/dag.html) — or open `demo/dag.html` directly in a browser. No server needed. Features:
 - DAG selector (8 sample graphs of varying size and shape)
 - Routing toggle (bezier / angular)
 - Theme selector (6 built-in themes)
@@ -15,6 +15,8 @@ DAG visualization as metro maps. Decomposes directed acyclic graphs into routes 
 - Live code snippet showing current options, syntax-highlighted and copyable
 
 [**Hasse diagram demo**](https://23min.github.io/DAG-map/demo/hasse.html) — or open `demo/hasse.html` directly. 13 example lattices and DAGs (Boolean lattice, divisibility, set inclusion, face lattice, and more), each with mathematical context. No server needed.
+
+**Flow layout demo** — generate with `node demo/flow.mjs > demo/flow.html`. Process-mining style: multiple colored routes (object types) flow through shared activities, with obstacle-aware routing and adaptive spacing.
 
 ## Quick start
 
@@ -121,7 +123,7 @@ The SVG output uses `var(--dm-paper)`, `var(--dm-cls-pure)`, etc. Override them 
 }
 ```
 
-Default values for all CSS variables are provided in `dag-map.css` (metro layouts) and `hasse.css` (Hasse diagrams). Include the appropriate file for your use case — or both if using both layout engines.
+Default values for all CSS variables are provided in `src/dag-map.css` (metro layouts) and `src/hasse.css` (Hasse diagrams). Include the appropriate file for your use case — or both if using both layout engines.
 
 ## Routing styles
 
@@ -191,6 +193,102 @@ Edges represent covering relations. By convention `[a, b]` means a is covered by
 | D(30) mono | D(30) cream |
 | ![Π(4) — blueprint](docs/examples/hasse-partition4-blueprint.png) | ![Π(4) — dark](docs/examples/hasse-partition4-dark.png) |
 | Π(4) blueprint | Π(4) dark |
+
+## Flow layout
+
+`layoutFlow` renders process-mining diagrams where multiple **object types** (routes) flow through shared **activities** (nodes). Inspired by tools like Celonis Process Explorer. The key concepts:
+
+- **Routes** are colored lines representing entity types (orders, invoices, shipments, etc.) that flow through a process
+- **Activities** are shared stations where routes converge — shown as punched-out dots on the lines, with info cards alongside
+- **The trunk** (longest route) is laid first as a straight vertical spine; other routes branch off to the sides
+- **Obstacle-aware routing** ensures lines bend around cards and other routes using V-H-V (vertical-horizontal-vertical) paths
+- **Adaptive spacing** gives congested merge/fork zones more room while keeping simple stretches compact
+
+| | |
+|---|---|
+| ![O2C flow](docs/examples/flow-o2c-dark.png) | ![Healthcare flow](docs/examples/flow-healthcare-dark.png) |
+| Order-to-Cash (5 object types, 12 activities) | Patient Flow (5 object types, 8 activities) |
+
+### Input format
+
+The DAG describes activities and their dependencies. Routes describe which object types pass through which activities:
+
+```javascript
+import { layoutFlow, renderSVG } from 'dag-map';
+
+const dag = {
+  nodes: [
+    { id: 'register',  label: 'Register Patient' },
+    { id: 'triage',    label: 'Triage' },
+    { id: 'lab',       label: 'Lab Tests' },
+    { id: 'imaging',   label: 'Imaging' },
+    { id: 'diagnosis', label: 'Diagnosis' },
+    { id: 'treat',     label: 'Treatment' },
+  ],
+  edges: [
+    ['register', 'triage'], ['triage', 'lab'], ['triage', 'imaging'],
+    ['lab', 'diagnosis'], ['imaging', 'diagnosis'], ['diagnosis', 'treat'],
+  ],
+};
+
+// Each route is an object type flowing through a subset of activities.
+// The cls key maps to a color in the theme.
+const routes = [
+  { id: 'clinical',   cls: 'clinical',   nodes: ['register', 'triage', 'lab', 'diagnosis', 'treat'] },
+  { id: 'imaging',    cls: 'imaging',    nodes: ['triage', 'imaging', 'diagnosis'] },
+  { id: 'admin',      cls: 'admin',      nodes: ['register', 'triage', 'treat'] },
+];
+
+const layout = layoutFlow(dag, {
+  routes,
+  theme: {
+    paper: '#1E1E2E', ink: '#CDD6F4', muted: '#6C7086', border: '#313244',
+    classes: { clinical: '#E06C9F', imaging: '#2B9DB5', admin: '#94E2D5' },
+  },
+});
+const svg = renderSVG(dag, layout);
+```
+
+### Rendering
+
+`layoutFlow` computes positions and paths. The default `renderSVG` renderer draws simple circles and labels. For richer visuals (punched-out dots, info cards, edge volume badges), use the station and edge renderers from `render-flow-station.js`:
+
+```javascript
+import { createStationRenderer, createEdgeRenderer } from 'dag-map/src/render-flow-station.js';
+
+const renderNode = createStationRenderer(layout, routes);
+const renderEdge = createEdgeRenderer(layout);
+
+const svg = renderSVG(dag, layout, {
+  renderNode,
+  renderEdge,
+  showLegend: false,
+});
+```
+
+### Options
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `routes` | `[]` | Required. Array of `{id, cls, nodes: [nodeId...]}` defining object types. |
+| `direction` | `'ttb'` | Layout direction. `'ttb'` = top-to-bottom, `'ltr'` = left-to-right. |
+| `theme` | `'dark'` | Theme name or custom theme object. Route colors come from `theme.classes`. |
+| `scale` | `1.5` | Global size multiplier. |
+| `layerSpacing` | `55` | Base distance between layers along the flow axis (before scale). Congested layers get up to 2x automatically. |
+| `columnSpacing` | `90` | Distance between node columns on the spread axis (before scale). |
+| `dotSpacing` | `12` | Gap between parallel route dots at shared stations (before scale). |
+| `cornerRadius` | `5` | Radius for elbow bends (before scale). |
+| `lineThickness` | `3` | Route line width (before scale). |
+| `labelSize` | `3.6` | Station card label font size (before scale). |
+
+### How it works
+
+1. **Topological sort + layer assignment** — activities are assigned to layers based on their longest path from sources
+2. **Column assignment** — activities are grouped into columns by their primary route membership
+3. **Adaptive layer spacing** — each layer gap is scored for congestion (bending routes, merge/fork points) and given 1x-2x the base spacing
+4. **Trunk propagation** — the longest route's X position is fixed and propagated through all its nodes, forming a straight vertical spine
+5. **Obstacle-aware routing** — dots and cards are placed into an occupancy grid; subsequent routes bend around existing obstacles using V-H-V paths with rounded elbows
+6. **Extra edges** — DAG edges not covered by any route are drawn as dashed gray lines with their own endpoint dots
 
 ## Theming
 
@@ -299,7 +397,7 @@ The reference that defined the visual language — interchange stations, route c
 
 ## Contributing
 
-Contributions welcome — bug fixes, layout improvements, new themes, demo examples, and docs. Scope is DAG visualization (metro-map style) and Hasse diagrams. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions welcome — bug fixes, layout improvements, new themes, demo examples, and docs. Scope is DAG visualization: metro maps, Hasse diagrams, and process flow layouts. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 

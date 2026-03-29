@@ -26,6 +26,19 @@
 - [x] Hasse demo page with 13 example lattices and DAGs
 - [x] Callout panel with mathematical context for each lattice
 
+## v0.3 — Flow Layout (in progress, `feat/flow-layout` branch)
+
+- [x] `layoutFlow` engine — obstacle-aware, trunk-first, TTB + LTR
+- [x] Station renderers (`createStationRenderer`, `createEdgeRenderer`)
+- [x] `route-metro.js` — right-angle routing with rounded elbows
+- [x] `occupancy.js` — AABB collision detection for obstacle-aware placement
+- [x] `graph-utils.js` — shared topo sort, `validateDag()`, `swapPathXY()`
+- [x] Interactive flow demo with 30 models, direction toggle, theme + parameter controls
+- [x] XSS escaping, barrel exports, `dagMap()` convenience function
+- [x] 253 unit tests + 60 Playwright visual tests
+- [ ] Fix O2C card/line overlap (expand card placement search)
+- [ ] See `gaps.md` and `flow-gaps.md` for remaining issues
+
 ## Planned
 
 - [ ] `edgeDirection` option — `'downward'` vs `'upward'` to prevent "upside-down diagram" confusion
@@ -41,11 +54,12 @@
 ### Layout & Algorithm
 
 - [ ] Trunk selection modes: `'auto'` (weighted), `'longest'`, explicit node list
-- [ ] `maxLanes` enforcement in lane assignment
+- [ ] Document shared base return shape for layout engines
 - [ ] Label collision detection and resolution
 - [ ] Incremental layout: add/remove nodes without full recompute
 - [ ] Mental map preservation — don't move existing nodes on update
 - [ ] Layout caching
+- [ ] Spatial indexing in occupancy grid (quadtree) for 100+ node layouts
 
 ### Animation
 
@@ -58,7 +72,6 @@
 ### Content & Annotation
 
 - [ ] Node content preview (text/JSON snippets inside or beside stations)
-- [ ] Edge labels
 - [ ] Annotation layer: leader lines + floating text
 - [ ] Phase/region labels (group boundaries)
 - [ ] Timing bars on stations (duration encoded as width)
