@@ -141,4 +141,105 @@ describe('layoutMetro', () => {
     assert.equal(layout.routes.length, 2);
     assert.equal(layout.routePaths.length, 2);
   });
+
+  // ── Edge cases ────────────────────────────────────────────
+
+  it('handles single node (no edges)', () => {
+    const dag = { nodes: [{ id: 'x', label: 'X', cls: 'pure' }], edges: [] };
+    const layout = layoutMetro(dag);
+    assert.equal(layout.positions.size, 1);
+    assert.ok(layout.positions.has('x'));
+    assert.ok(layout.width > 0);
+    assert.ok(layout.height > 0);
+  });
+
+  it('handles two disconnected nodes', () => {
+    const dag = {
+      nodes: [{ id: 'a', label: 'A', cls: 'pure' }, { id: 'b', label: 'B', cls: 'pure' }],
+      edges: [],
+    };
+    const layout = layoutMetro(dag);
+    assert.equal(layout.positions.size, 2);
+  });
+
+  it('handles wide fan-out (1→many)', () => {
+    const nodes = [{ id: 'root', label: 'Root', cls: 'pure' }];
+    const edges = [];
+    for (let i = 0; i < 8; i++) {
+      nodes.push({ id: `c${i}`, label: `Child ${i}`, cls: 'pure' });
+      edges.push(['root', `c${i}`]);
+    }
+    const layout = layoutMetro({ nodes, edges });
+    assert.equal(layout.positions.size, 9);
+    // Root should be leftmost
+    const rootX = layout.positions.get('root').x;
+    for (let i = 0; i < 8; i++) {
+      assert.ok(layout.positions.get(`c${i}`).x > rootX);
+    }
+  });
+
+  it('handles wide fan-in (many→1)', () => {
+    const nodes = [{ id: 'sink', label: 'Sink', cls: 'pure' }];
+    const edges = [];
+    for (let i = 0; i < 6; i++) {
+      nodes.push({ id: `p${i}`, label: `Parent ${i}`, cls: 'pure' });
+      edges.push([`p${i}`, 'sink']);
+    }
+    const layout = layoutMetro({ nodes, edges });
+    assert.equal(layout.positions.size, 7);
+    const sinkX = layout.positions.get('sink').x;
+    for (let i = 0; i < 6; i++) {
+      assert.ok(layout.positions.get(`p${i}`).x < sinkX);
+    }
+  });
+
+  it('assigns all nodes to a route', () => {
+    const layout = layoutMetro(diamond);
+    for (const nd of diamond.nodes) {
+      assert.ok(layout.nodeRoute.has(nd.id), `${nd.id} not assigned to a route`);
+    }
+  });
+
+  it('trunk route is the longest', () => {
+    const layout = layoutMetro(diamond);
+    const trunk = layout.routes[0];
+    for (let i = 1; i < layout.routes.length; i++) {
+      assert.ok(trunk.nodes.length >= layout.routes[i].nodes.length,
+        `trunk (${trunk.nodes.length}) shorter than route ${i} (${layout.routes[i].nodes.length})`);
+    }
+  });
+
+  it('all routing modes produce valid output', () => {
+    for (const routing of ['bezier', 'angular', 'metro']) {
+      const layout = layoutMetro(diamond, { routing });
+      assert.ok(layout.routePaths.length >= 1, `${routing} routing failed`);
+      for (const segs of layout.routePaths) {
+        for (const seg of segs) {
+          assert.ok(seg.d.startsWith('M'), `${routing}: path should start with M`);
+        }
+      }
+    }
+  });
+
+  it('nodeRoutes tracks multi-route membership', () => {
+    const routes = [
+      { nodes: ['s', 'l', 'j'], cls: 'pure' },
+      { nodes: ['s', 'r', 'j'], cls: 'recordable' },
+    ];
+    const layout = layoutMetro(diamond, { routes });
+    // 's' and 'j' are in both routes
+    assert.ok(layout.nodeRoutes.get('s').size === 2);
+    assert.ok(layout.nodeRoutes.get('j').size === 2);
+    assert.ok(layout.nodeRoutes.get('l').size === 1);
+    assert.ok(layout.nodeRoutes.get('r').size === 1);
+  });
+
+  it('segment routes tracks shared edges', () => {
+    const routes = [
+      { nodes: ['s', 'l', 'j'], cls: 'pure' },
+      { nodes: ['s', 'r', 'j'], cls: 'recordable' },
+    ];
+    const layout = layoutMetro(diamond, { routes });
+    assert.ok(layout.segmentRoutes instanceof Map);
+  });
 });

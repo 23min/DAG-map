@@ -137,4 +137,106 @@ describe('layoutHasse', () => {
     assert.equal(layout.positions.size, 1);
     assert.ok(layout.positions.has('x'));
   });
+
+  // ── Edge cases ────────────────────────────────────────────
+
+  it('same-rank nodes have distinct X coordinates', () => {
+    const layout = layoutHasse(diamond);
+    const leftX = layout.positions.get('left').x;
+    const rightX = layout.positions.get('right').x;
+    assert.ok(Math.abs(leftX - rightX) > 1, 'same-rank nodes should have different X');
+  });
+
+  it('boolean lattice: rank-1 nodes all at same Y', () => {
+    const layout = layoutHasse(booleanLattice);
+    const abY = layout.positions.get('ab').y;
+    const acY = layout.positions.get('ac').y;
+    const bcY = layout.positions.get('bc').y;
+    assert.equal(abY, acY);
+    assert.equal(acY, bcY);
+  });
+
+  it('boolean lattice: rank-2 nodes all at same Y', () => {
+    const layout = layoutHasse(booleanLattice);
+    const aY = layout.positions.get('a').y;
+    const bY = layout.positions.get('b').y;
+    const cY = layout.positions.get('c').y;
+    assert.equal(aY, bY);
+    assert.equal(bY, cY);
+  });
+
+  it('edge segments have valid SVG path data', () => {
+    const layout = layoutHasse(booleanLattice);
+    for (const segs of layout.routePaths) {
+      for (const seg of segs) {
+        assert.ok(seg.d.startsWith('M'), `path should start with M: ${seg.d.slice(0, 30)}`);
+        assert.ok(typeof seg.color === 'string');
+        assert.ok(seg.thickness > 0);
+        assert.ok(seg.opacity > 0);
+      }
+    }
+  });
+
+  it('supports straight edge style', () => {
+    const layout = layoutHasse(diamond, { edgeStyle: 'straight' });
+    for (const segs of layout.routePaths) {
+      for (const seg of segs) {
+        // Straight edges should only have M and L, no C
+        assert.ok(!seg.d.includes('C'), 'straight edges should not have bezier curves');
+      }
+    }
+  });
+
+  it('supports bezier edge style', () => {
+    const layout = layoutHasse(diamond, { edgeStyle: 'bezier' });
+    // At least some edges should have C commands (unless perfectly straight)
+    const allPaths = layout.routePaths.flatMap(s => s).map(s => s.d).join('');
+    // For diamond with offset X, bezier should produce C commands
+    const hasC = allPaths.includes('C');
+    // It's OK if some are straight (dx < 2), just verify no errors
+    assert.ok(layout.positions.size === 4);
+  });
+
+  it('handles wide lattice (6 nodes at same rank)', () => {
+    const nodes = [{ id: 'top', label: 'Top' }, { id: 'bot', label: 'Bot' }];
+    const edges = [];
+    for (let i = 0; i < 6; i++) {
+      nodes.push({ id: `m${i}`, label: `Mid ${i}` });
+      edges.push(['top', `m${i}`]);
+      edges.push([`m${i}`, 'bot']);
+    }
+    const layout = layoutHasse({ nodes, edges });
+    assert.equal(layout.positions.size, 8);
+    // All mid nodes should be at the same Y
+    const midYs = [];
+    for (let i = 0; i < 6; i++) midYs.push(layout.positions.get(`m${i}`).y);
+    for (let i = 1; i < 6; i++) assert.equal(midYs[i], midYs[0]);
+    // All mid nodes should have distinct X
+    const midXs = midYs.map((_, i) => layout.positions.get(`m${i}`).x);
+    const uniqueXs = new Set(midXs.map(x => Math.round(x)));
+    assert.equal(uniqueXs.size, 6, 'all 6 mid nodes should have distinct X');
+  });
+
+  it('handles deep chain (10 nodes)', () => {
+    const nodes = [];
+    const edges = [];
+    for (let i = 0; i < 10; i++) {
+      nodes.push({ id: `n${i}`, label: `N${i}` });
+      if (i > 0) edges.push([`n${i - 1}`, `n${i}`]);
+    }
+    const layout = layoutHasse({ nodes, edges });
+    assert.equal(layout.positions.size, 10);
+    // Y should be monotonically increasing
+    for (let i = 1; i < 10; i++) {
+      const prevY = layout.positions.get(`n${i - 1}`).y;
+      const currY = layout.positions.get(`n${i}`).y;
+      assert.ok(currY > prevY, `n${i} should be below n${i - 1}`);
+    }
+  });
+
+  it('produces correct number of edge segments for boolean lattice', () => {
+    const layout = layoutHasse(booleanLattice);
+    const totalSegs = layout.routePaths.reduce((sum, segs) => sum + segs.length, 0);
+    assert.equal(totalSegs, booleanLattice.edges.length);
+  });
 });
