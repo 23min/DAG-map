@@ -12,6 +12,12 @@
 // Backward-compat import — only used if layout.theme is missing
 import { C, CLASS_COLOR } from './layout-metro.js';
 
+/** Escape user-supplied strings for safe SVG/XML interpolation. */
+function esc(s) {
+  if (typeof s !== 'string') return s;
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 /**
  * Render a DAG layout as an SVG string.
  *
@@ -86,9 +92,9 @@ export function renderSVG(dag, layout, options = {}) {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="${font}">\n`;
   svg += `<rect width="${width}" height="${height}" fill="${col.paper}"/>\n`;
 
-  svg += `<text x="${24 * s}" y="${22 * s}" font-size="${10 * s}" fill="${col.ink}" letter-spacing="0.06em" opacity="0.5">${displayTitle}</text>\n`;
+  svg += `<text x="${24 * s}" y="${22 * s}" font-size="${10 * s}" fill="${col.ink}" letter-spacing="0.06em" opacity="0.5">${esc(displayTitle)}</text>\n`;
   if (displaySubtitle) {
-    svg += `<text x="${24 * s}" y="${34 * s}" font-size="${6.5 * s}" fill="${col.muted}">${displaySubtitle}</text>\n`;
+    svg += `<text x="${24 * s}" y="${34 * s}" font-size="${6.5 * s}" fill="${col.muted}">${esc(displaySubtitle)}</text>\n`;
   }
 
   // Route lines — extra edges first (behind)
@@ -219,17 +225,17 @@ export function renderSVG(dag, layout, options = {}) {
         const textY = tickEndY - r - 1 * s;
         svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
         svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="0.55" `;
-        svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${nd.label}</text>`;
+        svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${esc(nd.label)}</text>`;
       } else if (layout.orientation === 'ttb') {
         // TTB layout: place labels to the right of nodes
         const labelX = pos.x + r + 4 * s;
         const labelY = pos.y + fs * 0.35;
         svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${nd.label}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${esc(nd.label)}</text>`;
       } else {
         const labelY = pos.y + r + 8 * s;
         svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${nd.label}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${esc(nd.label)}</text>`;
       }
 
       svg += `</g>\n`;
@@ -250,7 +256,7 @@ export function renderSVG(dag, layout, options = {}) {
       svg += `<line x1="${x}" y1="${ly + 16 * s}" x2="${x + 22 * s}" y2="${ly + 16 * s}" stroke="${color}" stroke-width="${3.5 * s}" opacity="0.5" stroke-linecap="round"`;
       if (cls === 'gate') svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
       svg += `/>\n`;
-      svg += `<text x="${x + 28 * s}" y="${ly + 19 * s}" font-size="${6.5 * s}" fill="${col.muted}">${label}</text>\n`;
+      svg += `<text x="${x + 28 * s}" y="${ly + 19 * s}" font-size="${6.5 * s}" fill="${col.muted}">${esc(label)}</text>\n`;
     });
 
     const vertSpread = layout.maxY - layout.minY;

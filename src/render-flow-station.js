@@ -4,6 +4,12 @@
 // Reusable renderers for the flow layout's Celonis-style visuals:
 // punched-out dots on the line, rich cards to the side, on-line badges.
 
+/** Escape user-supplied strings for safe SVG/XML interpolation. */
+function esc(s) {
+  if (typeof s !== 'string') return s;
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 /**
  * Create a station (node) renderer for flow layouts.
  * @param {object} layout - result from layoutFlow()
@@ -42,7 +48,7 @@ export function createStationRenderer(layout, routes) {
       svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${0.7 * s}"/>`;
 
       const labelY = rect.y + cardPadY + fsLabel * 0.85;
-      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500">${node.label}</text>`;
+      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500">${esc(node.label)}</text>`;
 
       const dataY = labelY + fsData + 3 * s;
       let dx = rect.x + cardPadX;
@@ -53,7 +59,7 @@ export function createStationRenderer(layout, routes) {
         dx += 5 * s;
       });
       if (node.times || node.count) {
-        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${node.times || node.count}</text>`;
+        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${esc(node.times || node.count)}</text>`;
       }
     }
 
@@ -111,7 +117,7 @@ export function createEdgeRenderer(layout, edgeVolumes) {
 
           svg += `<rect x="${labelPos.x - tw / 2}" y="${labelPos.y - th / 2}" width="${tw}" height="${th}" rx="${1.5 * s}" `;
           svg += `fill="${ctx.theme.paper}" stroke="${labelPos.color}" stroke-width="${0.5 * s}" opacity="0.9"/>`;
-          svg += `<text x="${labelPos.x}" y="${labelPos.y + fs * 0.35}" font-size="${fs}" fill="${labelPos.color}" text-anchor="middle" opacity="0.9">${vol}</text>`;
+          svg += `<text x="${labelPos.x}" y="${labelPos.y + fs * 0.35}" font-size="${fs}" fill="${labelPos.color}" text-anchor="middle" opacity="0.9">${esc(vol)}</text>`;
         }
       }
     }

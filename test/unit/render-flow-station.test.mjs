@@ -144,3 +144,51 @@ describe('createEdgeRenderer', () => {
     assert.ok(svg.includes('stroke-dasharray'), 'dashed segment should have dasharray');
   });
 });
+
+// ── XSS escaping in flow station renderers ────────────────────
+
+describe('flow station XSS escaping', () => {
+  it('escapes & in station card label', () => {
+    const layout = makeLayout();
+    const renderNode = createStationRenderer(layout, diamond.routes);
+    const node = { id: 's', label: 'A & B' };
+    const pos = layout.positions.get('s');
+    const ctx = { scale: 1, theme };
+    const svg = renderNode(node, pos, ctx);
+    assert.ok(svg.includes('A &amp; B'), 'ampersand in label should be escaped');
+    assert.ok(!svg.includes('>A & B<'), 'raw ampersand should not appear');
+  });
+
+  it('escapes < in station card label', () => {
+    const layout = makeLayout();
+    const renderNode = createStationRenderer(layout, diamond.routes);
+    const node = { id: 's', label: 'x<y' };
+    const pos = layout.positions.get('s');
+    const ctx = { scale: 1, theme };
+    const svg = renderNode(node, pos, ctx);
+    assert.ok(svg.includes('x&lt;y'));
+  });
+
+  it('escapes & in node.count', () => {
+    const layout = makeLayout();
+    const renderNode = createStationRenderer(layout, diamond.routes);
+    const node = { id: 's', label: 'Test', count: '1&2' };
+    const pos = layout.positions.get('s');
+    const ctx = { scale: 1, theme };
+    const svg = renderNode(node, pos, ctx);
+    assert.ok(svg.includes('1&amp;2'));
+  });
+
+  it('escapes & in edge volume badge', () => {
+    const layout = makeLayout();
+    const route = diamond.routes[0];
+    const fromId = route.nodes[0], toId = route.nodes[1];
+    const edgeKey = `0:${fromId}\u2192${toId}`;
+    const edgeVolumes = new Map([[edgeKey, 'A&B']]);
+    const renderEdge = createEdgeRenderer(layout, edgeVolumes);
+    const segment = layout.routePaths[0][0];
+    const ctx = { scale: 1, theme, isExtraEdge: false, routeIndex: 0, segmentIndex: 0 };
+    const svg = renderEdge({ from: fromId, to: toId }, segment, ctx);
+    assert.ok(svg.includes('A&amp;B'));
+  });
+});

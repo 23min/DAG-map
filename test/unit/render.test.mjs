@@ -116,16 +116,63 @@ describe('renderSVG', () => {
     assert.ok(svg.includes('stroke="red"'));
   });
 
-  // XSS-relevant: this test documents CURRENT behavior (no escaping)
-  // and should be updated when we add escaping
-  it('includes raw label text in SVG (XSS gap — pre-fix baseline)', () => {
-    const dag = {
-      nodes: [{ id: 'x', label: 'A & B', cls: 'pure' }],
-      edges: [],
-    };
+  // ── XSS escaping tests ──────────────────────────────────────
+
+  it('escapes & in node labels', () => {
+    const dag = { nodes: [{ id: 'x', label: 'A & B', cls: 'pure' }], edges: [] };
     const layout = layoutMetro(dag);
     const svg = renderSVG(dag, layout);
-    // Currently the & is NOT escaped — this test documents that gap
-    assert.ok(svg.includes('A & B'), 'raw & should appear (unescaped)');
+    assert.ok(svg.includes('A &amp; B'), 'ampersand should be escaped');
+    assert.ok(!svg.includes('>A & B<'), 'raw ampersand should not appear in text content');
+  });
+
+  it('escapes < and > in node labels', () => {
+    const dag = { nodes: [{ id: 'x', label: '<script>alert(1)</script>', cls: 'pure' }], edges: [] };
+    const layout = layoutMetro(dag);
+    const svg = renderSVG(dag, layout);
+    assert.ok(!svg.includes('<script>'), 'script tag should not appear raw');
+    assert.ok(svg.includes('&lt;script&gt;'));
+  });
+
+  it('escapes " in node labels', () => {
+    const dag = { nodes: [{ id: 'x', label: 'say "hello"', cls: 'pure' }], edges: [] };
+    const layout = layoutMetro(dag);
+    const svg = renderSVG(dag, layout);
+    assert.ok(svg.includes('&quot;hello&quot;'));
+  });
+
+  it('escapes & in title', () => {
+    const dag = { nodes: [{ id: 'x', label: 'X', cls: 'pure' }], edges: [] };
+    const layout = layoutMetro(dag);
+    const svg = renderSVG(dag, layout, { title: 'Foo & Bar' });
+    assert.ok(svg.includes('Foo &amp; Bar'));
+  });
+
+  it('escapes < in subtitle', () => {
+    const dag = { nodes: [{ id: 'x', label: 'X', cls: 'pure' }], edges: [] };
+    const layout = layoutMetro(dag);
+    const svg = renderSVG(dag, layout, { subtitle: 'a < b' });
+    assert.ok(svg.includes('a &lt; b'));
+  });
+
+  it('escapes & in legend labels', () => {
+    const dag = { nodes: [{ id: 'x', label: 'X', cls: 'pure' }], edges: [] };
+    const layout = layoutMetro(dag);
+    const svg = renderSVG(dag, layout, { legendLabels: { pure: 'R&D' } });
+    assert.ok(svg.includes('R&amp;D'));
+  });
+
+  it('escapes entities in diagonal labels mode', () => {
+    const dag = { nodes: [{ id: 'a', label: 'A&B', cls: 'pure' }, { id: 'b', label: 'C', cls: 'pure' }], edges: [['a', 'b']] };
+    const layout = layoutMetro(dag);
+    const svg = renderSVG(dag, layout, { diagonalLabels: true });
+    assert.ok(svg.includes('A&amp;B'));
+  });
+
+  it('escapes entities in TTB label mode', () => {
+    const dag = { nodes: [{ id: 'a', label: 'X<Y', cls: 'pure' }, { id: 'b', label: 'B', cls: 'pure' }], edges: [['a', 'b']] };
+    const layout = layoutMetro(dag, { direction: 'ttb' });
+    const svg = renderSVG(dag, layout);
+    assert.ok(svg.includes('X&lt;Y'));
   });
 });
