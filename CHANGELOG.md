@@ -1,95 +1,60 @@
 # Changelog
 
-## v0.3 — Flow Layout (unreleased, feat/flow-layout branch)
+## v0.3 — Flow Layout + Quality (unreleased)
 
 ### New: `layoutFlow` engine
 
 Process-mining layout where multiple object types (routes) flow through shared activities. Inspired by Celonis Process Explorer.
 
-- **Trunk-first placement** — longest route laid as a straight vertical spine; other routes branch off to the sides
+- **TTB and LTR directions** — `direction: 'ttb'` (default) or `'ltr'`, natively computed
+- **Trunk-first placement** — longest route laid as a straight spine; other routes branch off
 - **Obstacle-aware routing** — occupancy grid prevents lines from crossing cards, dots, and other routes
-- **V-H-V paths** — vertical-horizontal-vertical bends with rounded elbows (no diagonals)
-- **Adaptive layer spacing** — congested merge/fork zones automatically get up to 2x vertical space
+- **Adaptive layer spacing** — congested merge/fork zones automatically get up to 2x space
 - **Station cards** — punched-out dots on the line, info cards with labels and route indicators
-- **Edge labels** — per-route volume badges positioned on vertical runs
-- **Extra edges** — DAG edges not covered by any route drawn as dashed gray lines with endpoint dots
-- **Global side assignment** — routes consistently stay left or right of the trunk to prevent crossings
-- **Staggered jogs** — opposite-direction bends get different Y levels to avoid crossings
+- **Edge labels** — per-route volume badges on straight runs
+- **Extra edges** — DAG edges not covered by any route drawn as dashed gray lines
+- **Crossing avoidance** — global side assignment + staggered jog heights
 
 ### New: `render-flow-station.js`
 
-Reusable renderers for flow layout visuals:
 - `createStationRenderer(layout, routes)` — punched-out dots + rich cards
-- `createEdgeRenderer(layout, edgeVolumes?)` — route paths + on-line volume badges
+- `createEdgeRenderer(layout, edgeVolumes?)` — route paths + volume badges
 
-### New parameters
+### New: `graph-utils.js`
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `routes` | `[]` | Object types as `{id, cls, nodes}` |
-| `layerSpacing` | `55` | Base vertical gap (adaptive: up to 2x at congested layers) |
-| `columnSpacing` | `90` | Horizontal gap between node columns |
-| `dotSpacing` | `12` | Gap between parallel route dots at shared stations |
-| `cornerRadius` | `5` | V-H-V elbow bend radius |
-| `lineThickness` | `3` | Route line width |
-| `labelSize` | `3.6` | Station card label font size (scales data text and edge labels) |
-
-### New: Interactive flow demo
-
-- `demo/flow.html` — self-contained demo with 6 sample models (O2C, healthcare, event planning, procurement, movie production, insurance claim)
-- Three-column layout: graph | JSON data | JS code
-- Theme selector (all 6 themes), parameter sliders, syntax-highlighted code panels
-- Cross-linked with dag and hasse demos
-
-### New: LTR direction support
-
-`layoutFlow` now supports `direction: 'ltr'` for left-to-right process flows. Native orientation-aware computation (not a coordinate swap) — H-V-H routing, cards above/below, dots on horizontal lines. Flow demo has a Direction toggle with responsive layout.
-
-### New: `graph-utils.js` shared module
-
+Shared graph primitives used by all three layout engines:
 - `buildGraph(nodes, edges)` — adjacency map construction
 - `topoSortAndRank(nodes, childrenOf, parentsOf)` — Kahn's algorithm with longest-path ranking
 - `validateDag(nodes, edges)` — non-throwing validation (cycles, unknown nodes, duplicates)
-- `swapPathXY(d)` — robust SVG path X↔Y swap for all commands (M/L/C/Q/S/T/H↔V/Z)
+- `swapPathXY(d)` — SVG path X↔Y coordinate swap (all commands: M/L/C/Q/S/T/H↔V/Z)
 
-### New: 253 unit tests + 60 visual tests
+### New: `route-metro.js`
 
-Test suite using `node:test` (zero dependencies). Covers all modules: themes, occupancy grid, all three routers, layoutMetro, layoutHasse, layoutFlow, renderSVG, render-flow-station, graph-utils, and index.js barrel. Visual tests run all 30 models in both TTB and LTR via Playwright.
+Metro-style right-angle routing with rounded quadratic bezier elbows. H-V-H and V-H-V paths.
 
-### Fixed
+### New: `occupancy.js`
 
-- **XSS in SVG rendering** — all user-supplied strings (labels, titles, subtitles, legend labels, volume badges) are now XML-escaped
-- **Invalid export name** — `dag-map()` renamed to `dagMap()`
-- **Public API** — `createStationRenderer`, `createEdgeRenderer`, `validateDag`, `swapPathXY` exported from barrel
-- **Fragile TTB swap** — replaced regex-only M/L/C/Q handler with full SVG command parser
-- **Backward-compat constants** — removed `C` and `CLASS_COLOR`; `render.js` uses `resolveTheme('cream')` fallback
-- **Triplicated topo sort** — extracted into shared `graph-utils.js`
-- **CSS files** — moved from repo root to `src/`
+Spatial occupancy tracker (AABB collision detection) for obstacle-aware placement.
 
-### Known issues
+### New: Interactive flow demo
 
-See `gaps.md` (cross-cutting) and `flow-gaps.md` (flow-layout-specific) for the full tracked issue list. The only error-level issue is the O2C card/line overlap in flow layout.
+`demo/flow.html` — self-contained demo with 30 models, direction toggle, theme selector, parameter sliders, and syntax-highlighted JS/JSON panels.
+
+### New: Test suite
+
+253 unit tests (`node:test`, zero dependencies) + 60 Playwright visual tests (30 models × TTB + LTR).
 
 ### Changed
 
-- **`layout.js` renamed to `layout-metro.js`** — consistent naming (`layoutMetro` function in `layout-metro.js`)
-- **`layout-snake.js` renamed to `layout-flow.js`** — public API name
-- **`render-snake-station.js` renamed to `render-flow-station.js`**
-- **`demo.css` font sizes** — updated to 14px controls (matching dag.html)
-- **README** — added flow layout section with examples, images, and options table
-- **Demo cross-links** — all three demos (dag, hasse, flow) link to each other
+- **`layout.js` renamed to `layout-metro.js`**
+- **`index.js` barrel** — exports `dagMap`, `layoutFlow`, `createStationRenderer`, `createEdgeRenderer`, `validateDag`, `swapPathXY`
+- **`render.js`** — XSS escaping on all user-supplied strings; theme-system-only fallback (removed `C`/`CLASS_COLOR` backward-compat constants)
+- **`layout-hasse.js`** — uses shared `graph-utils.js` instead of private copies
+- **CSS files** — moved to `src/dag-map.css` and `src/hasse.css`
 
-### Removed
+### Known issues
 
-- `layout-lanes.js` — superseded by layoutFlow
-- `dag-map.html` — redirect, replaced by `dag.html`
-- `flowtime-preview.mjs/.html/.svg` — layoutMetro styling demos, no longer needed
-- `flowtime-pills.mjs/.html` — layoutMetro styling demos, no longer needed
-- `flowtime-parallel.mjs/.html` — renamed to flowtime-process, then archived
-
-### Archived
-
-- `layout-process.js` → `archive/` — Celonis-style clustered columns, superseded by layoutFlow
+See `gaps.md` and `flow-gaps.md` for tracked issues. The only error-level issue is the O2C card/line overlap in flow layout.
 
 ## v0.2 — Hasse & Interop
 

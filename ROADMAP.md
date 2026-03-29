@@ -28,32 +28,16 @@
 
 ## v0.3 — Flow Layout (in progress, `feat/flow-layout` branch)
 
-- [x] `layoutFlow` engine — obstacle-aware, trunk-first process flow layout
-- [x] Punched-out station dots + rich info cards
-- [x] Per-route edge volume badges
-- [x] Adaptive layer spacing at merge/fork zones
-- [x] Global side assignment prevents route crossings
-- [x] Staggered V-H-V jog heights for crossing avoidance
-- [x] Absolute trunk X propagation for straight spines
-- [x] `createStationRenderer` / `createEdgeRenderer` reusable renderers
-- [x] `labelSize` parameter for card and badge font scaling
-- [x] Interactive demo (`demo/flow.html`) with 6 models, theme switcher, parameter sliders
-- [x] Three-column demo layout (graph | JSON | JS) with syntax highlighting
-- [x] Consistent naming: `layout-metro.js`, `layout-flow.js`, `render-flow-station.js`
-- [x] README with flow layout docs, examples, and images
-- [x] Fix `dag-map` → `dagMap` export name
-- [x] XSS: escape user strings in SVG rendering
-- [x] Export `createStationRenderer` / `createEdgeRenderer` from `index.js`
-- [x] Extract shared topo sort / graph building into `graph-utils.js`
-- [x] `validateDag()` — cycle detection, unknown node IDs, duplicate IDs
-- [x] Remove backward-compat `C` / `CLASS_COLOR` (use theme system)
-- [x] Robust `swapPathXY()` replacing fragile TTB regex
-- [x] Native LTR direction support (`direction: 'ltr'`) with H-V-H routing
-- [x] `dotPos(nodeId, ri)` API for orientation-agnostic dot coordinates
-- [x] 253 unit tests + 60 Playwright visual tests (TTB + LTR)
-- [x] CSS files moved to `src/`
+- [x] `layoutFlow` engine — obstacle-aware, trunk-first, TTB + LTR
+- [x] Station renderers (`createStationRenderer`, `createEdgeRenderer`)
+- [x] `route-metro.js` — right-angle routing with rounded elbows
+- [x] `occupancy.js` — AABB collision detection for obstacle-aware placement
+- [x] `graph-utils.js` — shared topo sort, `validateDag()`, `swapPathXY()`
+- [x] Interactive flow demo with 30 models, direction toggle, theme + parameter controls
+- [x] XSS escaping, barrel exports, `dagMap()` convenience function
+- [x] 253 unit tests + 60 Playwright visual tests
 - [ ] Fix O2C card/line overlap (expand card placement search)
-- [ ] See `gaps.md` (cross-cutting) and `flow-gaps.md` (flow-specific) for remaining issues
+- [ ] See `gaps.md` and `flow-gaps.md` for remaining issues
 
 ## Planned
 
