@@ -191,6 +191,67 @@
   opacity: 1;
 }
 
+
+/* ── Flow demo: split layout ── */
+.dm-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.dm-graph {
+  flex: 1;
+  overflow: auto;
+  min-width: 0;
+}
+.dm-panels {
+  width: 380px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--dm-border);
+  overflow: hidden;
+}
+.dm-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.dm-panel + .dm-panel {
+  border-top: 1px solid var(--dm-border);
+}
+.dm-panel-header {
+  padding: 6px 12px;
+  font-size: 9px;
+  font-family: var(--dm-font);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dm-muted);
+  border-bottom: 1px solid var(--dm-border);
+  background: rgba(0,0,0,0.03);
+  flex-shrink: 0;
+}
+.dm-panel pre {
+  flex: 1;
+  margin: 0;
+  padding: 10px 12px;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--dm-ink);
+  overflow: auto;
+  white-space: pre;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+body.dm-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
 </style>
 </head>
 <body class="dm-container">
@@ -230,8 +291,19 @@
       <span class="dm-val" id="lineThicknessValue">3</span></label>
   </div>
 </details>
-<div id="mapContainer"></div>
-<pre id="optionsBlock" class="dm-code"></pre>
+<div class="dm-split">
+  <div class="dm-graph" id="mapContainer"></div>
+  <div class="dm-panels">
+    <div class="dm-panel">
+      <div class="dm-panel-header">js</div>
+      <pre id="jsBlock"></pre>
+    </div>
+    <div class="dm-panel">
+      <div class="dm-panel-header">json</div>
+      <pre id="jsonBlock"></pre>
+    </div>
+  </div>
+</div>
 <script>
 // ============================================================
 // dag-map flow demo — all modules inlined
@@ -1824,7 +1896,31 @@ const models = [
 const $model = document.getElementById('modelSelect');
 const $theme = document.getElementById('themeSelect');
 const $container = document.getElementById('mapContainer');
-const $options = document.getElementById('optionsBlock');
+const $jsBlock = document.getElementById('jsBlock');
+const $jsonBlock = document.getElementById('jsonBlock');
+
+// Syntax highlight (matches dag.html style)
+function highlight(src) {
+  return src
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\/\/(.*)/g, '<span style="color:var(--dm-muted)">//$1</span>')
+    .replace(/\b(import|from|const|let|var)\b/g, '<span style="color:#CF222E">$1</span>')
+    .replace(/\b(layoutFlow|renderSVG|createStationRenderer|createEdgeRenderer)\b/g, '<span style="color:#8250DF">$1</span>')
+    .replace(/\b(dag|layout|routes|theme|svg)\b/g, '<span style="color:#953800">$1</span>')
+    .replace(/"([^"]+)"\s*:/g, '<span style="color:#0550AE">"$1"</span>:')
+    .replace(/:\s*"([^"]+)"/g, ': <span style="color:#0A3069">"$1"</span>')
+    .replace(/:\s*(true|false)/g, ': <span style="color:#CF222E">$1</span>')
+    .replace(/:\s*(\d+\.?\d*)/g, ': <span style="color:#0550AE">$1</span>');
+}
+function highlightJSON(src) {
+  return src
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"([^"]+)"\s*:/g, '<span style="color:#0550AE">"$1"</span>:')
+    .replace(/:\s*"([^"]+)"/g, ': <span style="color:#0A3069">"$1"</span>')
+    .replace(/:\s*(\d+\.?\d*)/g, ': <span style="color:#0550AE">$1</span>')
+    .replace(/\[/g, '<span style="color:var(--dm-muted)">[</span>')
+    .replace(/\]/g, '<span style="color:var(--dm-muted)">]</span>');
+}
 
 const sliders = {
   scale:         { el: document.getElementById('scaleSlider'),         val: document.getElementById('scaleValue') },
@@ -1893,12 +1989,32 @@ function doRender() {
     });
     $container.innerHTML = svg;
 
-    // Options snippet
-    $options.textContent = 'layoutFlow(dag, {\n'
+    // JS panel — the call you'd write
+    var jsCode = "import { layoutFlow } from 'dag-map';\n"
+      + "import { renderSVG } from 'dag-map';\n"
+      + "import { createStationRenderer, createEdgeRenderer }\n"
+      + "  from 'dag-map/render-flow-station';\n\n"
+      + 'const layout = layoutFlow(dag, {\n'
       + '  routes,\n'
       + '  theme: ' + JSON.stringify(themeName) + ',\n'
       + Object.entries(opts).map(([k, v]) => '  ' + k + ': ' + v + ',').join('\n')
-      + '\n});';
+      + '\n});\n\n'
+      + 'const renderNode = createStationRenderer(layout, routes);\n'
+      + 'const renderEdge = createEdgeRenderer(layout);\n'
+      + 'const svg = renderSVG(dag, layout, {\n'
+      + '  renderNode,\n'
+      + '  renderEdge,\n'
+      + '  showLegend: false,\n'
+      + '});';
+    $jsBlock.innerHTML = highlight(jsCode);
+
+    // JSON panel — the model data
+    var jsonData = {
+      nodes: model.dag.nodes.map(function(n) { return { id: n.id, label: n.label }; }),
+      edges: model.dag.edges,
+      routes: model.routes.map(function(r) { return { id: r.id, cls: r.cls, nodes: r.nodes }; }),
+    };
+    $jsonBlock.innerHTML = highlightJSON(JSON.stringify(jsonData, null, 2));
   } catch (err) {
     $container.innerHTML = '<pre style="color:red;padding:24px">' + err.message + '\n' + err.stack + '</pre>';
   }
