@@ -11,6 +11,7 @@ import { bezierPath } from './route-bezier.js';
 import { angularPath, progressiveCurve } from './route-angular.js';
 import { metroPath } from './route-metro.js';
 import { THEMES, resolveTheme } from './themes.js';
+import { createStationRenderer, createEdgeRenderer } from './render-flow-station.js';
 
 export { layoutMetro, C, CLASS_COLOR, dominantClass };
 export { layoutHasse };
@@ -20,6 +21,7 @@ export { bezierPath };
 export { angularPath, progressiveCurve };
 export { metroPath };
 export { THEMES, resolveTheme };
+export { createStationRenderer, createEdgeRenderer };
 
 /**
  * Convenience function: compute layout and render SVG in one call.
@@ -40,7 +42,7 @@ export { THEMES, resolveTheme };
  * @param {number} [options.maxLanes] - max number of lanes to search
  * @returns {{ layout: object, svg: string }}
  */
-export function dag-map(dag, options = {}) {
+export function dagMap(dag, options = {}) {
   const layout = layoutMetro(dag, options);
   const svg = renderSVG(dag, layout, options);
   return { layout, svg };
