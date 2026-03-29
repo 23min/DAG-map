@@ -13,6 +13,8 @@
     "hasse.css"
   ],
   "scripts": {
+    "test": "node --test test/unit/*.test.mjs",
+    "test:visual": "node test/flow-visual.spec.mjs",
     "demo": "npx serve . -l 3333"
   },
   "license": "MIT",

@@ -32,6 +32,7 @@ Flow-layout-specific issues are tracked separately in `flow-gaps.md`.
 ## Medium
 
 - [ ] **Invalid export name in `index.js:43`** — `export function dag-map(...)` is a syntax error (hyphen in identifier). Should be `dagMap` to match the README.
+  - Currently dormant: nothing imports `index.js` — all demos and tests import individual modules directly. Will break when the package is published or anyone uses the barrel export.
   - Also tracked in `flow-gaps.md`. Fix once, remove from both.
 
 - [ ] **SVG width/height may clip content** — All three layout engines compute `width`/`height` from node positions only. Cards (`layout-flow.js` line 849), detour paths, edge labels, and legend text can extend beyond node bounds. The SVG viewBox may clip visual content at the edges.
@@ -54,11 +55,11 @@ Flow-layout-specific issues are tracked separately in `flow-gaps.md`.
 
 ## Low
 
-- [ ] **`.DS_Store` files tracked** — `.gitignore` covers `.DS_Store` but existing files in `test/` and `docs/` are already tracked. Run `git rm --cached` to remove them.
+- [x] **~~`.DS_Store` files tracked~~** — verified: not tracked, `.gitignore` handles them. Local-only.
 
 - [ ] **`queue.shift()` as BFS** — O(n) per dequeue in all three engines' topo sorts. Fine for current graph sizes (<100 nodes) but a known anti-pattern. Would matter if graphs grow to 1000+.
 
-- [ ] **44 versioned test result directories** — `test/results/` has v1–v44. `.gitignore` covers `test/results/` so these may be local-only — verify they aren't tracked. If tracked, remove from git history.
+- [x] **~~44 versioned test result directories~~** — verified: not tracked, `.gitignore` handles them. Local-only.
 
 - [ ] **`maxLanes` option partially implemented** — `layout-metro.js` line 76 reads `options.maxLanes` and line 317 uses it in the Y-position search loop, but it's never enforced as a hard limit. Documented in ROADMAP as "Someday/Maybe" but accepted as an option today — confusing contract.
 
