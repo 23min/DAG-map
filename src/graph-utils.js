@@ -87,3 +87,78 @@ export function validateDag(nodes, edges) {
 
   return warnings;
 }
+
+// ================================================================
+// SVG path coordinate swap (X↔Y) for orientation transforms
+// ================================================================
+
+// How many coordinate values each SVG command consumes per repetition.
+// Commands that take (x,y) pairs: values are swapped pairwise.
+// H↔V are single-axis and swap command letter instead.
+// A (arc) is not supported — its 7-param layout doesn't pair-swap cleanly.
+const CMD_PARAMS = {
+  M: 2, L: 2, T: 2,      // 1 pair
+  Q: 4, S: 4,             // 2 pairs
+  C: 6,                   // 3 pairs
+  H: 1, V: 1,             // single axis — letter swaps
+  Z: 0,                   // no params
+};
+
+/**
+ * Swap X↔Y coordinates in an SVG path string.
+ * Handles M, L, C, Q, S, T, H, V, Z (both absolute and relative).
+ * Throws on A/a (arc) — arc parameter layout requires special handling.
+ *
+ * @param {string} d - SVG path data string
+ * @returns {string} path with all X and Y coordinates swapped
+ */
+export function swapPathXY(d) {
+  if (!d) return '';
+
+  // Tokenize: split into command + numbers sequences.
+  // Regex captures a command letter followed by its numeric arguments.
+  const tokens = [];
+  const re = /([MLCSQTHVZAmlcsqthvza])\s*([^MLCSQTHVZAmlcsqthvza]*)/g;
+  let m;
+  while ((m = re.exec(d)) !== null) {
+    const cmd = m[1];
+    const argStr = m[2].trim();
+    const nums = argStr.length > 0 ? argStr.split(/[\s,]+/).map(Number) : [];
+    tokens.push({ cmd, nums });
+  }
+
+  const parts = [];
+  for (const { cmd, nums } of tokens) {
+    const upper = cmd.toUpperCase();
+
+    if (upper === 'A') {
+      throw new Error('swapPathXY: arc commands (A/a) are not supported');
+    }
+
+    if (upper === 'Z') {
+      parts.push(cmd);
+      continue;
+    }
+
+    if (upper === 'H') {
+      // H x → V x (swap command letter, keep value)
+      parts.push((cmd === 'H' ? 'V' : 'v') + ' ' + nums.join(' '));
+      continue;
+    }
+
+    if (upper === 'V') {
+      // V y → H y
+      parts.push((cmd === 'V' ? 'H' : 'h') + ' ' + nums.join(' '));
+      continue;
+    }
+
+    // Pair-swapping commands: swap every (x, y) → (y, x)
+    const swapped = [];
+    for (let i = 0; i < nums.length; i += 2) {
+      swapped.push(nums[i + 1], nums[i]);
+    }
+    parts.push(cmd + ' ' + swapped.join(' '));
+  }
+
+  return parts.join(' ');
+}

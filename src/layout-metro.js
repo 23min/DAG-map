@@ -9,7 +9,7 @@ import { bezierPath } from './route-bezier.js';
 import { angularPath } from './route-angular.js';
 import { metroPath } from './route-metro.js';
 import { resolveTheme } from './themes.js';
-import { buildGraph, topoSortAndRank } from './graph-utils.js';
+import { buildGraph, topoSortAndRank, swapPathXY } from './graph-utils.js';
 
 /**
  * Determine the dominant node class among a set of node IDs.
@@ -471,26 +471,13 @@ export function layoutMetro(dag, options = {}) {
     }
 
     // Rewrite SVG path data: swap all coordinate pairs
-    function swapPathCoords(d) {
-      // Tokenize: split on SVG commands, swap each x,y pair
-      return d.replace(/([MLCQ])\s*/gi, '\n$1 ').split('\n').filter(Boolean).map(seg => {
-        const cmd = seg[0];
-        const nums = seg.slice(1).trim().split(/[\s,]+/).map(Number);
-        const swapped = [];
-        for (let i = 0; i < nums.length; i += 2) {
-          swapped.push(nums[i + 1], nums[i]);
-        }
-        return cmd + ' ' + swapped.join(' ');
-      }).join(' ');
-    }
-
     for (const segments of routePaths) {
       for (const seg of segments) {
-        seg.d = swapPathCoords(seg.d);
+        seg.d = swapPathXY(seg.d);
       }
     }
     for (const seg of extraEdges) {
-      seg.d = swapPathCoords(seg.d);
+      seg.d = swapPathXY(seg.d);
     }
 
     return {

@@ -12,7 +12,7 @@ import { angularPath, progressiveCurve } from './route-angular.js';
 import { metroPath } from './route-metro.js';
 import { THEMES, resolveTheme } from './themes.js';
 import { createStationRenderer, createEdgeRenderer } from './render-flow-station.js';
-import { validateDag } from './graph-utils.js';
+import { validateDag, swapPathXY } from './graph-utils.js';
 
 export { layoutMetro, dominantClass };
 export { layoutHasse };
@@ -23,7 +23,7 @@ export { angularPath, progressiveCurve };
 export { metroPath };
 export { THEMES, resolveTheme };
 export { createStationRenderer, createEdgeRenderer };
-export { validateDag };
+export { validateDag, swapPathXY };
 
 /**
  * Convenience function: compute layout and render SVG in one call.
