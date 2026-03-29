@@ -214,23 +214,24 @@
   border-left: 1px solid var(--dm-border);
 }
 .dm-panel-header {
-  padding: 6px 12px;
-  font-size: 9px;
+  padding: 6px 16px;
+  font-size: 10px;
   font-family: var(--dm-font);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--dm-muted);
   border-bottom: 1px solid var(--dm-border);
   background: rgba(0,0,0,0.03);
   flex-shrink: 0;
+  font-weight: 500;
 }
 .dm-panel pre {
   flex: 1;
   margin: 0;
-  padding: 10px 12px;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  font-size: 10.5px;
-  line-height: 1.55;
+  padding: 12px 16px;
+  font-family: var(--dm-font);
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--dm-ink);
   overflow: auto;
   white-space: pre;
@@ -251,8 +252,8 @@ body.dm-container {
   <select id="modelSelect"></select>
   <label for="themeSelect">Theme:</label>
   <select id="themeSelect">
-    <option value="dark">dark</option>
     <option value="cream">cream</option>
+    <option value="dark">dark</option>
     <option value="light">light</option>
     <option value="blueprint">blueprint</option>
     <option value="mono">mono</option>
