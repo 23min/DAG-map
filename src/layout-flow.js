@@ -20,7 +20,7 @@
 
 import { resolveTheme } from './themes.js';
 import { OccupancyGrid } from './occupancy.js';
-import { buildGraph, topoSortAndRank } from './graph-utils.js';
+import { buildGraph, topoSortAndRank, swapPathXY } from './graph-utils.js';
 
 export function layoutFlow(dag, options = {}) {
   const { nodes, edges } = dag;
@@ -34,6 +34,7 @@ export function layoutFlow(dag, options = {}) {
   const lineOpacity = Math.min((theme.lineOpacity ?? 1.0) * 0.7, 1);
   const labelSize = (options.labelSize ?? 3.6) * s;  // station card label font size
   const routes = options.routes || [];
+  const direction = options.direction || 'ttb';
   const cardSide = options.cardSide ?? 'right'; // default card placement
 
   const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
@@ -820,12 +821,92 @@ export function layoutFlow(dag, options = {}) {
     extraDotPositions.set(`${f}\u2192${t}`, { fromX: fx, fromY: pBase.y, toX: tx, toY: qBase.y });
   });
 
+  const ttbWidth = (maxX - minX) + margin.left + margin.right;
+  const ttbHeight = (maxY - minY) + margin.top + margin.bottom;
+  const ttbMinY = margin.top;
+  const ttbMaxY = margin.top + (layerY[maxLayer] ?? maxLayer * layerSpacing);
+
+  if (direction === 'ltr') {
+    // Swap X↔Y in all positions
+    for (const [id, pos] of positions) {
+      positions.set(id, { x: pos.y, y: pos.x });
+    }
+
+    // Swap route path coordinates
+    for (const segments of routePaths) {
+      for (const seg of segments) {
+        seg.d = swapPathXY(seg.d);
+      }
+    }
+    for (const seg of extraEdges) {
+      seg.d = swapPathXY(seg.d);
+    }
+
+    // Swap card placements
+    for (const [id, cp] of cardPlacements) {
+      const r = cp.rect;
+      cp.rect = { x: r.y, y: r.x, w: r.h, h: r.w, type: r.type, owner: r.owner };
+    }
+
+    // Swap edge label positions
+    for (const [key, pos] of edgeLabelPositions) {
+      edgeLabelPositions.set(key, { x: pos.y, y: pos.x, color: pos.color });
+    }
+
+    // Swap extra dot positions
+    for (const [key, pos] of extraDotPositions) {
+      extraDotPositions.set(key, { fromX: pos.fromY, fromY: pos.fromX, toX: pos.toY, toY: pos.toX });
+    }
+
+    // Wrap dotX so it returns swapped coordinates
+    const ttbDotX = dotX;
+    const ltrDotX = (nodeId, ri) => {
+      // In TTB, dotX returned X position. After swap, that X becomes Y.
+      // For LTR, the "dotX" conceptually returns the position along the
+      // axis perpendicular to the flow — which is now Y.
+      // But the renderer calls dotX expecting the X coordinate of the dot,
+      // and the dot's X in LTR is the swapped Y, i.e. the node's TTB pos.y.
+      // Since positions are already swapped, return the swapped pos.x
+      // (which was the TTB pos.y = layer position).
+      // Actually, dotX in TTB mode returns the column X for the dot.
+      // After swap, column X becomes Y. The renderer draws dots at
+      // (dotX(id, ri), pos.y) — in LTR that should be (pos.x, dotY).
+      // We need dotX to return the swapped value too.
+      return positions.get(nodeId)?.y !== undefined
+        ? ttbDotX(nodeId, ri)  // returns the TTB X, which is now the LTR Y
+        : 0;
+    };
+
+    return {
+      positions,
+      routePaths,
+      extraEdges,
+      width: ttbHeight,
+      height: ttbWidth,
+      routes,
+      nodeRoute: new Map([...nodes.map(nd => [nd.id, nodePrimary.get(nd.id)])]),
+      nodeRoutes,
+      nodePrimary,
+      dotSpacing,
+      dotX,
+      cardPlacements,
+      edgeLabelPositions,
+      extraDotPositions,
+      scale: s,
+      labelSize,
+      theme,
+      orientation: 'ltr',
+      minY: ttbMinY,
+      maxY: ttbMaxY,
+    };
+  }
+
   return {
     positions,
     routePaths,
     extraEdges,
-    width: (maxX - minX) + margin.left + margin.right,
-    height: (maxY - minY) + margin.top + margin.bottom,
+    width: ttbWidth,
+    height: ttbHeight,
     routes,
     nodeRoute: new Map([...nodes.map(nd => [nd.id, nodePrimary.get(nd.id)])]),
     nodeRoutes,
@@ -839,7 +920,7 @@ export function layoutFlow(dag, options = {}) {
     labelSize,
     theme,
     orientation: 'ttb',
-    minY: margin.top,
-    maxY: margin.top + (layerY[maxLayer] ?? maxLayer * layerSpacing),
+    minY: ttbMinY,
+    maxY: ttbMaxY,
   };
 }

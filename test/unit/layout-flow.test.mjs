@@ -372,3 +372,98 @@ describe('layoutFlow — same-layer nodes', () => {
     }
   });
 });
+
+// ── LTR direction support ─────────────────────────────────────
+
+describe('layoutFlow — LTR direction', () => {
+  it('sets orientation to ltr', () => {
+    const L = lay(linear3, { direction: 'ltr' });
+    assert.equal(L.orientation, 'ltr');
+  });
+
+  it('default orientation is ttb', () => {
+    const L = lay(linear3);
+    assert.equal(L.orientation, 'ttb');
+  });
+
+  it('LTR: X increases along the chain (layers go left-to-right)', () => {
+    const L = lay(linear3, { direction: 'ltr' });
+    const ax = L.positions.get('a').x;
+    const bx = L.positions.get('b').x;
+    const cx = L.positions.get('c').x;
+    assert.ok(ax < bx, `a.x (${ax}) should be < b.x (${bx})`);
+    assert.ok(bx < cx, `b.x (${bx}) should be < c.x (${cx})`);
+  });
+
+  it('TTB: Y increases along the chain (baseline)', () => {
+    const L = lay(linear3, { direction: 'ttb' });
+    const ay = L.positions.get('a').y;
+    const by = L.positions.get('b').y;
+    const cy = L.positions.get('c').y;
+    assert.ok(ay < by);
+    assert.ok(by < cy);
+  });
+
+  it('LTR: same-layer nodes have same X, different Y', () => {
+    const L = lay(diamond, { direction: 'ltr' });
+    const lx = L.positions.get('l').x;
+    const rx = L.positions.get('r').x;
+    const ly = L.positions.get('l').y;
+    const ry = L.positions.get('r').y;
+    assert.ok(Math.abs(lx - rx) < 1, 'same-layer nodes should have similar X in LTR');
+    assert.ok(Math.abs(ly - ry) > 1, 'same-layer nodes should be separated in Y in LTR');
+  });
+
+  it('LTR swaps width and height vs TTB', () => {
+    const ttb = lay(linear3, { direction: 'ttb' });
+    const ltr = lay(linear3, { direction: 'ltr' });
+    // Width and height should be swapped
+    assert.ok(Math.abs(ltr.width - ttb.height) < 1, `LTR width (${ltr.width}) should equal TTB height (${ttb.height})`);
+    assert.ok(Math.abs(ltr.height - ttb.width) < 1, `LTR height (${ltr.height}) should equal TTB width (${ttb.width})`);
+  });
+
+  it('LTR: positions every node', () => {
+    const L = lay(diamond, { direction: 'ltr' });
+    for (const nd of diamond.dag.nodes) {
+      assert.ok(L.positions.has(nd.id), `missing position for ${nd.id}`);
+    }
+  });
+
+  it('LTR: produces route path segments', () => {
+    const L = lay(diamond, { direction: 'ltr' });
+    assert.equal(L.routePaths.length, 2);
+    for (const segs of L.routePaths) {
+      for (const seg of segs) {
+        assert.ok(seg.d.startsWith('M '), 'path should start with M');
+      }
+    }
+  });
+
+  it('LTR: card placements exist', () => {
+    const L = lay(linear3, { direction: 'ltr' });
+    assert.ok(L.cardPlacements.size > 0);
+    for (const [, cp] of L.cardPlacements) {
+      assert.ok(cp.rect.w > 0);
+      assert.ok(cp.rect.h > 0);
+    }
+  });
+
+  it('LTR: dotX returns finite values', () => {
+    const L = lay(diamond, { direction: 'ltr' });
+    for (const route of diamond.routes) {
+      for (const nodeId of route.nodes) {
+        const dx = L.dotX(nodeId, diamond.routes.indexOf(route));
+        assert.ok(Number.isFinite(dx), `dotX(${nodeId}) not finite in LTR`);
+      }
+    }
+  });
+
+  it('LTR: edge label positions exist', () => {
+    const L = lay(linear3, { direction: 'ltr' });
+    assert.ok(L.edgeLabelPositions.size > 0);
+    for (const [, pos] of L.edgeLabelPositions) {
+      assert.ok(Number.isFinite(pos.x));
+      assert.ok(Number.isFinite(pos.y));
+    }
+  });
+});

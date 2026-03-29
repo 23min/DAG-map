@@ -250,6 +250,11 @@ body.dm-container {
 <div class="dm-controls">
   <label for="modelSelect">Model:</label>
   <select id="modelSelect"></select>
+  <label for="directionSelect">Direction:</label>
+  <select id="directionSelect">
+    <option value="ttb">Top → Bottom</option>
+    <option value="ltr">Left → Right</option>
+  </select>
   <label for="themeSelect">Theme:</label>
   <select id="themeSelect">
     <option value="cream">cream</option>
@@ -1901,6 +1906,7 @@ const models = [
 // ============================================================
 
 const $model = document.getElementById('modelSelect');
+const $direction = document.getElementById('directionSelect');
 const $theme = document.getElementById('themeSelect');
 const $container = document.getElementById('mapContainer');
 const $jsBlock = document.getElementById('jsBlock');
@@ -1984,7 +1990,8 @@ function doRender() {
   root.setProperty('--dm-border', theme.border);
 
   try {
-    const layout = layoutFlow(model.dag, { routes: model.routes, theme, ...opts });
+    const direction = $direction.value;
+    const layout = layoutFlow(model.dag, { routes: model.routes, theme, direction, ...opts });
     const renderNode = createStationRenderer(layout, model.routes);
     const renderEdge = createEdgeRenderer(layout, model.edgeVolumes);
     const svg = renderSVG(model.dag, layout, {
@@ -2004,6 +2011,7 @@ function doRender() {
       + "  from 'dag-map/render-flow-station';\n\n"
       + 'const layout = layoutFlow(dag, {\n'
       + '  routes,\n'
+      + (direction !== 'ttb' ? '  direction: ' + JSON.stringify(direction) + ',\n' : '')
       + '  theme: ' + JSON.stringify(themeName) + ',\n'
       + Object.entries(opts).map(([k, v]) => '  ' + k + ': ' + v + ',').join('\n')
       + '\n});\n\n'
@@ -2038,6 +2046,7 @@ function onModelChange() {
 }
 
 $model.addEventListener('change', onModelChange);
+$direction.addEventListener('change', doRender);
 $theme.addEventListener('change', doRender);
 for (const s of Object.values(sliders)) s.el.addEventListener('input', doRender);
 
