@@ -14,8 +14,8 @@ export function createStationRenderer(layout, routes) {
   return function renderStation(node, pos, ctx) {
     const s = ctx.scale;
     const dotR = 3.2 * s;
-    const fsLabel = 3.6 * s;
-    const fsData = 2.8 * s;
+    const fsLabel = layout.labelSize || 3.6 * s;
+    const fsData = fsLabel * 0.78;
     let svg = '';
 
     const routeIndices = [];
@@ -105,7 +105,7 @@ export function createEdgeRenderer(layout, edgeVolumes) {
       if (vol) {
         const labelPos = layout.edgeLabelPositions?.get(routeEdgeKey);
         if (labelPos) {
-          const fs = 2.4 * s;
+          const fs = (layout.labelSize || 3.6 * s) * 0.67;
           const tw = vol.length * fs * 0.55 + 3.5 * s;
           const th = fs + 2.5 * s;
 

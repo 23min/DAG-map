@@ -131,6 +131,8 @@ body.dm-container {
       <span class="dm-val" id="cornerRadiusValue">5</span></label>
     <label>line thickness <input type="range" id="lineThicknessSlider" min="1" max="8" step="0.5" value="3">
       <span class="dm-val" id="lineThicknessValue">3</span></label>
+    <label>label size <input type="range" id="labelSizeSlider" min="2" max="6" step="0.2" value="3.6">
+      <span class="dm-val" id="labelSizeValue">3.6</span></label>
   </div>
 </details>
 <div class="dm-split">
@@ -181,6 +183,18 @@ const palette = {
 };
 
 function mkModel(id, label, subtitle, nodes, edges, routes, opts) {
+  // Auto-generate edge volumes from node counts for demo purposes.
+  // For each route, each consecutive pair gets a volume derived from
+  // the source node's count (if available).
+  var edgeVolumes = new Map();
+  routes.forEach(function(r, ri) {
+    for (var i = 1; i < r.nodes.length; i++) {
+      var fromNode = nodes.find(function(n) { return n[0] === r.nodes[i - 1]; });
+      var vol = fromNode && fromNode[2] ? fromNode[2] : '';
+      if (vol) edgeVolumes.set(ri + ':' + r.nodes[i - 1] + '\\u2192' + r.nodes[i], vol);
+    }
+  });
+
   return {
     id, label, subtitle,
     dag: {
@@ -188,8 +202,9 @@ function mkModel(id, label, subtitle, nodes, edges, routes, opts) {
       edges,
     },
     routes: routes.map(r => ({ id: r.id, cls: r.cls, nodes: r.nodes })),
+    edgeVolumes,
     theme: { ...palette, classes: Object.fromEntries(routes.map(r => [r.cls, palette.classes[r.cls]])) },
-    opts: { scale: 1.8, layerSpacing: 50, columnSpacing: 70, dotSpacing: 12, cornerRadius: 5, lineThickness: 3, ...opts },
+    opts: { scale: 1.8, layerSpacing: 50, columnSpacing: 70, dotSpacing: 12, cornerRadius: 5, lineThickness: 3, labelSize: 3.6, ...opts },
   };
 }
 
@@ -328,6 +343,7 @@ const sliders = {
   dotSpacing:    { el: document.getElementById('dotSpacingSlider'),    val: document.getElementById('dotSpacingValue') },
   cornerRadius:  { el: document.getElementById('cornerRadiusSlider'),  val: document.getElementById('cornerRadiusValue') },
   lineThickness: { el: document.getElementById('lineThicknessSlider'), val: document.getElementById('lineThicknessValue') },
+  labelSize:     { el: document.getElementById('labelSizeSlider'),     val: document.getElementById('labelSizeValue') },
 };
 
 // Populate model selector
@@ -377,7 +393,7 @@ function doRender() {
   try {
     const layout = layoutFlow(model.dag, { routes: model.routes, theme, ...opts });
     const renderNode = createStationRenderer(layout, model.routes);
-    const renderEdge = createEdgeRenderer(layout);
+    const renderEdge = createEdgeRenderer(layout, model.edgeVolumes);
     const svg = renderSVG(model.dag, layout, {
       title: model.label,
       subtitle: model.subtitle || '',

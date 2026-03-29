@@ -31,6 +31,7 @@ export function layoutFlow(dag, options = {}) {
   const cornerRadius = (options.cornerRadius ?? 5) * s;
   const lineThickness = (options.lineThickness ?? 3) * s;
   const lineOpacity = Math.min((theme.lineOpacity ?? 1.0) * 0.7, 1);
+  const labelSize = (options.labelSize ?? 3.6) * s;  // station card label font size
   const routes = options.routes || [];
   const cardSide = options.cardSide ?? 'right'; // default card placement
 
@@ -674,8 +675,8 @@ export function layoutFlow(dag, options = {}) {
   }
 
   // ── STEP 6: Lay routes sequentially ──
-  const fsLabel = 3.6 * s;
-  const fsData = 2.8 * s;
+  const fsLabel = labelSize;
+  const fsData = labelSize * 0.78;  // data text slightly smaller than label
   const routePaths = routes.map(() => []);
   const edgeLabelPositions = new Map(); // "from→to" → {x, y, color}
 
@@ -857,6 +858,7 @@ export function layoutFlow(dag, options = {}) {
     edgeLabelPositions,
     extraDotPositions,
     scale: s,
+    labelSize,
     theme,
     orientation: 'ttb',
     minY: margin.top,
