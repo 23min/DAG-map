@@ -26,6 +26,27 @@
 - [x] Hasse demo page with 13 example lattices and DAGs
 - [x] Callout panel with mathematical context for each lattice
 
+## v0.3 — Flow Layout (in progress, `feat/flow-layout` branch)
+
+- [x] `layoutFlow` engine — obstacle-aware, trunk-first process flow layout
+- [x] Punched-out station dots + rich info cards
+- [x] Per-route edge volume badges
+- [x] Adaptive layer spacing at merge/fork zones
+- [x] Global side assignment prevents route crossings
+- [x] Staggered V-H-V jog heights for crossing avoidance
+- [x] Absolute trunk X propagation for straight spines
+- [x] `createStationRenderer` / `createEdgeRenderer` reusable renderers
+- [x] `labelSize` parameter for card and badge font scaling
+- [x] Interactive demo (`demo/flow.html`) with 6 models, theme switcher, parameter sliders
+- [x] Three-column demo layout (graph | JSON | JS) with syntax highlighting
+- [x] Consistent naming: `layout-metro.js`, `layout-flow.js`, `render-flow-station.js`
+- [x] README with flow layout docs, examples, and images
+- [ ] Fix O2C card/line overlap (expand card placement search)
+- [ ] Export `createStationRenderer` / `createEdgeRenderer` from `index.js`
+- [ ] Fix `dag-map` → `dagMap` export name
+- [ ] Route validation (warn on non-DAG edges in route definitions)
+- [ ] See `gaps.md` for full issue list
+
 ## Planned
 
 - [ ] `edgeDirection` option — `'downward'` vs `'upward'` to prevent "upside-down diagram" confusion
@@ -41,11 +62,11 @@
 ### Layout & Algorithm
 
 - [ ] Trunk selection modes: `'auto'` (weighted), `'longest'`, explicit node list
-- [ ] `maxLanes` enforcement in lane assignment
 - [ ] Label collision detection and resolution
 - [ ] Incremental layout: add/remove nodes without full recompute
 - [ ] Mental map preservation — don't move existing nodes on update
 - [ ] Layout caching
+- [ ] Spatial indexing in occupancy grid (quadtree) for 100+ node layouts
 
 ### Animation
 
@@ -58,7 +79,6 @@
 ### Content & Annotation
 
 - [ ] Node content preview (text/JSON snippets inside or beside stations)
-- [ ] Edge labels
 - [ ] Annotation layer: leader lines + floating text
 - [ ] Phase/region labels (group boundaries)
 - [ ] Timing bars on stations (duration encoded as width)
