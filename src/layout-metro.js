@@ -9,6 +9,7 @@ import { bezierPath } from './route-bezier.js';
 import { angularPath } from './route-angular.js';
 import { metroPath } from './route-metro.js';
 import { resolveTheme } from './themes.js';
+import { buildGraph, topoSortAndRank } from './graph-utils.js';
 
 // ================================================================
 // COLORS & CONSTANTS (kept for backward compatibility)
@@ -77,27 +78,10 @@ export function layoutMetro(dag, options = {}) {
   const hasProvidedRoutes = !!(options.routes && options.routes.length > 0);
 
   const { nodes, edges } = dag;
-  const nodeMap = new Map(nodes.map(n => [n.id, n]));
-  const childrenOf = new Map(), parentsOf = new Map();
-  nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
-  edges.forEach(([f, t]) => { childrenOf.get(f).push(t); parentsOf.get(t).push(f); });
+  const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
 
   // ── STEP 1: Topological sort + layer assignment ──
-  const layer = new Map();
-  const inDeg = new Map();
-  nodes.forEach(nd => inDeg.set(nd.id, parentsOf.get(nd.id).length));
-  const queue = nodes.filter(nd => inDeg.get(nd.id) === 0).map(nd => nd.id);
-  queue.forEach(id => layer.set(id, 0));
-  const topo = [];
-  while (queue.length) {
-    const u = queue.shift(); topo.push(u);
-    for (const v of childrenOf.get(u)) {
-      layer.set(v, Math.max(layer.get(v) || 0, layer.get(u) + 1));
-      inDeg.set(v, inDeg.get(v) - 1);
-      if (inDeg.get(v) === 0) queue.push(v);
-    }
-  }
-  const maxLayer = Math.max(...topo.map(id => layer.get(id)));
+  const { topo, rank: layer, maxRank: maxLayer } = topoSortAndRank(nodes, childrenOf, parentsOf);
 
   // ── STEP 2: Extract routes ──
   // Either use consumer-provided routes or auto-discover via greedy longest-path.

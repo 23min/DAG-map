@@ -20,6 +20,7 @@
 
 import { resolveTheme } from './themes.js';
 import { OccupancyGrid } from './occupancy.js';
+import { buildGraph, topoSortAndRank } from './graph-utils.js';
 
 export function layoutFlow(dag, options = {}) {
   const { nodes, edges } = dag;
@@ -35,35 +36,12 @@ export function layoutFlow(dag, options = {}) {
   const routes = options.routes || [];
   const cardSide = options.cardSide ?? 'right'; // default card placement
 
-  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
   const classColor = {};
   for (const [cls, hex] of Object.entries(theme.classes)) classColor[cls] = hex;
 
   // ── STEP 1: Topological sort + layers ──
-  const childrenOf = new Map(), parentsOf = new Map();
-  nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
-  edges.forEach(([f, t]) => { childrenOf.get(f).push(t); parentsOf.get(t).push(f); });
-
-  const topo = [];
-  const inDeg = new Map();
-  nodes.forEach(n => inDeg.set(n.id, 0));
-  edges.forEach(([, t]) => inDeg.set(t, inDeg.get(t) + 1));
-  const queue = [];
-  nodes.forEach(n => { if (inDeg.get(n.id) === 0) queue.push(n.id); });
-  while (queue.length > 0) {
-    const u = queue.shift();
-    topo.push(u);
-    for (const v of childrenOf.get(u)) {
-      inDeg.set(v, inDeg.get(v) - 1);
-      if (inDeg.get(v) === 0) queue.push(v);
-    }
-  }
-
-  const layer = new Map();
-  topo.forEach(id => {
-    const parents = parentsOf.get(id);
-    layer.set(id, parents.length === 0 ? 0 : Math.max(...parents.map(p => layer.get(p))) + 1);
-  });
+  const { topo, rank: layer } = topoSortAndRank(nodes, childrenOf, parentsOf);
 
   // ── STEP 2: Route membership + primary type ──
   const nodeRoutes = new Map();
