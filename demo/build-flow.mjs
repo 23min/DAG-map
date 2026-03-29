@@ -54,23 +54,14 @@ ${demoCss}
   overflow: auto;
   min-width: 0;
 }
-.dm-panels {
-  width: 380px;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid var(--dm-border);
-  overflow: hidden;
-}
 .dm-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
-}
-.dm-panel + .dm-panel {
-  border-top: 1px solid var(--dm-border);
+  border-left: 1px solid var(--dm-border);
 }
 .dm-panel-header {
   padding: 6px 12px;
@@ -143,15 +134,13 @@ body.dm-container {
 </details>
 <div class="dm-split">
   <div class="dm-graph" id="mapContainer"></div>
-  <div class="dm-panels">
-    <div class="dm-panel">
-      <div class="dm-panel-header">json</div>
-      <pre id="jsonBlock"></pre>
-    </div>
-    <div class="dm-panel">
-      <div class="dm-panel-header">js</div>
-      <pre id="jsBlock"></pre>
-    </div>
+  <div class="dm-panel">
+    <div class="dm-panel-header">json</div>
+    <pre id="jsonBlock"></pre>
+  </div>
+  <div class="dm-panel">
+    <div class="dm-panel-header">js</div>
+    <pre id="jsBlock"></pre>
   </div>
 </div>
 <script>
