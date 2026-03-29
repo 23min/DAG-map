@@ -13,8 +13,7 @@ Flow-layout-specific issues are tracked separately in `flow-gaps.md`.
 
 [x] **~~No unit tests for 9 of 11 modules~~** — Fixed across `7661d28` and `b4e1550`. 213 tests now cover all modules: themes, occupancy, all three routers, layoutMetro, layoutHasse, layoutFlow, renderSVG, render-flow-station, graph-utils, and index.js barrel.
 
-[ ] **Fragile TTB coordinate swap** — `swapPathCoords` in `layout-metro.js` uses regex to swap X/Y in SVG path data. Only handles `M`, `L`, `C`, `Q` commands. Lowercase relative commands, `A` (arc), `S`/`T` (smooth curves), and `Z` are silently passed through or mishandled.
-  Risk: any router change that introduces new SVG commands will silently break TTB mode.
+[x] **~~Fragile TTB coordinate swap~~** — Fixed in `749a02e`. Replaced inline regex with `swapPathXY()` in `graph-utils.js`. Handles all SVG commands (M/L/C/Q/S/T/H↔V/Z), throws on arcs. 29 tests. Exported for future layoutFlow LTR support.
 
 ## Medium
 
