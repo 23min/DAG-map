@@ -17,7 +17,7 @@ function stripModuleSyntax(code) {
 }
 
 // Read library + demo CSS
-const css = readFileSync(join(root, 'dag-map.css'), 'utf-8');
+const css = readFileSync(join(root, 'src/dag-map.css'), 'utf-8');
 const demoCss = readFileSync(join(root, 'demo/demo.css'), 'utf-8');
 
 // Read and strip module syntax from source files

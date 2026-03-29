@@ -8,9 +8,7 @@
     ".": "./src/index.js"
   },
   "files": [
-    "src/",
-    "dag-map.css",
-    "hasse.css"
+    "src/"
   ],
   "scripts": {
     "test": "node --test test/unit/*.test.mjs",

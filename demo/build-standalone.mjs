@@ -15,7 +15,7 @@ function stripModuleSyntax(code) {
     .replace(/^export\s+default\s+/gm, ''); // remove export default
 }
 
-const css = readFileSync(join(root, 'dag-map.css'), 'utf-8');
+const css = readFileSync(join(root, 'src/dag-map.css'), 'utf-8');
 const demoCss = readFileSync(join(root, 'demo/demo.css'), 'utf-8');
 const routeBezier = stripModuleSyntax(readFileSync(join(root, 'src/route-bezier.js'), 'utf-8'));
 const routeAngular = stripModuleSyntax(readFileSync(join(root, 'src/route-angular.js'), 'utf-8'));

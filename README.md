@@ -123,7 +123,7 @@ The SVG output uses `var(--dm-paper)`, `var(--dm-cls-pure)`, etc. Override them 
 }
 ```
 
-Default values for all CSS variables are provided in `dag-map.css` (metro layouts) and `hasse.css` (Hasse diagrams). Include the appropriate file for your use case — or both if using both layout engines.
+Default values for all CSS variables are provided in `src/dag-map.css` (metro layouts) and `src/hasse.css` (Hasse diagrams). Include the appropriate file for your use case — or both if using both layout engines.
 
 ## Routing styles
 
