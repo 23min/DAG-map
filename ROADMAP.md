@@ -41,14 +41,19 @@
 - [x] Three-column demo layout (graph | JSON | JS) with syntax highlighting
 - [x] Consistent naming: `layout-metro.js`, `layout-flow.js`, `render-flow-station.js`
 - [x] README with flow layout docs, examples, and images
-- [ ] Fix `dag-map` → `dagMap` export name (syntax error)
-- [ ] XSS: escape user strings in SVG rendering
-- [ ] Export `createStationRenderer` / `createEdgeRenderer` from `index.js`
-- [ ] Extract shared topo sort / graph building into `graph-utils.js`
+- [x] Fix `dag-map` → `dagMap` export name
+- [x] XSS: escape user strings in SVG rendering
+- [x] Export `createStationRenderer` / `createEdgeRenderer` from `index.js`
+- [x] Extract shared topo sort / graph building into `graph-utils.js`
+- [x] `validateDag()` — cycle detection, unknown node IDs, duplicate IDs
+- [x] Remove backward-compat `C` / `CLASS_COLOR` (use theme system)
+- [x] Robust `swapPathXY()` replacing fragile TTB regex
+- [x] Native LTR direction support (`direction: 'ltr'`) with H-V-H routing
+- [x] `dotPos(nodeId, ri)` API for orientation-agnostic dot coordinates
+- [x] 253 unit tests + 60 Playwright visual tests (TTB + LTR)
+- [x] CSS files moved to `src/`
 - [ ] Fix O2C card/line overlap (expand card placement search)
-- [ ] Route validation (warn on non-DAG edges in route definitions)
-- [ ] Input validation (cycle detection, unknown node IDs)
-- [ ] See `gaps.md` (cross-cutting) and `flow-gaps.md` (flow-specific) for full issue lists
+- [ ] See `gaps.md` (cross-cutting) and `flow-gaps.md` (flow-specific) for remaining issues
 
 ## Planned
 
@@ -65,9 +70,6 @@
 ### Layout & Algorithm
 
 - [ ] Trunk selection modes: `'auto'` (weighted), `'longest'`, explicit node list
-- [ ] Unit tests for routers, occupancy grid, layoutMetro, layoutHasse, renderSVG
-- [ ] Harden TTB coordinate swap (or replace regex with proper path transform)
-- [ ] Remove backward-compat `C` / `CLASS_COLOR` exports (use theme system)
 - [ ] Document shared base return shape for layout engines
 - [ ] Label collision detection and resolution
 - [ ] Incremental layout: add/remove nodes without full recompute

@@ -41,9 +41,34 @@ Reusable renderers for flow layout visuals:
 - Theme selector (all 6 themes), parameter sliders, syntax-highlighted code panels
 - Cross-linked with dag and hasse demos
 
+### New: LTR direction support
+
+`layoutFlow` now supports `direction: 'ltr'` for left-to-right process flows. Native orientation-aware computation (not a coordinate swap) — H-V-H routing, cards above/below, dots on horizontal lines. Flow demo has a Direction toggle with responsive layout.
+
+### New: `graph-utils.js` shared module
+
+- `buildGraph(nodes, edges)` — adjacency map construction
+- `topoSortAndRank(nodes, childrenOf, parentsOf)` — Kahn's algorithm with longest-path ranking
+- `validateDag(nodes, edges)` — non-throwing validation (cycles, unknown nodes, duplicates)
+- `swapPathXY(d)` — robust SVG path X↔Y swap for all commands (M/L/C/Q/S/T/H↔V/Z)
+
+### New: 253 unit tests + 60 visual tests
+
+Test suite using `node:test` (zero dependencies). Covers all modules: themes, occupancy grid, all three routers, layoutMetro, layoutHasse, layoutFlow, renderSVG, render-flow-station, graph-utils, and index.js barrel. Visual tests run all 30 models in both TTB and LTR via Playwright.
+
+### Fixed
+
+- **XSS in SVG rendering** — all user-supplied strings (labels, titles, subtitles, legend labels, volume badges) are now XML-escaped
+- **Invalid export name** — `dag-map()` renamed to `dagMap()`
+- **Public API** — `createStationRenderer`, `createEdgeRenderer`, `validateDag`, `swapPathXY` exported from barrel
+- **Fragile TTB swap** — replaced regex-only M/L/C/Q handler with full SVG command parser
+- **Backward-compat constants** — removed `C` and `CLASS_COLOR`; `render.js` uses `resolveTheme('cream')` fallback
+- **Triplicated topo sort** — extracted into shared `graph-utils.js`
+- **CSS files** — moved from repo root to `src/`
+
 ### Known issues
 
-See `gaps.md` (cross-cutting: XSS, missing tests, duplicated code) and `flow-gaps.md` (flow-layout-specific: card placement, short elbows, line crossings) for the full tracked issue list.
+See `gaps.md` (cross-cutting) and `flow-gaps.md` (flow-layout-specific) for the full tracked issue list. The only error-level issue is the O2C card/line overlap in flow layout.
 
 ### Changed
 

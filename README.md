@@ -271,13 +271,15 @@ const svg = renderSVG(dag, layout, {
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `routes` | `[]` | Required. Array of `{id, cls, nodes: [nodeId...]}` defining object types. |
+| `direction` | `'ttb'` | Layout direction. `'ttb'` = top-to-bottom, `'ltr'` = left-to-right. |
 | `theme` | `'dark'` | Theme name or custom theme object. Route colors come from `theme.classes`. |
 | `scale` | `1.5` | Global size multiplier. |
-| `layerSpacing` | `55` | Base vertical distance between layers (before scale). Congested layers get up to 2x automatically. |
-| `columnSpacing` | `90` | Horizontal distance between node columns (before scale). |
+| `layerSpacing` | `55` | Base distance between layers along the flow axis (before scale). Congested layers get up to 2x automatically. |
+| `columnSpacing` | `90` | Distance between node columns on the spread axis (before scale). |
 | `dotSpacing` | `12` | Gap between parallel route dots at shared stations (before scale). |
-| `cornerRadius` | `5` | Radius for V-H-V elbow bends (before scale). |
+| `cornerRadius` | `5` | Radius for elbow bends (before scale). |
 | `lineThickness` | `3` | Route line width (before scale). |
+| `labelSize` | `3.6` | Station card label font size (before scale). |
 
 ### How it works
 
