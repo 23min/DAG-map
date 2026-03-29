@@ -46,10 +46,25 @@ ${demoCss}
   min-height: 0;
   overflow: hidden;
 }
+.dm-split.dm-ltr {
+  flex-direction: column;
+}
 .dm-graph {
   flex: 1;
   overflow: auto;
   min-width: 0;
+}
+.dm-split.dm-ltr .dm-graph {
+  flex: none;
+}
+.dm-panels-row {
+  display: contents;
+}
+.dm-split.dm-ltr .dm-panels-row {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .dm-panel {
   flex: 1;
@@ -59,6 +74,10 @@ ${demoCss}
   min-width: 0;
   overflow: hidden;
   border-left: 1px solid var(--dm-border);
+}
+.dm-split.dm-ltr .dm-panel {
+  border-left: none;
+  border-top: 1px solid var(--dm-border);
 }
 .dm-panel-header {
   padding: 6px 16px;
@@ -137,15 +156,17 @@ body.dm-container {
       <span class="dm-val" id="labelSizeValue">3.6</span></label>
   </div>
 </details>
-<div class="dm-split">
+<div class="dm-split" id="splitContainer">
   <div class="dm-graph" id="mapContainer"></div>
-  <div class="dm-panel">
-    <div class="dm-panel-header">json</div>
-    <pre id="jsonBlock"></pre>
-  </div>
-  <div class="dm-panel">
-    <div class="dm-panel-header">js</div>
-    <pre id="jsBlock"></pre>
+  <div class="dm-panels-row">
+    <div class="dm-panel">
+      <div class="dm-panel-header">json</div>
+      <pre id="jsonBlock"></pre>
+    </div>
+    <div class="dm-panel">
+      <div class="dm-panel-header">js</div>
+      <pre id="jsBlock"></pre>
+    </div>
   </div>
 </div>
 <script>
@@ -394,6 +415,7 @@ function doRender() {
 
   try {
     const direction = $direction.value;
+    document.getElementById('splitContainer').classList.toggle('dm-ltr', direction === 'ltr');
     const layout = layoutFlow(model.dag, { routes: model.routes, theme, direction, ...opts });
     const renderNode = createStationRenderer(layout, model.routes);
     const renderEdge = createEdgeRenderer(layout, model.edgeVolumes);
