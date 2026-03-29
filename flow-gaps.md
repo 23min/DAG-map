@@ -18,9 +18,9 @@ Tracked issues for the `layoutFlow` engine before merging to main.
 
 ## Medium
 
-- [ ] **Public API incomplete** — `createStationRenderer` and `createEdgeRenderer` not exported from `index.js`. Users must deep-import from `src/render-flow-station.js`.
+- [x] **~~Public API incomplete~~** — Fixed in `6c94508`. `createStationRenderer` and `createEdgeRenderer` now exported from `index.js`.
 
-- [ ] **Invalid export name** — tracked in `gaps.md` (cross-cutting). `export function dag-map(...)` → `dagMap`.
+- [x] **~~Invalid export name~~** — Fixed in `6c94508`. See `gaps.md`.
 
 - [ ] **Fake hops in airport_luggage** — Route definitions include edges not in the DAG (`scan->carousel`, `load->unload`). Model data issue, but layout should validate route edges against DAG and warn.
 

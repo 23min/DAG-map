@@ -5,62 +5,37 @@ Flow-layout-specific issues are tracked separately in `flow-gaps.md`.
 
 ## Critical
 
-- [ ] **XSS in SVG rendering** — Node labels, titles, and subtitles are interpolated raw into SVG markup without XML escaping. A label containing `<`, `>`, `"`, or `&` produces malformed SVG; a crafted label enables script injection in browsers.
-  - `src/render.js` lines 89, 91, 222-228 (title, subtitle, node labels)
-  - `src/render-flow-station.js` lines 45, 56 (card labels, count/times)
-  - Fix: add an `escapeXml(s)` helper (`& → &amp;`, `< → &lt;`, `> → &gt;`, `" → &quot;`) and apply to all user-supplied strings before SVG interpolation.
+- [x] **~~XSS in SVG rendering~~** — Fixed in `f14f6a5`. Added `esc()` helper to `render.js` and `render-flow-station.js`. All user-supplied strings (labels, titles, subtitles, legend labels, volume badges) are now XML-escaped. 12 tests verify escaping.
 
 ## High
 
-- [ ] **Triplicated topo sort + graph building** — Adjacency map construction and Kahn's algorithm BFS are copy-pasted across three files:
-  - `src/layout-metro.js` lines 81–99
-  - `src/layout-hasse.js` lines 22–55 (already factored into `buildGraph` + `topoSortAndRank`)
-  - `src/layout-flow.js` lines 43–66
-  - Fix: extract `layout-hasse.js`'s factored versions into a shared `graph-utils.js` and import from all three engines.
+- [x] **~~Triplicated topo sort + graph building~~** — Fixed in `9b59f76`. Extracted `buildGraph()` and `topoSortAndRank()` into `graph-utils.js`. All three engines import from the shared module. 13 tests cover the shared functions.
 
-- [ ] **No unit tests for 9 of 11 modules** — Only `layoutFlow` has tests (visual/structural). Zero coverage for:
-  - `layoutMetro`, `layoutHasse` — no regression safety for the two original engines
-  - `renderSVG` — no test that output is valid SVG or that labels render
-  - `bezierPath`, `angularPath`, `metroPath` — pure functions, ideal for unit tests
-  - `OccupancyGrid` — pure class with clear contract
-  - `resolveTheme` — trivial but untested merge logic
-  - Priority: routers and occupancy grid first (pure, fast, high leverage).
+- [x] **~~No unit tests for 9 of 11 modules~~** — Fixed across `7661d28` and `b4e1550`. 213 tests now cover all modules: themes, occupancy, all three routers, layoutMetro, layoutHasse, layoutFlow, renderSVG, render-flow-station, graph-utils, and index.js barrel.
 
-- [ ] **Fragile TTB coordinate swap** — `swapPathCoords` in `layout-metro.js` lines 506–514 uses regex to swap X/Y in SVG path data. Only handles `M`, `L`, `C`, `Q` commands. Lowercase relative commands, `A` (arc), `S`/`T` (smooth curves), and `Z` are silently passed through or mishandled. No test covers this.
+- [ ] **Fragile TTB coordinate swap** — `swapPathCoords` in `layout-metro.js` uses regex to swap X/Y in SVG path data. Only handles `M`, `L`, `C`, `Q` commands. Lowercase relative commands, `A` (arc), `S`/`T` (smooth curves), and `Z` are silently passed through or mishandled.
   - Risk: any router change that introduces new SVG commands will silently break TTB mode.
 
 ## Medium
 
-- [ ] **Invalid export name in `index.js:43`** — `export function dag-map(...)` is a syntax error (hyphen in identifier). Should be `dagMap` to match the README.
-  - Currently dormant: nothing imports `index.js` — all demos and tests import individual modules directly. Will break when the package is published or anyone uses the barrel export.
-  - Also tracked in `flow-gaps.md`. Fix once, remove from both.
+- [x] **~~Invalid export name in `index.js:43`~~** — Fixed in `6c94508`. Renamed `dag-map()` to `dagMap()`. Also exported `createStationRenderer` and `createEdgeRenderer` from barrel. 10 tests verify all public exports.
 
-- [ ] **SVG width/height may clip content** — All three layout engines compute `width`/`height` from node positions only. Cards (`layout-flow.js` line 849), detour paths, edge labels, and legend text can extend beyond node bounds. The SVG viewBox may clip visual content at the edges.
-  - Fix: after all placements, scan occupancy grid / card rects for true extents.
+- [ ] **SVG width/height may clip content** — All three layout engines compute `width`/`height` from node positions only. Cards, detour paths, edge labels, and legend text can extend beyond node bounds.
 
-- [ ] **Backward-compat constants should be removed** — `C` and `CLASS_COLOR` in `layout-metro.js` lines 16–18 duplicate the `cream` theme. They're exported from `index.js` and used as a fallback in `render.js:58`. Now that the theme system exists, these should be retired.
-  - Remove `C` and `CLASS_COLOR` exports, update `render.js` to use `resolveTheme('cream')` as its fallback.
+- [x] **~~Backward-compat constants removed~~** — Fixed in `ff718be`. Removed `C` and `CLASS_COLOR` from `layout-metro.js`. `render.js` now uses `resolveTheme('cream')` as its fallback.
 
-- [ ] **No input validation at API boundaries** — None of the three layout functions validate inputs:
-  - Edges referencing non-existent node IDs → silent undefined lookups
-  - Cycles in the DAG → `topo.length < nodes.length`, unreachable nodes get no position
-  - Duplicate edges → double-counted routes
-  - Fix: after topo sort, check `topo.length === nodes.length` and warn/throw if not. Validate edge endpoints exist in node set.
+- [x] **~~No input validation at API boundaries~~** — Fixed in `de6cba7`. Added `validateDag()` to `graph-utils.js` — checks for duplicate node IDs, unknown edge endpoints, and cycles. Exported from barrel. 7 tests.
 
-- [ ] **Inconsistent return shape across layout engines** — Each engine returns a different set of properties:
-  - `layoutMetro` → `nodeRoutes`, `segmentRoutes`, no `dotX`, no `cardPlacements`
-  - `layoutHasse` → no `nodeRoutes`, no `segmentRoutes`
-  - `layoutFlow` → `dotX` (function), `cardPlacements`, `edgeLabelPositions`
-  - `renderSVG` handles some of this but custom renderers need to know which engine was used. Consider documenting a shared base shape.
+- [ ] **Inconsistent return shape across layout engines** — Each engine returns a different set of properties. Consider documenting a shared base shape.
 
 ## Low
 
-- [x] **~~`.DS_Store` files tracked~~** — verified: not tracked, `.gitignore` handles them. Local-only.
+- [x] ~~`.DS_Store` files tracked~~ — verified: not tracked.
 
-- [ ] **`queue.shift()` as BFS** — O(n) per dequeue in all three engines' topo sorts. Fine for current graph sizes (<100 nodes) but a known anti-pattern. Would matter if graphs grow to 1000+.
+- [ ] **`queue.shift()` as BFS** — O(n) per dequeue in all three engines' topo sorts. Fine for current graph sizes (<100 nodes).
 
-- [x] **~~44 versioned test result directories~~** — verified: not tracked, `.gitignore` handles them. Local-only.
+- [x] ~~44 versioned test result directories~~ — verified: not tracked.
 
-- [ ] **`maxLanes` option partially implemented** — `layout-metro.js` line 76 reads `options.maxLanes` and line 317 uses it in the Y-position search loop, but it's never enforced as a hard limit. Documented in ROADMAP as "Someday/Maybe" but accepted as an option today — confusing contract.
+- [ ] **`maxLanes` option partially implemented** — `layout-metro.js` reads `options.maxLanes` but never enforces it as a hard limit.
 
-- [ ] **`render.js` legend spacing assumes ≤4 classes** — Line 249: `i * 160 * s` spacing. With 8+ classes (e.g. supply_chain_10cls model), legend entries overflow the SVG width. No wrapping logic.
+- [ ] **`render.js` legend spacing assumes ≤4 classes** — Legend entries overflow SVG width with 8+ classes.
