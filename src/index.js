@@ -3,7 +3,7 @@
 // ================================================================
 // Public API
 
-import { layoutMetro, C, CLASS_COLOR, dominantClass } from './layout-metro.js';
+import { layoutMetro, dominantClass } from './layout-metro.js';
 import { layoutHasse } from './layout-hasse.js';
 import { layoutFlow } from './layout-flow.js';
 import { renderSVG } from './render.js';
@@ -14,7 +14,7 @@ import { THEMES, resolveTheme } from './themes.js';
 import { createStationRenderer, createEdgeRenderer } from './render-flow-station.js';
 import { validateDag } from './graph-utils.js';
 
-export { layoutMetro, C, CLASS_COLOR, dominantClass };
+export { layoutMetro, dominantClass };
 export { layoutHasse };
 export { layoutFlow };
 export { renderSVG };

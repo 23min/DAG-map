@@ -169,6 +169,15 @@ describe('renderSVG', () => {
     assert.ok(svg.includes('A&amp;B'));
   });
 
+  it('renders correctly when layout.theme is missing (fallback)', () => {
+    const dag = { nodes: [{ id: 'a', label: 'A', cls: 'pure' }], edges: [] };
+    const layout = layoutMetro(dag);
+    delete layout.theme; // simulate missing theme
+    const svg = renderSVG(dag, layout);
+    assert.ok(svg.startsWith('<svg'));
+    assert.ok(svg.includes('A'));
+  });
+
   it('escapes entities in TTB label mode', () => {
     const dag = { nodes: [{ id: 'a', label: 'X<Y', cls: 'pure' }, { id: 'b', label: 'B', cls: 'pure' }], edges: [['a', 'b']] };
     const layout = layoutMetro(dag, { direction: 'ttb' });

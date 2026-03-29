@@ -9,8 +9,7 @@
 //   cssVars: false (default) — inline hex colors, portable SVG
 //   cssVars: true — CSS var() references, themeable from CSS
 
-// Backward-compat import — only used if layout.theme is missing
-import { C, CLASS_COLOR } from './layout-metro.js';
+import { resolveTheme as resolveThemeFallback } from './themes.js';
 
 /** Escape user-supplied strings for safe SVG/XML interpolation. */
 function esc(s) {
@@ -61,7 +60,7 @@ export function renderSVG(dag, layout, options = {}) {
   const legendLabels = { ...defaultLegendLabels, ...(options.legendLabels || {}) };
 
   // Resolve colors from theme (with backward-compat fallback)
-  const theme = layout.theme || { paper: C.paper, ink: C.ink, muted: C.muted, border: C.border, classes: { pure: C.teal, recordable: C.coral, side_effecting: C.amber, gate: C.red } };
+  const theme = layout.theme || resolveThemeFallback('cream');
 
   // Color resolver: either inline hex or CSS var() reference
   const clsVar = (cls) => `var(--dm-cls-${cls.replace(/_/g, '-')})`;

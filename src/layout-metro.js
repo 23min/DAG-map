@@ -11,21 +11,6 @@ import { metroPath } from './route-metro.js';
 import { resolveTheme } from './themes.js';
 import { buildGraph, topoSortAndRank } from './graph-utils.js';
 
-// ================================================================
-// COLORS & CONSTANTS (kept for backward compatibility)
-// ================================================================
-export const C = {
-  paper: '#F5F0E8', ink: '#2C2C2C', muted: '#8C8680', border: '#D4CFC7',
-  teal: '#2B8A8E', coral: '#E8846B', amber: '#D4944C', red: '#C45B4A',
-};
-
-export const CLASS_COLOR = {
-  pure: C.teal,
-  recordable: C.coral,
-  side_effecting: C.amber,
-  gate: C.red,
-};
-
 /**
  * Determine the dominant node class among a set of node IDs.
  * @param {string[]} nodeIds
