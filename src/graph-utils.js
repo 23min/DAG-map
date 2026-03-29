@@ -15,9 +15,17 @@ export function buildGraph(nodes, edges) {
   const childrenOf = new Map();
   const parentsOf = new Map();
   nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
-  edges.forEach(([f, t]) => {
-    childrenOf.get(f).push(t);
-    parentsOf.get(t).push(f);
+  edges.forEach(([f, t], edgeIdx) => {
+    const srcChildren = childrenOf.get(f);
+    const dstParents = parentsOf.get(t);
+    if (!srcChildren || !dstParents) {
+      const parts = [];
+      if (!srcChildren) parts.push(`source "${f}"`);
+      if (!dstParents) parts.push(`target "${t}"`);
+      throw new Error(`buildGraph: edge[${edgeIdx}] references unknown ${parts.join(' and ')}`);
+    }
+    srcChildren.push(t);
+    dstParents.push(f);
   });
   return { nodeMap, childrenOf, parentsOf };
 }
@@ -86,6 +94,19 @@ export function validateDag(nodes, edges) {
   }
 
   return warnings;
+}
+
+/**
+ * Validate a DAG definition and throw with a useful message if invalid.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @param {string} [context='DAG']
+ */
+export function assertValidDag(nodes, edges, context = 'DAG') {
+  const warnings = validateDag(nodes, edges);
+  if (warnings.length > 0) {
+    throw new Error(`${context}: invalid DAG input. ${warnings.join('; ')}`);
+  }
 }
 
 // ================================================================

@@ -30,11 +30,12 @@ describe('empty and minimal DAGs', () => {
     assert.equal(layout.positions.size, 0);
   });
 
-  it('layoutFlow throws on empty routes (known limitation)', () => {
+  it('layoutFlow throws a clear error on empty routes', () => {
     const dag = { nodes: [], edges: [] };
-    // layoutFlow requires at least one route — crashes accessing trunk route.
-    // Documenting current behavior; input validation gap will add a guard.
-    assert.throws(() => layoutFlow(dag, { routes: [], theme, scale: 1 }));
+    assert.throws(
+      () => layoutFlow(dag, { routes: [], theme, scale: 1 }),
+      /layoutflow.*routes/i,
+    );
   });
 
   it('renderSVG handles layout with no nodes', () => {
@@ -61,6 +62,42 @@ describe('empty and minimal DAGs', () => {
     };
     const layout = layoutHasse(dag);
     assert.equal(layout.positions.size, 2);
+  });
+});
+
+describe('input validation', () => {
+  it('layoutMetro throws a clear error for unknown edge endpoints', () => {
+    const dag = {
+      nodes: [{ id: 'a', label: 'A', cls: 'pure' }],
+      edges: [['a', 'missing']],
+    };
+    assert.throws(
+      () => layoutMetro(dag),
+      /invalid dag|known node|missing/i,
+    );
+  });
+
+  it('layoutHasse throws a clear error for cycles', () => {
+    const dag = {
+      nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      edges: [['a', 'b'], ['b', 'a']],
+    };
+    assert.throws(
+      () => layoutHasse(dag),
+      /invalid dag|cycle/i,
+    );
+  });
+
+  it('layoutFlow throws a clear error for cycles', () => {
+    const dag = {
+      nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      edges: [['a', 'b'], ['b', 'a']],
+    };
+    const routes = [{ id: 'r', cls: 'a', nodes: ['a', 'b'] }];
+    assert.throws(
+      () => layoutFlow(dag, { routes, theme, scale: 1 }),
+      /invalid dag|cycle/i,
+    );
   });
 });
 

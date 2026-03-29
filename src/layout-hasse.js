@@ -14,7 +14,7 @@
 //   6. Edge path generation
 
 import { resolveTheme } from './themes.js';
-import { buildGraph, topoSortAndRank } from './graph-utils.js';
+import { assertValidDag, buildGraph, topoSortAndRank } from './graph-utils.js';
 
 // ================================================================
 // PHASE 2: Virtual node insertion
@@ -351,6 +351,7 @@ export function layoutHasse(dag, options = {}) {
   const edgeStyle = options.edgeStyle ?? 'bezier';
 
   const { nodes, edges } = dag;
+  assertValidDag(nodes, edges, 'layoutHasse');
   const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
 
   // Phase 1: Rank assignment

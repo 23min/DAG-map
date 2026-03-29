@@ -20,7 +20,7 @@
 
 import { resolveTheme } from './themes.js';
 import { OccupancyGrid } from './occupancy.js';
-import { buildGraph, topoSortAndRank, swapPathXY } from './graph-utils.js';
+import { assertValidDag, buildGraph, topoSortAndRank, swapPathXY } from './graph-utils.js';
 
 export function layoutFlow(dag, options = {}) {
   const { nodes, edges } = dag;
@@ -33,9 +33,12 @@ export function layoutFlow(dag, options = {}) {
   const lineThickness = (options.lineThickness ?? 3) * s;
   const lineOpacity = Math.min((theme.lineOpacity ?? 1.0) * 0.7, 1);
   const labelSize = (options.labelSize ?? 3.6) * s;  // station card label font size
-  const routes = options.routes || [];
+  const routes = options.routes;
   const direction = options.direction || 'ttb';
   const cardSide = options.cardSide ?? 'right'; // default card placement
+  if (!Array.isArray(routes) || routes.length === 0) {
+    throw new Error('layoutFlow: routes is required and must contain at least one route');
+  }
 
   // ── Orientation abstraction ──
   // CK = column key (secondary/spread axis): 'x' for TTB, 'y' for LTR
@@ -44,6 +47,7 @@ export function layoutFlow(dag, options = {}) {
   const CK = isLTR ? 'y' : 'x';  // column key
   const LK = isLTR ? 'x' : 'y';  // layer key
 
+  assertValidDag(nodes, edges, 'layoutFlow');
   const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
   const classColor = {};
   for (const [cls, hex] of Object.entries(theme.classes)) classColor[cls] = hex;
@@ -493,7 +497,9 @@ export function layoutFlow(dag, options = {}) {
     // Card dimensions (always in screen w/h)
     const labelW = nd.label.length * fsLabel * 0.52;
     const indicatorW = n * 5 * s;
-    const dataW = (nd.count || '').length * fsData * 0.55;
+    const metricValue = nd.times ?? nd.count;
+    const metricText = metricValue === undefined || metricValue === null ? '' : String(metricValue);
+    const dataW = metricText.length * fsData * 0.55;
     const contentW = Math.max(labelW, indicatorW + dataW + 4 * s);
     const cardPadX = 5 * s;
     const cardPadY = 3 * s;

@@ -44,6 +44,27 @@ describe('renderSVG', () => {
     assert.ok(svg.includes('data-node-id="c"'));
   });
 
+  it('escapes node and edge IDs in data-* attributes', () => {
+    const evilId = 'a" onload="alert(1)';
+    const dag = {
+      nodes: [
+        { id: evilId, label: 'A', cls: 'pure" data-pwned="1' },
+        { id: 'b', label: 'B', cls: 'pure' },
+      ],
+      edges: [[evilId, 'b']],
+    };
+    const layout = layoutMetro(dag, {
+      routes: [{ id: 'r', cls: 'pure', nodes: [evilId, 'b'] }],
+    });
+    const svg = renderSVG(dag, layout);
+
+    assert.ok(svg.includes('data-node-id="a&quot; onload=&quot;alert(1)"'));
+    assert.ok(svg.includes('data-node-cls="pure&quot; data-pwned=&quot;1"'));
+    assert.ok(svg.includes('data-edge-from="a&quot; onload=&quot;alert(1)"'));
+    assert.ok(!svg.includes('data-node-id="a" onload="alert(1)"'));
+    assert.ok(!svg.includes('data-edge-from="a" onload="alert(1)"'));
+  });
+
   it('renders route paths', () => {
     const layout = layoutMetro(linear3);
     const svg = renderSVG(linear3, layout);

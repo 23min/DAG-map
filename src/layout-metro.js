@@ -9,7 +9,7 @@ import { bezierPath } from './route-bezier.js';
 import { angularPath } from './route-angular.js';
 import { metroPath } from './route-metro.js';
 import { resolveTheme } from './themes.js';
-import { buildGraph, topoSortAndRank, swapPathXY } from './graph-utils.js';
+import { assertValidDag, buildGraph, topoSortAndRank, swapPathXY } from './graph-utils.js';
 
 /**
  * Determine the dominant node class among a set of node IDs.
@@ -63,6 +63,7 @@ export function layoutMetro(dag, options = {}) {
   const hasProvidedRoutes = !!(options.routes && options.routes.length > 0);
 
   const { nodes, edges } = dag;
+  assertValidDag(nodes, edges, 'layoutMetro');
   const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
 
   // ── STEP 1: Topological sort + layer assignment ──

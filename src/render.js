@@ -17,6 +17,11 @@ function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/** Escape values interpolated into quoted XML attributes. */
+function escAttr(v) {
+  return esc(String(v ?? ''));
+}
+
 /**
  * Render a DAG layout as an SVG string.
  *
@@ -144,7 +149,9 @@ export function renderSVG(dag, layout, options = {}) {
         svg += `<path d="${seg.d}" stroke="${segColor(seg.color)}" stroke-width="${seg.thickness}" fill="none" `;
         svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${seg.opacity}"`;
         if (seg.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
-        if (fromId && toId) svg += ` data-edge-from="${fromId}" data-edge-to="${toId}" data-route="${ri}"`;
+        if (fromId && toId) {
+          svg += ` data-edge-from="${escAttr(fromId)}" data-edge-to="${escAttr(toId)}" data-route="${ri}"`;
+        }
         svg += `/>\n`;
       }
     });
@@ -183,7 +190,7 @@ export function renderSVG(dag, layout, options = {}) {
         orientation: layout.orientation || 'ltr',
         laneX: layout.laneX || null,
       };
-      svg += `<g data-node-id="${nd.id}" data-node-cls="${nd.cls || 'pure'}">`;
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}">`;
       svg += renderNode(nd, pos, ctx);
       svg += `</g>\n`;
     } else {
@@ -196,7 +203,7 @@ export function renderSVG(dag, layout, options = {}) {
         r = 3 * s;
       }
 
-      svg += `<g data-node-id="${nd.id}" data-node-cls="${nd.cls || 'pure'}">`;
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}">`;
 
       svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
       svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;

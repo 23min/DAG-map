@@ -188,6 +188,30 @@ describe('layoutFlow — card placement', () => {
     }
   });
 
+  it('card width grows with node.times content', () => {
+    const dag = {
+      nodes: [
+        { id: 'a', label: 'Task', times: '1' },
+        { id: 'b', label: 'Done' },
+      ],
+      edges: [['a', 'b']],
+    };
+    const routes = [{ id: 'main', cls: 'a', nodes: ['a', 'b'] }];
+
+    const short = layoutFlow(dag, { routes, theme, scale: 1 });
+    const long = layoutFlow({
+      ...dag,
+      nodes: [
+        { id: 'a', label: 'Task', times: '12345678901234567890' },
+        { id: 'b', label: 'Done' },
+      ],
+    }, { routes, theme, scale: 1 });
+
+    const shortW = short.cardPlacements.get('a').rect.w;
+    const longW = long.cardPlacements.get('a').rect.w;
+    assert.ok(longW > shortW, `expected long times card (${longW}) > short times card (${shortW})`);
+  });
+
   it('cards do not overlap each other in linear chain', () => {
     const L = lay(linear3);
     const cards = [...L.cardPlacements.values()].map(cp => cp.rect);

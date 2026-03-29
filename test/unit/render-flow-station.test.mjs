@@ -179,6 +179,16 @@ describe('flow station XSS escaping', () => {
     assert.ok(svg.includes('1&amp;2'));
   });
 
+  it('renders numeric zero in node.count', () => {
+    const layout = makeLayout();
+    const renderNode = createStationRenderer(layout, diamond.routes);
+    const node = { id: 's', label: 'Test', count: 0 };
+    const pos = layout.positions.get('s');
+    const ctx = { scale: 1, theme };
+    const svg = renderNode(node, pos, ctx);
+    assert.ok(svg.includes('>0<'));
+  });
+
   it('escapes & in edge volume badge', () => {
     const layout = makeLayout();
     const route = diamond.routes[0];

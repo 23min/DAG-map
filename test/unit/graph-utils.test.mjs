@@ -54,6 +54,15 @@ describe('buildGraph', () => {
     assert.deepStrictEqual(childrenOf.get('x'), []);
     assert.deepStrictEqual(parentsOf.get('y'), []);
   });
+
+  it('throws a clear error when an edge references an unknown node', () => {
+    const nodes = [{ id: 'a' }];
+    const edges = [['a', 'missing']];
+    assert.throws(
+      () => buildGraph(nodes, edges),
+      /buildGraph: edge\[0\] references unknown target "missing"/,
+    );
+  });
 });
 
 describe('topoSortAndRank', () => {

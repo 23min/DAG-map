@@ -60,8 +60,9 @@ export function createStationRenderer(layout, routes) {
         svg += `<rect x="${dx}" y="${dataY - fsData * 0.7}" width="${3.5 * s}" height="${3.5 * s}" rx="${0.5 * s}" fill="${col}"/>`;
         dx += 5 * s;
       });
-      if (node.times || node.count) {
-        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${esc(node.times || node.count)}</text>`;
+      const metricValue = node.times ?? node.count;
+      if (metricValue !== undefined && metricValue !== null) {
+        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${esc(String(metricValue))}</text>`;
       }
     }
 
