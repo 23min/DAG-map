@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 // Import will initially come from layout-hasse (existing), then graph-utils after extraction
-import { buildGraph, topoSortAndRank } from '../../src/graph-utils.js';
+import { buildGraph, topoSortAndRank, validateDag } from '../../src/graph-utils.js';
 
 const linear = {
   nodes: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
@@ -123,5 +123,56 @@ describe('topoSortAndRank', () => {
     const { topo } = topoSortAndRank(nodes, childrenOf, parentsOf);
     // With a cycle, topo sort won't include all nodes
     assert.ok(topo.length < nodes.length, 'cycle should cause incomplete topo sort');
+  });
+});
+
+describe('validateDag', () => {
+  it('returns empty warnings for valid DAG', () => {
+    const warnings = validateDag(linear.nodes, linear.edges);
+    assert.deepStrictEqual(warnings, []);
+  });
+
+  it('warns on edge referencing unknown source node', () => {
+    const nodes = [{ id: 'a' }, { id: 'b' }];
+    const edges = [['x', 'b']]; // 'x' doesn't exist
+    const warnings = validateDag(nodes, edges);
+    assert.ok(warnings.length > 0);
+    assert.ok(warnings.some(w => w.includes('x')));
+  });
+
+  it('warns on edge referencing unknown target node', () => {
+    const nodes = [{ id: 'a' }];
+    const edges = [['a', 'z']];
+    const warnings = validateDag(nodes, edges);
+    assert.ok(warnings.length > 0);
+    assert.ok(warnings.some(w => w.includes('z')));
+  });
+
+  it('warns on cycle', () => {
+    const nodes = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    const edges = [['a', 'b'], ['b', 'c'], ['c', 'a']];
+    const warnings = validateDag(nodes, edges);
+    assert.ok(warnings.length > 0);
+    assert.ok(warnings.some(w => /cycle/i.test(w)));
+  });
+
+  it('warns on duplicate node IDs', () => {
+    const nodes = [{ id: 'a' }, { id: 'a' }];
+    const edges = [];
+    const warnings = validateDag(nodes, edges);
+    assert.ok(warnings.length > 0);
+    assert.ok(warnings.some(w => w.includes('a')));
+  });
+
+  it('returns multiple warnings for multiple issues', () => {
+    const nodes = [{ id: 'a' }, { id: 'a' }]; // duplicate
+    const edges = [['x', 'y']]; // both unknown
+    const warnings = validateDag(nodes, edges);
+    assert.ok(warnings.length >= 2);
+  });
+
+  it('handles empty graph', () => {
+    const warnings = validateDag([], []);
+    assert.deepStrictEqual(warnings, []);
   });
 });

@@ -51,3 +51,39 @@ export function topoSortAndRank(nodes, childrenOf, parentsOf) {
   const maxRank = topo.length > 0 ? Math.max(...topo.map(id => rank.get(id))) : 0;
   return { topo, rank, maxRank };
 }
+
+/**
+ * Validate a DAG definition and return warnings for common issues.
+ * Non-throwing — returns an array of human-readable warning strings.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @returns {string[]} warnings (empty if valid)
+ */
+export function validateDag(nodes, edges) {
+  const warnings = [];
+  const ids = new Set();
+
+  // Duplicate node IDs
+  for (const n of nodes) {
+    if (ids.has(n.id)) warnings.push(`Duplicate node ID: "${n.id}"`);
+    ids.add(n.id);
+  }
+
+  // Edges referencing unknown nodes
+  for (const [f, t] of edges) {
+    if (!ids.has(f)) warnings.push(`Edge source "${f}" is not a known node`);
+    if (!ids.has(t)) warnings.push(`Edge target "${t}" is not a known node`);
+  }
+
+  // Cycle detection via topo sort
+  if (warnings.length === 0 && nodes.length > 0) {
+    const { childrenOf, parentsOf } = buildGraph(nodes, edges);
+    const { topo } = topoSortAndRank(nodes, childrenOf, parentsOf);
+    if (topo.length < nodes.length) {
+      const missing = nodes.filter(n => !topo.includes(n.id)).map(n => n.id);
+      warnings.push(`Cycle detected — ${missing.length} node(s) unreachable: ${missing.join(', ')}`);
+    }
+  }
+
+  return warnings;
+}
