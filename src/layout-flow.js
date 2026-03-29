@@ -37,6 +37,13 @@ export function layoutFlow(dag, options = {}) {
   const direction = options.direction || 'ttb';
   const cardSide = options.cardSide ?? 'right'; // default card placement
 
+  // ── Orientation abstraction ──
+  // CK = column key (secondary/spread axis): 'x' for TTB, 'y' for LTR
+  // LK = layer key (primary/flow axis): 'y' for TTB, 'x' for LTR
+  const isLTR = direction === 'ltr';
+  const CK = isLTR ? 'y' : 'x';  // column key
+  const LK = isLTR ? 'x' : 'y';  // layer key
+
   const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
   const classColor = {};
   for (const [cls, hex] of Object.entries(theme.classes)) classColor[cls] = hex;
@@ -122,12 +129,12 @@ export function layoutFlow(dag, options = {}) {
   const activeColumns = [];
   columns.forEach((col, ri) => { if (col.length > 0) activeColumns.push({ ri, nodes: col }); });
   const nCols = activeColumns.length;
-  const columnX = new Map();
-  activeColumns.forEach((col, ci) => columnX.set(col.ri, (ci - (nCols - 1) / 2) * columnSpacing));
+  const columnCol = new Map(); // column-axis value per route
+  activeColumns.forEach((col, ci) => columnCol.set(col.ri, (ci - (nCols - 1) / 2) * columnSpacing));
 
   // 3c. Adaptive layer spacing — detect congested gaps, give them more room
   const maxLayer = Math.max(...[...layer.values()], 0);
-  const layerY = new Array(maxLayer + 1);
+  const layerPos = new Array(maxLayer + 1); // layer-axis positions
   {
     // For each gap between layer L and L+1, count complexity:
     // - routes that pass through (have nodes in both layers or straddle)
@@ -140,22 +147,22 @@ export function layoutFlow(dag, options = {}) {
       layerNodeIds.get(l).push(nd.id);
     });
 
-    // Compute raw X per node for congestion analysis (before positions exist)
-    const rawX = new Map();
+    // Compute raw column-axis value per node for congestion analysis (before positions exist)
+    const rawCol = new Map();
     nodes.forEach(nd => {
       const memberRoutes = nodeRoutes.get(nd.id);
-      let x;
+      let col;
       if (memberRoutes.size <= 1) {
-        x = columnX.get(nodePrimary.get(nd.id)) ?? 0;
+        col = columnCol.get(nodePrimary.get(nd.id)) ?? 0;
       } else {
-        const colXs = [...memberRoutes].map(ri => columnX.get(ri)).filter(v => v !== undefined);
-        const uniqueXs = [...new Set(colXs)];
-        x = uniqueXs.length > 0 ? uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length : 0;
+        const colVals = [...memberRoutes].map(ri => columnCol.get(ri)).filter(v => v !== undefined);
+        const uniqueVals = [...new Set(colVals)];
+        col = uniqueVals.length > 0 ? uniqueVals.reduce((a, b) => a + b, 0) / uniqueVals.length : 0;
       }
-      rawX.set(nd.id, x);
+      rawCol.set(nd.id, col);
     });
 
-    layerY[0] = 0;
+    layerPos[0] = 0;
     for (let l = 0; l < maxLayer; l++) {
       const topNodes = layerNodeIds.get(l) || [];
       const botNodes = layerNodeIds.get(l + 1) || [];
@@ -167,7 +174,7 @@ export function layoutFlow(dag, options = {}) {
       botNodes.forEach(id => nodeRoutes.get(id)?.forEach(ri => botRouteSet.add(ri)));
       const crossingRoutes = [...topRouteSet].filter(ri => botRouteSet.has(ri));
 
-      // Count bending routes (different X at top vs bottom of this gap)
+      // Count bending routes (different column value at top vs bottom of this gap)
       let benders = 0;
       for (const ri of crossingRoutes) {
         const route = routes[ri];
@@ -175,8 +182,8 @@ export function layoutFlow(dag, options = {}) {
           const fId = route.nodes[i - 1], tId = route.nodes[i];
           const fL = layer.get(fId), tL = layer.get(tId);
           if (fL === l && tL === l + 1) {
-            const fx = rawX.get(fId) ?? 0, tx = rawX.get(tId) ?? 0;
-            if (Math.abs(tx - fx) > dotSpacing) benders++;
+            const fc = rawCol.get(fId) ?? 0, tc = rawCol.get(tId) ?? 0;
+            if (Math.abs(tc - fc) > dotSpacing) benders++;
           }
         }
       }
@@ -194,43 +201,44 @@ export function layoutFlow(dag, options = {}) {
 
       // Compute multiplier: base 1.0, +0.25 per bender, +0.15 per merge/fork, capped at 2.0
       const multiplier = Math.min(2.0, 1.0 + benders * 0.25 + mergeFork * 0.15);
-      layerY[l + 1] = layerY[l] + layerSpacing * multiplier;
+      layerPos[l + 1] = layerPos[l] + layerSpacing * multiplier;
     }
   }
 
-  // 3d. Compute raw positions (centroid-based) with adaptive Y
+  // 3d. Compute raw positions (centroid-based) with adaptive layer positions
   const positions = new Map();
   nodes.forEach(nd => {
     const memberRoutes = nodeRoutes.get(nd.id);
-    let x;
+    let colVal;
     if (memberRoutes.size <= 1) {
-      x = columnX.get(nodePrimary.get(nd.id)) ?? 0;
+      colVal = columnCol.get(nodePrimary.get(nd.id)) ?? 0;
     } else {
-      const colXs = [...memberRoutes].map(ri => columnX.get(ri)).filter(v => v !== undefined);
-      const uniqueXs = [...new Set(colXs)];
-      x = uniqueXs.length > 0 ? uniqueXs.reduce((a, b) => a + b, 0) / uniqueXs.length : 0;
+      const colVals = [...memberRoutes].map(ri => columnCol.get(ri)).filter(v => v !== undefined);
+      const uniqueVals = [...new Set(colVals)];
+      colVal = uniqueVals.length > 0 ? uniqueVals.reduce((a, b) => a + b, 0) / uniqueVals.length : 0;
     }
-    positions.set(nd.id, { x, y: layerY[layer.get(nd.id)] ?? (layer.get(nd.id) * layerSpacing) });
+    const layerVal = layerPos[layer.get(nd.id)] ?? (layer.get(nd.id) * layerSpacing);
+    positions.set(nd.id, { [CK]: colVal, [LK]: layerVal });
   });
 
   // 3d. Pull backbone nodes toward their spine (reduces drift)
   if (backbone.length >= 3) {
-    const boneXs = backbone.map(id => positions.get(id)?.x).filter(v => v !== undefined);
-    const boneSpan = Math.max(...boneXs) - Math.min(...boneXs);
+    const boneCols = backbone.map(id => positions.get(id)?.[CK]).filter(v => v !== undefined);
+    const boneSpan = Math.max(...boneCols) - Math.min(...boneCols);
     if (boneSpan > columnSpacing * 1.5) {
-      boneXs.sort((a, b) => a - b);
-      const spineX = boneXs[Math.floor(boneXs.length / 2)];
+      boneCols.sort((a, b) => a - b);
+      const spineCol = boneCols[Math.floor(boneCols.length / 2)];
       // Pull strength proportional to how badly it drifts
       const pull = Math.min(0.6, boneSpan / (columnSpacing * 8));
       for (const id of backbone) {
         const pos = positions.get(id);
         if (!pos) continue;
-        pos.x = pos.x * (1 - pull) + spineX * pull;
+        pos[CK] = pos[CK] * (1 - pull) + spineCol * pull;
       }
     }
   }
 
-  // ── STEP 4: Separate same-layer nodes that overlap in X ──
+  // ── STEP 4: Separate same-layer nodes that overlap in column axis ──
   const layerNodes = new Map();
   nodes.forEach(nd => {
     const l = layer.get(nd.id);
@@ -239,26 +247,31 @@ export function layoutFlow(dag, options = {}) {
   });
   for (const [, ids] of layerNodes) {
     if (ids.length < 2) continue;
-    ids.sort((a, b) => positions.get(a).x - positions.get(b).x);
+    ids.sort((a, b) => positions.get(a)[CK] - positions.get(b)[CK]);
     for (let i = 1; i < ids.length; i++) {
       const prev = positions.get(ids[i - 1]);
       const curr = positions.get(ids[i]);
       const minGap = columnSpacing * 0.5;
-      if (curr.x - prev.x < minGap) {
-        curr.x = prev.x + minGap;
+      if (curr[CK] - prev[CK] < minGap) {
+        curr[CK] = prev[CK] + minGap;
       }
     }
   }
 
-  // Normalize
-  const margin = { top: 50 * s, left: 80 * s, bottom: 40 * s, right: 140 * s };
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  // Normalize — margins are orientation-aware
+  const margin = isLTR
+    ? { top: 80 * s, left: 50 * s, bottom: 140 * s, right: 40 * s }
+    : { top: 50 * s, left: 80 * s, bottom: 40 * s, right: 140 * s };
+  let minCK = Infinity, maxCK = -Infinity, minLK = Infinity, maxLK = -Infinity;
   positions.forEach(pos => {
-    if (pos.x < minX) minX = pos.x; if (pos.x > maxX) maxX = pos.x;
-    if (pos.y < minY) minY = pos.y; if (pos.y > maxY) maxY = pos.y;
+    if (pos[CK] < minCK) minCK = pos[CK]; if (pos[CK] > maxCK) maxCK = pos[CK];
+    if (pos[LK] < minLK) minLK = pos[LK]; if (pos[LK] > maxLK) maxLK = pos[LK];
   });
-  const xShift = -minX + margin.left;
-  positions.forEach(pos => { pos.x += xShift; pos.y = pos.y - minY + margin.top; });
+  // For CK (column axis): shift by left margin (TTB) or top margin (LTR)
+  // For LK (layer axis): shift by top margin (TTB) or left margin (LTR)
+  const ckShift = -minCK + (isLTR ? margin.top : margin.left);
+  const lkShift = -minLK + (isLTR ? margin.left : margin.top);
+  positions.forEach(pos => { pos[CK] += ckShift; pos[LK] = pos[LK] - minLK + (isLTR ? margin.left : margin.top); });
 
   // ── STEP 5: Flow layout — sequential, obstacle-aware ──
   const grid = new OccupancyGrid(2);        // tracks + cards + dots
@@ -268,30 +281,31 @@ export function layoutFlow(dag, options = {}) {
   const routeOrder = routes.map((_, ri) => ri)
     .sort((a, b) => routes[b].nodes.length - routes[a].nodes.length);
 
-  // Track waypoint X for each route at each node (for parallel adjacency)
-  const waypointX = new Map(); // "nodeId:routeIdx" → x
+  // Track waypoint column for each route at each node (for parallel adjacency)
+  const waypointX = new Map(); // "nodeId:routeIdx" → column value
 
   // Track card placements
   const cardPlacements = new Map(); // nodeId → { rect, side }
   const placedNodes = new Set();
 
-  // For each route at a node, compute the average X of neighboring nodes
-  // in that route (prev + next). Used to order dots so lines don't cross.
-  function neighborX(nodeId, ri) {
+  // For each route at a node, compute the average column-axis value of
+  // neighboring nodes in that route (prev + next). Used to order dots
+  // so lines don't cross.
+  function neighborCol(nodeId, ri) {
     const route = routes[ri];
-    if (!route) return positions.get(nodeId)?.x ?? 0;
+    if (!route) return positions.get(nodeId)?.[CK] ?? 0;
     const idx = route.nodes.indexOf(nodeId);
-    if (idx < 0) return positions.get(nodeId)?.x ?? 0;
+    if (idx < 0) return positions.get(nodeId)?.[CK] ?? 0;
     let sum = 0, count = 0;
     if (idx > 0) {
       const p = positions.get(route.nodes[idx - 1]);
-      if (p) { sum += p.x; count++; }
+      if (p) { sum += p[CK]; count++; }
     }
     if (idx < route.nodes.length - 1) {
       const p = positions.get(route.nodes[idx + 1]);
-      if (p) { sum += p.x; count++; }
+      if (p) { sum += p[CK]; count++; }
     }
-    return count > 0 ? sum / count : (positions.get(nodeId)?.x ?? 0);
+    return count > 0 ? sum / count : (positions.get(nodeId)?.[CK] ?? 0);
   }
 
   // Global side assignment: each non-trunk route gets a FIXED side
@@ -299,10 +313,10 @@ export function layoutFlow(dag, options = {}) {
   // This prevents crossings — once a route is on the left, it stays left.
   const trunkRi = routeOrder[0]; // longest route
 
-  // Compute the trunk's average X as the spine reference
-  const trunkAvgX = (() => {
-    const xs = routes[trunkRi].nodes.map(id => positions.get(id)?.x).filter(v => v !== undefined);
-    return xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+  // Compute the trunk's average column value as the spine reference
+  const trunkAvgCol = (() => {
+    const cols = routes[trunkRi].nodes.map(id => positions.get(id)?.[CK]).filter(v => v !== undefined);
+    return cols.length > 0 ? cols.reduce((a, b) => a + b, 0) / cols.length : 0;
   })();
 
   // For each non-trunk route, determine its side by where its nodes
@@ -312,19 +326,19 @@ export function layoutFlow(dag, options = {}) {
 
   routes.forEach((route, ri) => {
     if (ri === trunkRi) return;
-    // Compute avg X of this route's nodes that are NOT shared with trunk
+    // Compute avg column of this route's nodes that are NOT shared with trunk
     const trunkNodeSet = new Set(routes[trunkRi].nodes);
     const uniqueNodes = route.nodes.filter(id => !trunkNodeSet.has(id));
-    let avgX;
+    let avgCol;
     if (uniqueNodes.length > 0) {
-      const xs = uniqueNodes.map(id => positions.get(id)?.x).filter(v => v !== undefined);
-      avgX = xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : trunkAvgX;
+      const cols = uniqueNodes.map(id => positions.get(id)?.[CK]).filter(v => v !== undefined);
+      avgCol = cols.length > 0 ? cols.reduce((a, b) => a + b, 0) / cols.length : trunkAvgCol;
     } else {
       // All nodes shared with trunk — use neighbor direction at first shared node
       const firstShared = route.nodes.find(id => trunkNodeSet.has(id));
-      avgX = firstShared ? neighborX(firstShared, ri) : trunkAvgX;
+      avgCol = firstShared ? neighborCol(firstShared, ri) : trunkAvgCol;
     }
-    routeSide.set(ri, avgX < trunkAvgX - 1 ? -1 : avgX > trunkAvgX + 1 ? 1 : 1);
+    routeSide.set(ri, avgCol < trunkAvgCol - 1 ? -1 : avgCol > trunkAvgCol + 1 ? 1 : 1);
   });
 
   // Assign a global sort key: left routes get negative keys, trunk=0, right=positive
@@ -359,13 +373,13 @@ export function layoutFlow(dag, options = {}) {
     return sorted;
   }
 
-  // Precompute trunk's ABSOLUTE X position: propagate from node to node
+  // Precompute trunk's ABSOLUTE column position: propagate from node to node
   // so the trunk forms a perfectly straight spine. At single-route nodes
-  // the trunk is at pos.x. Once established, the absolute X propagates
+  // the trunk is at pos[CK]. Once established, the absolute column propagates
   // forward regardless of column changes at merge/fork points.
-  const trunkAbsX = new Map(); // nodeId → absolute X for trunk dot
+  const trunkAbsCol = new Map(); // nodeId → absolute column for trunk dot
   {
-    let prevAbsX = null;
+    let prevAbsCol = null;
     for (const nodeId of routes[trunkRi].nodes) {
       const pos = positions.get(nodeId);
       if (!pos) continue;
@@ -373,20 +387,20 @@ export function layoutFlow(dag, options = {}) {
 
       if (!memberRoutes || memberRoutes.size <= 1) {
         // Single-route node: trunk at node center
-        const absX = pos.x;
-        trunkAbsX.set(nodeId, absX);
-        prevAbsX = absX;
-      } else if (prevAbsX !== null) {
-        // Propagate previous absolute X — trunk stays straight
-        trunkAbsX.set(nodeId, prevAbsX);
+        const absCol = pos[CK];
+        trunkAbsCol.set(nodeId, absCol);
+        prevAbsCol = absCol;
+      } else if (prevAbsCol !== null) {
+        // Propagate previous absolute column — trunk stays straight
+        trunkAbsCol.set(nodeId, prevAbsCol);
       } else {
         // First multi-route node: compute default position
         const sorted = getDotOrder(nodeId);
         const localIdx = sorted.indexOf(trunkRi);
         const n = sorted.length;
-        const absX = pos.x + (localIdx - (n - 1) / 2) * dotSpacing;
-        trunkAbsX.set(nodeId, absX);
-        prevAbsX = absX;
+        const absCol = pos[CK] + (localIdx - (n - 1) / 2) * dotSpacing;
+        trunkAbsCol.set(nodeId, absCol);
+        prevAbsCol = absCol;
       }
     }
   }
@@ -394,7 +408,7 @@ export function layoutFlow(dag, options = {}) {
   // Precompute dot positions for all routes at each node.
   // The trunk gets its propagated fixed position. Other routes are
   // spaced evenly around it, maintaining consistent dotSpacing.
-  const nodeDotPositions = new Map(); // nodeId → Map<ri, x>
+  const nodeDotPositions = new Map(); // nodeId → Map<ri, columnValue>
 
   for (const [nodeId, memberRoutes] of nodeRoutes) {
     const pos = positions.get(nodeId);
@@ -402,24 +416,24 @@ export function layoutFlow(dag, options = {}) {
     const dotMap = new Map();
 
     if (memberRoutes.size <= 1) {
-      for (const ri of memberRoutes) dotMap.set(ri, pos.x);
+      for (const ri of memberRoutes) dotMap.set(ri, pos[CK]);
     } else {
       const sorted = getDotOrder(nodeId);
-      const hasTrunk = sorted.includes(trunkRi) && trunkAbsX.has(nodeId);
+      const hasTrunk = sorted.includes(trunkRi) && trunkAbsCol.has(nodeId);
 
-      const trunkX = trunkAbsX.get(nodeId);
-      if (hasTrunk && trunkX !== undefined) {
+      const trunkCol = trunkAbsCol.get(nodeId);
+      if (hasTrunk && trunkCol !== undefined) {
         // Anchor: trunk at its fixed absolute position. Pack others around it.
         const trunkIdx = sorted.indexOf(trunkRi);
         for (let i = 0; i < sorted.length; i++) {
-          dotMap.set(sorted[i], trunkX + (i - trunkIdx) * dotSpacing);
+          dotMap.set(sorted[i], trunkCol + (i - trunkIdx) * dotSpacing);
         }
       } else {
         // No trunk — standard dense centering
         const n = sorted.length;
         const center = (n - 1) / 2;
         for (let i = 0; i < sorted.length; i++) {
-          dotMap.set(sorted[i], pos.x + (i - center) * dotSpacing);
+          dotMap.set(sorted[i], pos[CK] + (i - center) * dotSpacing);
         }
       }
     }
@@ -427,10 +441,34 @@ export function layoutFlow(dag, options = {}) {
     nodeDotPositions.set(nodeId, dotMap);
   }
 
-  function dotX(nodeId, ri) {
+  // dotCol returns the column-axis coordinate of a dot
+  function dotCol(nodeId, ri) {
     const dotMap = nodeDotPositions.get(nodeId);
     if (dotMap && dotMap.has(ri)) return dotMap.get(ri);
-    return positions.get(nodeId)?.x ?? 0;
+    return positions.get(nodeId)?.[CK] ?? 0;
+  }
+
+  // dotX returns the X-coordinate of a dot (regardless of orientation)
+  function dotX(nodeId, ri) {
+    if (isLTR) {
+      // In LTR: column axis is Y, layer axis is X
+      // dotX should return the X-coordinate, which is the layer position
+      return positions.get(nodeId)?.x ?? 0;
+    }
+    // In TTB: column axis is X, so dotCol = X
+    return dotCol(nodeId, ri);
+  }
+
+  // dotPos returns {x, y} for a dot — the actual screen coordinates
+  function dotPos(nodeId, ri) {
+    const dc = dotCol(nodeId, ri);
+    const pos = positions.get(nodeId);
+    if (!pos) return { x: 0, y: 0 };
+    if (isLTR) {
+      return { x: pos.x, y: dc };
+    } else {
+      return { x: dc, y: pos.y };
+    }
   }
 
   // Place a station card, trying multiple positions
@@ -446,13 +484,13 @@ export function layoutFlow(dag, options = {}) {
     const routeIndices = [...memberRoutes].sort((a, b) => a - b);
     const n = routeIndices.length;
 
-    // Compute dots span
-    const dxs = routeIndices.map(ri => dotX(nodeId, ri));
-    const rightmostDot = Math.max(...dxs);
-    const leftmostDot = Math.min(...dxs);
+    // Compute dots span (in column-axis)
+    const dcs = routeIndices.map(ri => dotCol(nodeId, ri));
+    const rightmostDot = Math.max(...dcs);
+    const leftmostDot = Math.min(...dcs);
     const dotR = 3.2 * s;
 
-    // Card dimensions
+    // Card dimensions (always in screen w/h)
     const labelW = nd.label.length * fsLabel * 0.52;
     const indicatorW = n * 5 * s;
     const dataW = (nd.count || '').length * fsData * 0.55;
@@ -463,19 +501,36 @@ export function layoutFlow(dag, options = {}) {
     const cardH = fsLabel + fsData + cardPadY * 2 + 3 * s;
     const cardGap = 4 * s;
 
-    // Try positions: RIGHT, LEFT, then shifted up/down variants
-    const baseRight = rightmostDot + dotR + cardGap;
-    const baseLeft = leftmostDot - dotR - cardGap - cardW;
-    const yCenter = pos.y - cardH / 2;
-    const yShift = cardH + 4 * s; // shift by full card height + gap
-    const candidates = [
-      { side: 'right', x: baseRight, y: yCenter },
-      { side: 'left',  x: baseLeft,  y: yCenter },
-      { side: 'right', x: baseRight, y: yCenter - yShift },  // right, above
-      { side: 'right', x: baseRight, y: yCenter + yShift },  // right, below
-      { side: 'left',  x: baseLeft,  y: yCenter - yShift },  // left, above
-      { side: 'left',  x: baseLeft,  y: yCenter + yShift },  // left, below
-    ];
+    let candidates;
+    if (isLTR) {
+      // LTR: cards above/below dots (column axis is Y), centered at pos.x
+      const baseAbove = leftmostDot - dotR - cardGap - cardH;
+      const baseBelow = rightmostDot + dotR + cardGap;
+      const xCenter = pos.x - cardW / 2;
+      const xShiftAmt = cardW + 4 * s;
+      candidates = [
+        { side: 'right', x: xCenter, y: baseBelow },     // below
+        { side: 'left',  x: xCenter, y: baseAbove },     // above
+        { side: 'right', x: xCenter - xShiftAmt, y: baseBelow },  // below, left
+        { side: 'right', x: xCenter + xShiftAmt, y: baseBelow },  // below, right
+        { side: 'left',  x: xCenter - xShiftAmt, y: baseAbove },  // above, left
+        { side: 'left',  x: xCenter + xShiftAmt, y: baseAbove },  // above, right
+      ];
+    } else {
+      // TTB: cards to right/left of dots (column axis is X), centered at pos.y
+      const baseRight = rightmostDot + dotR + cardGap;
+      const baseLeft = leftmostDot - dotR - cardGap - cardW;
+      const yCenter = pos.y - cardH / 2;
+      const yShift = cardH + 4 * s;
+      candidates = [
+        { side: 'right', x: baseRight, y: yCenter },
+        { side: 'left',  x: baseLeft,  y: yCenter },
+        { side: 'right', x: baseRight, y: yCenter - yShift },
+        { side: 'right', x: baseRight, y: yCenter + yShift },
+        { side: 'left',  x: baseLeft,  y: yCenter - yShift },
+        { side: 'left',  x: baseLeft,  y: yCenter + yShift },
+      ];
+    }
 
     let placed = false;
     for (const c of candidates) {
@@ -487,141 +542,242 @@ export function layoutFlow(dag, options = {}) {
       }
     }
 
-    // Fallback: place right regardless of collision (better than nothing)
+    // Fallback: place first candidate regardless of collision (better than nothing)
     if (!placed) {
       const c = candidates[0];
       const rect = { x: c.x, y: c.y, w: cardW, h: cardH, type: 'card', owner: `card_${nodeId}` };
       grid.place(rect);
-      cardPlacements.set(nodeId, { rect, side: 'right', cardW, cardH, cardPadX, cardPadY });
+      cardPlacements.set(nodeId, { rect, side: candidates[0].side, cardW, cardH, cardPadX, cardPadY });
     }
   }
 
-  // Build V-H-V path string with rounded elbows
-  function buildVHV(px, py, qx, qy, midFrac, r) {
+  // Build route path string with rounded elbows — orientation-aware
+  // TTB: V-H-V paths. LTR: H-V-H paths.
+  // px,py,qx,qy are always screen coordinates.
+  // midFrac applies to the primary axis (layer axis).
+  function buildRoute(px, py, qx, qy, midFrac, r) {
     const dx = qx - px, dy = qy - py;
-    if (Math.abs(dx) < 1) return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogY: null };
-    if (Math.abs(dy) < 1) return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogY: null };
+    // "same column" check: column-axis difference < 1
+    const colDiff = isLTR ? Math.abs(dy) : Math.abs(dx);
+    const layerDiff = isLTR ? Math.abs(dx) : Math.abs(dy);
+    if (colDiff < 1) return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+    if (layerDiff < 1) return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
 
-    const cr = Math.min(r, Math.abs(dx) / 2, Math.abs(dy) / 2);
-    const midY = py + dy * midFrac;
-    const sy = Math.sign(dy), sx = Math.sign(dx);
+    if (isLTR) {
+      // H-V-H path: horizontal run → vertical jog at midX → horizontal run
+      const cr = Math.min(r, Math.abs(dy) / 2, Math.abs(dx) / 2);
+      const midX = px + dx * midFrac;
+      const sx = Math.sign(dx), sy = Math.sign(dy);
 
-    // First elbow at (px, midY)
-    const e1y = midY - sy * cr;
-    const e1ex = px + sx * cr;
-    // Second elbow at (qx, midY)
-    const e2x = qx - sx * cr;
-    const e2ey = midY + sy * cr;
+      // First elbow at (midX, py)
+      const e1x = midX - sx * cr;
+      const e1ey = py + sy * cr;
+      // Second elbow at (midX, qy)
+      const e2y = qy - sy * cr;
+      const e2ex = midX + sx * cr;
 
-    let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
-    d += `L ${px.toFixed(1)} ${e1y.toFixed(1)} `;
-    d += `Q ${px.toFixed(1)} ${midY.toFixed(1)} ${e1ex.toFixed(1)} ${midY.toFixed(1)} `;
-    d += `L ${e2x.toFixed(1)} ${midY.toFixed(1)} `;
-    d += `Q ${qx.toFixed(1)} ${midY.toFixed(1)} ${qx.toFixed(1)} ${e2ey.toFixed(1)} `;
-    d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
+      d += `L ${e1x.toFixed(1)} ${py.toFixed(1)} `;
+      d += `Q ${midX.toFixed(1)} ${py.toFixed(1)} ${midX.toFixed(1)} ${e1ey.toFixed(1)} `;
+      d += `L ${midX.toFixed(1)} ${e2y.toFixed(1)} `;
+      d += `Q ${midX.toFixed(1)} ${qy.toFixed(1)} ${e2ex.toFixed(1)} ${qy.toFixed(1)} `;
+      d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
 
-    return { d, jogY: midY };
+      return { d, jogPos: midX };
+    } else {
+      // V-H-V path: vertical run → horizontal jog at midY → vertical run
+      const cr = Math.min(r, Math.abs(dx) / 2, Math.abs(dy) / 2);
+      const midY = py + dy * midFrac;
+      const sy = Math.sign(dy), sx = Math.sign(dx);
+
+      // First elbow at (px, midY)
+      const e1y = midY - sy * cr;
+      const e1ex = px + sx * cr;
+      // Second elbow at (qx, midY)
+      const e2x = qx - sx * cr;
+      const e2ey = midY + sy * cr;
+
+      let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
+      d += `L ${px.toFixed(1)} ${e1y.toFixed(1)} `;
+      d += `Q ${px.toFixed(1)} ${midY.toFixed(1)} ${e1ex.toFixed(1)} ${midY.toFixed(1)} `;
+      d += `L ${e2x.toFixed(1)} ${midY.toFixed(1)} `;
+      d += `Q ${qx.toFixed(1)} ${midY.toFixed(1)} ${qx.toFixed(1)} ${e2ey.toFixed(1)} `;
+      d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+
+      return { d, jogPos: midY };
+    }
   }
 
-  // Check collision for all 3 segments of a V-H-V path
-  function scoreVHV(px, py, qx, qy, jogY, ignore) {
+  // Check collision for all 3 segments of a route path — orientation-aware
+  function scoreRoute(px, py, qx, qy, jogPos, ignore) {
     const t = lineThickness;
-    // Vertical run 1: (px, py) to (px, jogY)
-    const v1 = { x: px - t, y: Math.min(py, jogY), w: t * 2, h: Math.abs(jogY - py), type: 'track' };
-    // Horizontal jog: (px, jogY) to (qx, jogY)
-    const hj = { x: Math.min(px, qx) - t, y: jogY - t * 2, w: Math.abs(qx - px) + t * 2, h: t * 4, type: 'track' };
-    // Vertical run 2: (qx, jogY) to (qx, qy)
-    const v2 = { x: qx - t, y: Math.min(jogY, qy), w: t * 2, h: Math.abs(qy - jogY), type: 'track' };
-
-    return grid.overlapCount(v1, ignore) + grid.overlapCount(hj, ignore) + grid.overlapCount(v2, ignore);
+    if (isLTR) {
+      // H-V-H: horiz run 1, vert jog, horiz run 2
+      const h1 = { x: Math.min(px, jogPos) - t, y: py - t * 2, w: Math.abs(jogPos - px) + t * 2, h: t * 4, type: 'track' };
+      const vj = { x: jogPos - t, y: Math.min(py, qy), w: t * 2, h: Math.abs(qy - py), type: 'track' };
+      const h2 = { x: Math.min(jogPos, qx) - t, y: qy - t * 2, w: Math.abs(qx - jogPos) + t * 2, h: t * 4, type: 'track' };
+      return grid.overlapCount(h1, ignore) + grid.overlapCount(vj, ignore) + grid.overlapCount(h2, ignore);
+    } else {
+      // V-H-V: vert run 1, horiz jog, vert run 2
+      const v1 = { x: px - t, y: Math.min(py, jogPos), w: t * 2, h: Math.abs(jogPos - py), type: 'track' };
+      const hj = { x: Math.min(px, qx) - t, y: jogPos - t * 2, w: Math.abs(qx - px) + t * 2, h: t * 4, type: 'track' };
+      const v2 = { x: qx - t, y: Math.min(jogPos, qy), w: t * 2, h: Math.abs(qy - jogPos), type: 'track' };
+      return grid.overlapCount(v1, ignore) + grid.overlapCount(hj, ignore) + grid.overlapCount(v2, ignore);
+    }
   }
 
-  // Register all 3 segments of a V-H-V path in the grid
-  function registerVHV(px, py, qx, qy, jogY, owner) {
-    grid.placeLine(px, py, px, jogY, lineThickness, owner);
-    grid.placeLine(px, jogY, qx, jogY, lineThickness, owner);
-    grid.placeLine(qx, jogY, qx, qy, lineThickness, owner);
+  // Register all 3 segments of a route path in the grid — orientation-aware
+  function registerRoute(px, py, qx, qy, jogPos, owner) {
+    if (isLTR) {
+      // H-V-H
+      grid.placeLine(px, py, jogPos, py, lineThickness, owner);
+      grid.placeLine(jogPos, py, jogPos, qy, lineThickness, owner);
+      grid.placeLine(jogPos, qy, qx, qy, lineThickness, owner);
+    } else {
+      // V-H-V
+      grid.placeLine(px, py, px, jogPos, lineThickness, owner);
+      grid.placeLine(px, jogPos, qx, jogPos, lineThickness, owner);
+      grid.placeLine(qx, jogPos, qx, qy, lineThickness, owner);
+    }
   }
 
   // Route a segment with collision avoidance.
-  // Returns { d, jogY } — jogY is the Y of the horizontal jog (null for straight).
+  // Returns { d, jogPos } — jogPos is the jog coordinate on the primary axis (null for straight).
   // ignore: Set of owners to ignore in collision checks (segment + endpoint nodes)
   function routeSegment(px, py, qx, qy, ri, owner, ignore, assignedMidFrac) {
     const r = cornerRadius;
 
-    // Straight vertical — check for card collisions (excluding endpoint nodes)
-    if (Math.abs(qx - px) < 1) {
-      // Shrink Y by lineThickness at each end to avoid false positives
-      // from adjacent segments that terminate at the same node
-      const yShrink = lineThickness;
-      const checkY = Math.min(py, qy) + yShrink;
-      const checkH = Math.abs(qy - py) - 2 * yShrink;
-      if (checkH <= 0) {
-        grid.placeLine(px, py, qx, qy, lineThickness, owner);
-        return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogY: null };
+    // "Same column" check: column-axis difference < 1
+    const colDiff = isLTR ? Math.abs(qy - py) : Math.abs(qx - px);
+    const layerDiff = isLTR ? Math.abs(qx - px) : Math.abs(qy - py);
+
+    // Straight along primary axis — check for card collisions (excluding endpoint nodes)
+    if (colDiff < 1) {
+      // Shrink along layer axis by lineThickness at each end to avoid false positives
+      const shrink = lineThickness;
+      if (isLTR) {
+        // Straight horizontal line (same Y)
+        const checkX = Math.min(px, qx) + shrink;
+        const checkW = Math.abs(qx - px) - 2 * shrink;
+        if (checkW <= 0) {
+          grid.placeLine(px, py, qx, qy, lineThickness, owner);
+          return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+        }
+        const hRect = { x: checkX, y: py - lineThickness, w: checkW, h: lineThickness * 2, type: 'track' };
+        const collisions = grid.overlapCount(hRect, ignore);
+
+        if (collisions === 0) {
+          grid.placeLine(px, py, qx, qy, lineThickness, owner);
+          return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+        }
+
+        // Straight horizontal segment hits obstacle — detour up/down
+        const detourDist = 15 * s;
+        const upY = py - detourDist;
+        const downY = py + detourDist;
+
+        const upScore = scoreRoute(px, py, qx, upY, (px + qx) / 2, ignore)
+          + scoreRoute(qx, upY, qx, qy, (px + qx) * 0.7, ignore);
+        const downScore = scoreRoute(px, py, qx, downY, (px + qx) / 2, ignore)
+          + scoreRoute(qx, downY, qx, qy, (px + qx) * 0.7, ignore);
+
+        const detourY = upScore <= downScore ? upY : downY;
+        const midX1 = px + (qx - px) * 0.3;
+        const midX2 = px + (qx - px) * 0.7;
+
+        const cr = Math.min(r, detourDist / 2, Math.abs(midX1 - px) / 2);
+        if (cr < 1) {
+          grid.placeLine(px, py, qx, qy, lineThickness, owner);
+          return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+        }
+
+        // H-V-H-V-H detour path
+        const sx = Math.sign(qx - px);
+        const sy = Math.sign(detourY - py);
+        let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
+        d += `L ${(midX1 - sx * cr).toFixed(1)} ${py.toFixed(1)} `;
+        d += `Q ${midX1.toFixed(1)} ${py.toFixed(1)} ${midX1.toFixed(1)} ${(py + sy * cr).toFixed(1)} `;
+        d += `L ${midX1.toFixed(1)} ${(detourY - sy * cr).toFixed(1)} `;
+        d += `Q ${midX1.toFixed(1)} ${detourY.toFixed(1)} ${(midX1 + sx * cr).toFixed(1)} ${detourY.toFixed(1)} `;
+        d += `L ${(midX2 - sx * cr).toFixed(1)} ${detourY.toFixed(1)} `;
+        d += `Q ${midX2.toFixed(1)} ${detourY.toFixed(1)} ${midX2.toFixed(1)} ${(detourY - sy * cr).toFixed(1)} `;
+        d += `L ${midX2.toFixed(1)} ${(qy + sy * cr).toFixed(1)} `;
+        d += `Q ${midX2.toFixed(1)} ${qy.toFixed(1)} ${(midX2 + sx * cr).toFixed(1)} ${qy.toFixed(1)} `;
+        d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+
+        grid.placeLine(px, py, midX1, py, lineThickness, owner);
+        grid.placeLine(midX1, py, midX1, detourY, lineThickness, owner);
+        grid.placeLine(midX1, detourY, midX2, detourY, lineThickness, owner);
+        grid.placeLine(midX2, detourY, midX2, qy, lineThickness, owner);
+        grid.placeLine(midX2, qy, qx, qy, lineThickness, owner);
+        return { d, jogPos: midX1 };
+      } else {
+        // TTB: Straight vertical line (same X)
+        const checkY = Math.min(py, qy) + shrink;
+        const checkH = Math.abs(qy - py) - 2 * shrink;
+        if (checkH <= 0) {
+          grid.placeLine(px, py, qx, qy, lineThickness, owner);
+          return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+        }
+        const vRect = { x: px - lineThickness, y: checkY, w: lineThickness * 2, h: checkH, type: 'track' };
+        const collisions = grid.overlapCount(vRect, ignore);
+
+        if (collisions === 0) {
+          grid.placeLine(px, py, qx, qy, lineThickness, owner);
+          return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+        }
+
+        // Vertical segment hits a real obstacle — detour left/right
+        const detourDist = 15 * s;
+        const leftX = px - detourDist;
+        const rightX = px + detourDist;
+
+        const leftScore = scoreRoute(px, py, leftX, qy, (py + qy) / 2, ignore)
+          + scoreRoute(leftX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, ignore);
+        const rightScore = scoreRoute(px, py, rightX, qy, (py + qy) / 2, ignore)
+          + scoreRoute(rightX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, ignore);
+
+        const detourX = leftScore <= rightScore ? leftX : rightX;
+        const midY1 = py + (qy - py) * 0.3;
+        const midY2 = py + (qy - py) * 0.7;
+
+        const cr = Math.min(r, detourDist / 2, Math.abs(midY1 - py) / 2);
+        if (cr < 1) {
+          grid.placeLine(px, py, qx, qy, lineThickness, owner);
+          return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+        }
+
+        // V-H-V-H-V detour path
+        const sx = Math.sign(detourX - px);
+        const sy = Math.sign(qy - py);
+        let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
+        d += `L ${px.toFixed(1)} ${(midY1 - sy * cr).toFixed(1)} `;
+        d += `Q ${px.toFixed(1)} ${midY1.toFixed(1)} ${(px + sx * cr).toFixed(1)} ${midY1.toFixed(1)} `;
+        d += `L ${(detourX - sx * cr).toFixed(1)} ${midY1.toFixed(1)} `;
+        d += `Q ${detourX.toFixed(1)} ${midY1.toFixed(1)} ${detourX.toFixed(1)} ${(midY1 + sy * cr).toFixed(1)} `;
+        d += `L ${detourX.toFixed(1)} ${(midY2 - sy * cr).toFixed(1)} `;
+        d += `Q ${detourX.toFixed(1)} ${midY2.toFixed(1)} ${(detourX - sx * cr).toFixed(1)} ${midY2.toFixed(1)} `;
+        d += `L ${(qx + sx * cr).toFixed(1)} ${midY2.toFixed(1)} `;
+        d += `Q ${qx.toFixed(1)} ${midY2.toFixed(1)} ${qx.toFixed(1)} ${(midY2 + sy * cr).toFixed(1)} `;
+        d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+
+        grid.placeLine(px, py, px, midY1, lineThickness, owner);
+        grid.placeLine(px, midY1, detourX, midY1, lineThickness, owner);
+        grid.placeLine(detourX, midY1, detourX, midY2, lineThickness, owner);
+        grid.placeLine(detourX, midY2, qx, midY2, lineThickness, owner);
+        grid.placeLine(qx, midY2, qx, qy, lineThickness, owner);
+        return { d, jogPos: midY1 };
       }
-      const vRect = { x: px - lineThickness, y: checkY, w: lineThickness * 2, h: checkH, type: 'track' };
-      const collisions = grid.overlapCount(vRect, ignore);
-
-      if (collisions === 0) {
-        grid.placeLine(px, py, qx, qy, lineThickness, owner);
-        return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogY: null };
-      }
-
-      // Vertical segment hits a real obstacle — detour around it
-      const detourDist = 15 * s;
-      const leftX = px - detourDist;
-      const rightX = px + detourDist;
-
-      const leftScore = scoreVHV(px, py, leftX, qy, (py + qy) / 2, ignore)
-        + scoreVHV(leftX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, ignore);
-      const rightScore = scoreVHV(px, py, rightX, qy, (py + qy) / 2, ignore)
-        + scoreVHV(rightX, (py + qy) / 2, qx, qy, (py + qy) * 0.7, ignore);
-
-      const detourX = leftScore <= rightScore ? leftX : rightX;
-      const midY1 = py + (qy - py) * 0.3;
-      const midY2 = py + (qy - py) * 0.7;
-
-      const cr = Math.min(r, detourDist / 2, Math.abs(midY1 - py) / 2);
-      if (cr < 1) {
-        grid.placeLine(px, py, qx, qy, lineThickness, owner);
-        return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogY: null };
-      }
-
-      // V-H-V-H-V detour path
-      const sx = Math.sign(detourX - px);
-      const sy = Math.sign(qy - py);
-      let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
-      d += `L ${px.toFixed(1)} ${(midY1 - sy * cr).toFixed(1)} `;
-      d += `Q ${px.toFixed(1)} ${midY1.toFixed(1)} ${(px + sx * cr).toFixed(1)} ${midY1.toFixed(1)} `;
-      d += `L ${(detourX - sx * cr).toFixed(1)} ${midY1.toFixed(1)} `;
-      d += `Q ${detourX.toFixed(1)} ${midY1.toFixed(1)} ${detourX.toFixed(1)} ${(midY1 + sy * cr).toFixed(1)} `;
-      d += `L ${detourX.toFixed(1)} ${(midY2 - sy * cr).toFixed(1)} `;
-      d += `Q ${detourX.toFixed(1)} ${midY2.toFixed(1)} ${(detourX - sx * cr).toFixed(1)} ${midY2.toFixed(1)} `;
-      d += `L ${(qx + sx * cr).toFixed(1)} ${midY2.toFixed(1)} `;
-      d += `Q ${qx.toFixed(1)} ${midY2.toFixed(1)} ${qx.toFixed(1)} ${(midY2 + sy * cr).toFixed(1)} `;
-      d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
-
-      grid.placeLine(px, py, px, midY1, lineThickness, owner);
-      grid.placeLine(px, midY1, detourX, midY1, lineThickness, owner);
-      grid.placeLine(detourX, midY1, detourX, midY2, lineThickness, owner);
-      grid.placeLine(detourX, midY2, qx, midY2, lineThickness, owner);
-      grid.placeLine(qx, midY2, qx, qy, lineThickness, owner);
-      return { d, jogY: midY1 };
     }
 
     // Non-straight: try multiple midFrac values, score ALL segments.
-    // For small dx (dot centering shifts), prefer extreme midFrac to push
-    // the elbow close to a node — makes the short horizontal run less visible.
-    const dx = Math.abs(qx - px);
-    // For small dx (centering shifts ≤ dotSpacing), push the jog so close
-    // to the destination that it's hidden inside the station dot.
+    // For small column diff (dot centering shifts), prefer extreme midFrac to push
+    // the jog close to a node — makes the short cross run less visible.
     const dotR = 3.2 * s;
-    const dy = Math.abs(qy - py);
-    const hiddenFrac = dy > 0 ? Math.max(0.5, 1 - dotR / dy) : 0.5; // ~0.94 for typical spacing
+    const hiddenFrac = layerDiff > 0 ? Math.max(0.5, 1 - dotR / layerDiff) : 0.5;
     // Use pre-assigned staggered midFrac first (crossing avoidance),
     // then fall back to defaults
-    const baseFracs = dx <= dotSpacing
+    const baseFracs = colDiff <= dotSpacing
       ? [hiddenFrac, 1 - hiddenFrac, 0.85, 0.15]
       : [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];
     const midFracs = assignedMidFrac !== undefined
@@ -632,13 +788,13 @@ export function layoutFlow(dag, options = {}) {
     let bestCollisions = Infinity;
 
     for (const mf of midFracs) {
-      const { d, jogY } = buildVHV(px, py, qx, qy, mf, r);
-      if (jogY === null) return { d, jogY: null };
+      const { d, jogPos } = buildRoute(px, py, qx, qy, mf, r);
+      if (jogPos === null) return { d, jogPos: null };
 
-      const collisions = scoreVHV(px, py, qx, qy, jogY, ignore);
+      const collisions = scoreRoute(px, py, qx, qy, jogPos, ignore);
       if (collisions === 0) {
-        registerVHV(px, py, qx, qy, jogY, owner);
-        return { d, jogY };
+        registerRoute(px, py, qx, qy, jogPos, owner);
+        return { d, jogPos };
       }
       if (collisions < bestCollisions) {
         bestCollisions = collisions;
@@ -648,9 +804,12 @@ export function layoutFlow(dag, options = {}) {
     }
 
     // Register the best option even if it has collisions
-    const bestJogY = py + (qy - py) * bestMf;
-    registerVHV(px, py, qx, qy, bestJogY, owner);
-    return { d: bestD, jogY: bestJogY };
+    // Compute jogPos from midFrac along the primary axis
+    const bestJogPos = isLTR
+      ? px + (qx - px) * bestMf
+      : py + (qy - py) * bestMf;
+    registerRoute(px, py, qx, qy, bestJogPos, owner);
+    return { d: bestD, jogPos: bestJogPos };
   }
 
   // ── STEP 6: Lay routes sequentially ──
@@ -665,10 +824,14 @@ export function layoutFlow(dag, options = {}) {
   for (const ri of routeOrder) {
     for (const nodeId of routes[ri].nodes) {
       if (!placedNodes.has(nodeId)) {
-        const dxs = [...nodeRoutes.get(nodeId)].map(r => dotX(nodeId, r));
-        dxs.forEach(dx => {
-          const py = positions.get(nodeId)?.y ?? 0;
-          grid.place({ x: dx - dotR, y: py - dotR, w: dotR * 2, h: dotR * 2, type: 'dot', owner: nodeId });
+        const dcs = [...nodeRoutes.get(nodeId)].map(r => dotCol(nodeId, r));
+        dcs.forEach(dc => {
+          const pos = positions.get(nodeId);
+          if (!pos) return;
+          const dotRect = isLTR
+            ? { x: pos.x - dotR, y: dc - dotR, w: dotR * 2, h: dotR * 2, type: 'dot', owner: nodeId }
+            : { x: dc - dotR, y: pos.y - dotR, w: dotR * 2, h: dotR * 2, type: 'dot', owner: nodeId };
+          grid.place(dotRect);
         });
         placedNodes.add(nodeId);
       }
@@ -686,18 +849,18 @@ export function layoutFlow(dag, options = {}) {
   // values so their horizontal jogs don't overlap.
   const jogAssignments = new Map(); // "fromLayer→toLayer" → Map<ri, midFrac>
   {
-    const gapBenders = new Map(); // "layerA→layerB" → [{ri, fromX, toX}]
+    const gapBenders = new Map(); // "layerA→layerB" → [{ri, fromCol, toCol}]
     routes.forEach((route, ri) => {
       for (let i = 1; i < route.nodes.length; i++) {
         const fromId = route.nodes[i - 1], toId = route.nodes[i];
         const fromPos = positions.get(fromId), toPos = positions.get(toId);
         if (!fromPos || !toPos) continue;
         const fromLayer = layer.get(fromId), toLayer = layer.get(toId);
-        const fx = dotX(fromId, ri), tx = dotX(toId, ri);
-        if (Math.abs(tx - fx) < 1) continue; // straight, no bend
+        const fc = dotCol(fromId, ri), tc = dotCol(toId, ri);
+        if (Math.abs(tc - fc) < 1) continue; // straight, no bend
         const gapKey = `${fromLayer}\u2192${toLayer}`;
         if (!gapBenders.has(gapKey)) gapBenders.set(gapKey, []);
-        gapBenders.get(gapKey).push({ ri, fromX: fx, toX: tx });
+        gapBenders.get(gapKey).push({ ri, fromCol: fc, toCol: tc });
       }
     });
     for (const [gapKey, benders] of gapBenders) {
@@ -705,13 +868,13 @@ export function layoutFlow(dag, options = {}) {
 
       // Only stagger when routes bend in OPPOSITE directions.
       // Routes going the same direction should stay parallel.
-      const hasLeft = benders.some(b => b.toX < b.fromX);
-      const hasRight = benders.some(b => b.toX > b.fromX);
+      const hasLeft = benders.some(b => b.toCol < b.fromCol);
+      const hasRight = benders.some(b => b.toCol > b.fromCol);
       if (!hasLeft || !hasRight) continue; // all same direction — skip
 
-      // Sort by destination X: leftmost dest jogs near source,
+      // Sort by destination column: leftmost dest jogs near source,
       // rightmost dest jogs near destination. This prevents crossings.
-      benders.sort((a, b) => a.toX - b.toX);
+      benders.sort((a, b) => a.toCol - b.toCol);
       const n = benders.length;
       const assignment = new Map();
       benders.forEach((b, i) => {
@@ -729,15 +892,22 @@ export function layoutFlow(dag, options = {}) {
     const waypoints = route.nodes.map(id => {
       const pos = positions.get(id);
       if (!pos) return null;
-      return { id, x: dotX(id, ri), y: pos.y };
+      const dc = dotCol(id, ri);
+      // Waypoint in screen coordinates
+      if (isLTR) {
+        return { id, x: pos.x, y: dc };
+      } else {
+        return { id, x: dc, y: pos.y };
+      }
     }).filter(Boolean);
 
     const routeOwner = `route${ri}`;
     const segments = [];
     for (let i = 1; i < waypoints.length; i++) {
       const p = waypoints[i - 1], q = waypoints[i];
-      const smallDx = Math.abs(q.x - p.x) <= dotSpacing;
-      const ignore = smallDx
+      // "small column diff" check uses the column-axis distance
+      const smallColDiff = isLTR ? Math.abs(q.y - p.y) <= dotSpacing : Math.abs(q.x - p.x) <= dotSpacing;
+      const ignoreSet = smallColDiff
         ? new Set([routeOwner, p.id, q.id, `card_${p.id}`, `card_${q.id}`])
         : new Set([routeOwner, p.id, q.id]);
 
@@ -747,10 +917,10 @@ export function layoutFlow(dag, options = {}) {
       const gapAssign = jogAssignments.get(gapKey);
       const assignedMidFrac = gapAssign?.get(ri);
 
-      const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignore, assignedMidFrac);
+      const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignoreSet, assignedMidFrac);
       segments.push({ d: result.d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
 
-      // Try to place edge label — per route, on vertical runs
+      // Try to place edge label — per route, on straight runs along the primary axis
       const edgeKey = `${ri}:${p.id}\u2192${q.id}`;
       if (!edgeLabelPositions.has(edgeKey)) {
         const fs = 2.4 * s;
@@ -758,13 +928,26 @@ export function layoutFlow(dag, options = {}) {
         const th = fs + 2.5 * s;
 
         const candidates = [];
-        if (result.jogY !== null) {
-          const jy = result.jogY;
-          candidates.push({ x: p.x, y: (p.y + jy) / 2 - th / 2 });
-          candidates.push({ x: q.x, y: (jy + q.y) / 2 - th / 2 });
-          candidates.push({ x: (p.x + q.x) / 2, y: jy - th / 2 });
+        if (result.jogPos !== null) {
+          if (isLTR) {
+            // H-V-H: straight runs are horizontal
+            const jp = result.jogPos; // midX
+            candidates.push({ x: (p.x + jp) / 2, y: p.y - th / 2 });    // on first horiz run
+            candidates.push({ x: (jp + q.x) / 2, y: q.y - th / 2 });    // on second horiz run
+            candidates.push({ x: jp - tw / 2, y: (p.y + q.y) / 2 - th / 2 }); // on vertical jog
+          } else {
+            // V-H-V: straight runs are vertical
+            const jp = result.jogPos; // midY
+            candidates.push({ x: p.x, y: (p.y + jp) / 2 - th / 2 });
+            candidates.push({ x: q.x, y: (jp + q.y) / 2 - th / 2 });
+            candidates.push({ x: (p.x + q.x) / 2, y: jp - th / 2 });
+          }
         } else {
-          candidates.push({ x: p.x, y: (p.y + q.y) / 2 - th / 2 });
+          if (isLTR) {
+            candidates.push({ x: (p.x + q.x) / 2, y: p.y - th / 2 });
+          } else {
+            candidates.push({ x: p.x, y: (p.y + q.y) / 2 - th / 2 });
+          }
         }
 
         let placed = false;
@@ -795,14 +978,14 @@ export function layoutFlow(dag, options = {}) {
   });
 
   // For each node, track how many extra-edge slots have been assigned.
-  // Extra dots go to the LEFT of route dots (cards are on the right).
+  // Extra dots go on the "left" side (lower column value) of route dots.
   const extraSlotCount = new Map();
-  function extraDotX(nodeId) {
+  function extraDotCol(nodeId) {
     const pos = positions.get(nodeId);
     if (!pos) return 0;
     const memberRoutes = nodeRoutes.get(nodeId);
-    if (!memberRoutes || memberRoutes.size === 0) return pos.x;
-    const leftmost = Math.min(...[...memberRoutes].map(ri => dotX(nodeId, ri)));
+    if (!memberRoutes || memberRoutes.size === 0) return pos[CK];
+    const leftmost = Math.min(...[...memberRoutes].map(ri => dotCol(nodeId, ri)));
     const slotIdx = extraSlotCount.get(nodeId) || 0;
     extraSlotCount.set(nodeId, slotIdx + 1);
     return leftmost - (slotIdx + 1) * dotSpacing;
@@ -814,113 +997,61 @@ export function layoutFlow(dag, options = {}) {
     if (routeEdgeSet.has(`${f}\u2192${t}`)) return;
     const pBase = positions.get(f), qBase = positions.get(t);
     if (!pBase || !qBase) return;
-    const fx = extraDotX(f), tx = extraDotX(t);
+    const fc = extraDotCol(f), tc = extraDotCol(t);
+    // Convert to screen coordinates
+    let fx, fy, tx, ty;
+    if (isLTR) {
+      fx = pBase.x; fy = fc;
+      tx = qBase.x; ty = tc;
+    } else {
+      fx = fc; fy = pBase.y;
+      tx = tc; ty = qBase.y;
+    }
     const extraOwner = `extra_${f}_${t}`;
-    const result = routeSegment(fx, pBase.y, tx, qBase.y, 999, extraOwner, new Set([extraOwner, f, t]));
+    const result = routeSegment(fx, fy, tx, ty, 999, extraOwner, new Set([extraOwner, f, t]));
     extraEdges.push({ d: result.d, color: theme.muted, thickness: 1.5 * s, opacity: 0.3, dashed: true });
-    extraDotPositions.set(`${f}\u2192${t}`, { fromX: fx, fromY: pBase.y, toX: tx, toY: qBase.y });
+    extraDotPositions.set(`${f}\u2192${t}`, { fromX: fx, fromY: fy, toX: tx, toY: ty });
   });
 
-  const ttbWidth = (maxX - minX) + margin.left + margin.right;
-  const ttbHeight = (maxY - minY) + margin.top + margin.bottom;
-  const ttbMinY = margin.top;
-  const ttbMaxY = margin.top + (layerY[maxLayer] ?? maxLayer * layerSpacing);
+  // Compute bounds from actual positions for width/height
+  let actualMinX = Infinity, actualMaxX = -Infinity, actualMinY = Infinity, actualMaxY = -Infinity;
+  positions.forEach(pos => {
+    if (pos.x < actualMinX) actualMinX = pos.x;
+    if (pos.x > actualMaxX) actualMaxX = pos.x;
+    if (pos.y < actualMinY) actualMinY = pos.y;
+    if (pos.y > actualMaxY) actualMaxY = pos.y;
+  });
 
-  if (direction === 'ltr') {
-    // Swap X↔Y in all positions
-    for (const [id, pos] of positions) {
-      positions.set(id, { x: pos.y, y: pos.x });
-    }
+  const width = (actualMaxX - actualMinX) + margin.left + margin.right;
+  const height = (actualMaxY - actualMinY) + margin.top + margin.bottom;
 
-    // Swap route path coordinates
-    for (const segments of routePaths) {
-      for (const seg of segments) {
-        seg.d = swapPathXY(seg.d);
-      }
-    }
-    for (const seg of extraEdges) {
-      seg.d = swapPathXY(seg.d);
-    }
-
-    // Swap card placements
-    for (const [id, cp] of cardPlacements) {
-      const r = cp.rect;
-      cp.rect = { x: r.y, y: r.x, w: r.h, h: r.w, type: r.type, owner: r.owner };
-    }
-
-    // Swap edge label positions
-    for (const [key, pos] of edgeLabelPositions) {
-      edgeLabelPositions.set(key, { x: pos.y, y: pos.x, color: pos.color });
-    }
-
-    // Swap extra dot positions
-    for (const [key, pos] of extraDotPositions) {
-      extraDotPositions.set(key, { fromX: pos.fromY, fromY: pos.fromX, toX: pos.toY, toY: pos.toX });
-    }
-
-    // Wrap dotX so it returns swapped coordinates
-    const ttbDotX = dotX;
-    const ltrDotX = (nodeId, ri) => {
-      // In TTB, dotX returned X position. After swap, that X becomes Y.
-      // For LTR, the "dotX" conceptually returns the position along the
-      // axis perpendicular to the flow — which is now Y.
-      // But the renderer calls dotX expecting the X coordinate of the dot,
-      // and the dot's X in LTR is the swapped Y, i.e. the node's TTB pos.y.
-      // Since positions are already swapped, return the swapped pos.x
-      // (which was the TTB pos.y = layer position).
-      // Actually, dotX in TTB mode returns the column X for the dot.
-      // After swap, column X becomes Y. The renderer draws dots at
-      // (dotX(id, ri), pos.y) — in LTR that should be (pos.x, dotY).
-      // We need dotX to return the swapped value too.
-      return positions.get(nodeId)?.y !== undefined
-        ? ttbDotX(nodeId, ri)  // returns the TTB X, which is now the LTR Y
-        : 0;
-    };
-
-    return {
-      positions,
-      routePaths,
-      extraEdges,
-      width: ttbHeight,
-      height: ttbWidth,
-      routes,
-      nodeRoute: new Map([...nodes.map(nd => [nd.id, nodePrimary.get(nd.id)])]),
-      nodeRoutes,
-      nodePrimary,
-      dotSpacing,
-      dotX,
-      cardPlacements,
-      edgeLabelPositions,
-      extraDotPositions,
-      scale: s,
-      labelSize,
-      theme,
-      orientation: 'ltr',
-      minY: ttbMinY,
-      maxY: ttbMaxY,
-    };
-  }
+  // Compute minY/maxY on the layer axis for scroll/viewport logic
+  const lkMarginStart = isLTR ? margin.left : margin.top;
+  const finalMaxLayerPos = layerPos[maxLayer] ?? maxLayer * layerSpacing;
+  const minLayerScreen = lkMarginStart;
+  const maxLayerScreen = lkMarginStart + finalMaxLayerPos;
 
   return {
     positions,
     routePaths,
     extraEdges,
-    width: ttbWidth,
-    height: ttbHeight,
+    width,
+    height,
     routes,
     nodeRoute: new Map([...nodes.map(nd => [nd.id, nodePrimary.get(nd.id)])]),
     nodeRoutes,
     nodePrimary,
     dotSpacing,
     dotX,
+    dotPos,
     cardPlacements,
     edgeLabelPositions,
     extraDotPositions,
     scale: s,
     labelSize,
     theme,
-    orientation: 'ttb',
-    minY: ttbMinY,
-    maxY: ttbMaxY,
+    orientation: direction,
+    minY: isLTR ? actualMinY : minLayerScreen,
+    maxY: isLTR ? actualMaxY : maxLayerScreen,
   };
 }

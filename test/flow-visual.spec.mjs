@@ -326,89 +326,97 @@ function validateSVG(svgString, layout, model) {
 
 // ── Main ────────────────────────────────────────────────────────
 
+async function runModel(model, direction, browser, resultsDir, report) {
+  const suffix = direction === 'ltr' ? '-ltr' : '';
+  const tag = `${model.id}${suffix}`;
+  process.stdout.write(`  ${tag.padEnd(30)}`);
+
+  let layout, svg, validation;
+  try {
+    layout = layoutFlow(model.dag, { routes: model.routes, theme: model.theme, direction, ...model.opts });
+
+    const renderNode = createStationRenderer(layout, model.routes);
+    const renderEdge = createEdgeRenderer(layout, null);
+    svg = renderSVG(model.dag, layout, {
+      title: `${model.name} (${direction.toUpperCase()})`,
+      font: "'Inter', 'Segoe UI', system-ui, sans-serif",
+      showLegend: false,
+      renderNode,
+      renderEdge,
+    });
+    validation = validateSVG(svg, layout, model);
+  } catch (err) {
+    console.log(`ERROR: ${err.message}`);
+    report.push({ id: tag, name: model.name, direction, error: err.message });
+    return;
+  }
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>body { margin: 0; background: #1E1E2E; display: inline-block; padding: 10px; }</style>
+</head><body>${svg}</body></html>`;
+
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: 'networkidle' });
+
+  const box = await page.evaluate(() => {
+    const svg = document.querySelector('svg');
+    if (!svg) return { width: 800, height: 600 };
+    return { width: Math.ceil(svg.getBoundingClientRect().width) + 20, height: Math.ceil(svg.getBoundingClientRect().height) + 20 };
+  });
+  await page.setViewportSize({ width: Math.max(box.width, 400), height: Math.max(box.height, 200) });
+
+  const pngPath = join(resultsDir, `${tag}.png`);
+  await page.screenshot({ path: pngPath, fullPage: true });
+  await page.close();
+
+  const status = validation.passed ? 'PASS' : 'FAIL';
+  const errors = validation.issues.filter(i => i.severity === 'error').length;
+  const warns = validation.issues.filter(i => i.severity === 'warn').length;
+  const details = [];
+  if (validation.metrics.cardOverLines > 0) details.push(`${validation.metrics.cardOverLines} card/line`);
+  if (validation.metrics.lineOverlaps > 0) details.push(`${validation.metrics.lineOverlaps} line-overlap`);
+  if (validation.metrics.shortElbows > 0) details.push(`${validation.metrics.shortElbows} short-elbow`);
+  if (validation.metrics.fakeHops > 0) details.push(`${validation.metrics.fakeHops} fake-hop`);
+  const detailStr = details.length > 0 ? `  [${details.join(', ')}]` : '';
+  console.log(`${status}  ${validation.metrics.straightRatio} straight  ${errors}E ${warns}W${detailStr}`);
+
+  report.push({
+    id: tag,
+    name: model.name,
+    direction,
+    nodes: model.dag.nodes.length,
+    edges: model.dag.edges.length,
+    routes: model.routes.length,
+    validation,
+    screenshot: `${tag}.png`,
+  });
+}
+
 async function main() {
-  console.log(`Running visual tests v${version} for ${models.length} models...\n`);
+  const directions = ['ttb', 'ltr'];
+  console.log(`Running visual tests v${version} for ${models.length} models × ${directions.length} directions...\n`);
 
   const browser = await chromium.launch();
   const report = [];
 
-  for (const model of models) {
-    process.stdout.write(`  ${model.id.padEnd(25)}`);
-
-    let layout, svg, validation;
-    try {
-      layout = layoutFlow(model.dag, { routes: model.routes, theme: model.theme, ...model.opts });
-
-      const renderNode = createStationRenderer(layout, model.routes);
-      const renderEdge = createEdgeRenderer(layout, null); // no volumes for structural tests
-      svg = renderSVG(model.dag, layout, {
-        title: model.name,
-        font: "'Inter', 'Segoe UI', system-ui, sans-serif",
-        showLegend: false,
-        renderNode,
-        renderEdge,
-      });
-      validation = validateSVG(svg, layout, model);
-    } catch (err) {
-      console.log(`ERROR: ${err.message}`);
-      report.push({ id: model.id, name: model.name, error: err.message });
-      continue;
+  for (const dir of directions) {
+    console.log(`  ── ${dir.toUpperCase()} ──`);
+    for (const model of models) {
+      await runModel(model, dir, browser, resultsDir, report);
     }
-
-    // Generate HTML and screenshot
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<style>body { margin: 0; background: #1E1E2E; display: inline-block; padding: 10px; }</style>
-</head><body>${svg}</body></html>`;
-
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle' });
-
-    // Size to content
-    const box = await page.evaluate(() => {
-      const svg = document.querySelector('svg');
-      if (!svg) return { width: 800, height: 600 };
-      return { width: Math.ceil(svg.getBoundingClientRect().width) + 20, height: Math.ceil(svg.getBoundingClientRect().height) + 20 };
-    });
-    await page.setViewportSize({ width: Math.max(box.width, 400), height: Math.max(box.height, 200) });
-
-    const pngPath = join(resultsDir, `${model.id}.png`);
-    await page.screenshot({ path: pngPath, fullPage: true });
-    await page.close();
-
-    const status = validation.passed ? 'PASS' : 'FAIL';
-    const errors = validation.issues.filter(i => i.severity === 'error').length;
-    const warns = validation.issues.filter(i => i.severity === 'warn').length;
-    const details = [];
-    if (validation.metrics.cardOverLines > 0) details.push(`${validation.metrics.cardOverLines} card/line`);
-    if (validation.metrics.lineOverlaps > 0) details.push(`${validation.metrics.lineOverlaps} line-overlap`);
-    if (validation.metrics.shortElbows > 0) details.push(`${validation.metrics.shortElbows} short-elbow`);
-    if (validation.metrics.fakeHops > 0) details.push(`${validation.metrics.fakeHops} fake-hop`);
-    const detailStr = details.length > 0 ? `  [${details.join(', ')}]` : '';
-    console.log(`${status}  ${validation.metrics.straightRatio} straight  ${errors}E ${warns}W${detailStr}`);
-
-    report.push({
-      id: model.id,
-      name: model.name,
-      nodes: model.dag.nodes.length,
-      edges: model.dag.edges.length,
-      routes: model.routes.length,
-      validation,
-      screenshot: `${model.id}.png`,
-    });
+    console.log();
   }
 
   await browser.close();
 
-  // Write report
   const reportPath = join(resultsDir, 'report.json');
   writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
-  // Summary
   const passed = report.filter(r => r.validation?.passed).length;
   const failed = report.filter(r => r.validation && !r.validation.passed).length;
   const errored = report.filter(r => r.error).length;
 
-  console.log(`\n${passed} passed, ${failed} failed, ${errored} errors`);
+  console.log(`${passed} passed, ${failed} failed, ${errored} errors (${directions.length * models.length} total)`);
   console.log(`Screenshots: ${resultsDir}/`);
   console.log(`Report: ${reportPath}`);
 }

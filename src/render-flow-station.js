@@ -29,14 +29,16 @@ export function createStationRenderer(layout, routes) {
       if (route.nodes.includes(node.id)) routeIndices.push(ri);
     });
 
-    const dotPositions = routeIndices.map(ri => layout.dotX(node.id, ri));
+    const dotCoords = routeIndices.map(ri =>
+      layout.dotPos ? layout.dotPos(node.id, ri) : { x: layout.dotX(node.id, ri), y: pos.y }
+    );
 
     // Punched-out dots ON the line
     routeIndices.forEach((ri, i) => {
       const col = ctx.theme.classes[routes[ri].cls];
       if (!col) return;
-      svg += `<circle cx="${dotPositions[i]}" cy="${pos.y}" r="${dotR}" fill="${col}"/>`;
-      svg += `<circle cx="${dotPositions[i]}" cy="${pos.y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"/>`;
+      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR}" fill="${col}"/>`;
+      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"/>`;
     });
 
     // Card from layout's obstacle-aware placement
