@@ -41,6 +41,10 @@ Reusable renderers for flow layout visuals:
 - Theme selector (all 6 themes), parameter sliders, syntax-highlighted code panels
 - Cross-linked with dag and hasse demos
 
+### Known issues
+
+See `gaps.md` (cross-cutting: XSS, missing tests, duplicated code) and `flow-gaps.md` (flow-layout-specific: card placement, short elbows, line crossings) for the full tracked issue list.
+
 ### Changed
 
 - **`layout.js` renamed to `layout-metro.js`** — consistent naming (`layoutMetro` function in `layout-metro.js`)
