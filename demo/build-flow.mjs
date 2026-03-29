@@ -145,12 +145,12 @@ body.dm-container {
   <div class="dm-graph" id="mapContainer"></div>
   <div class="dm-panels">
     <div class="dm-panel">
-      <div class="dm-panel-header">js</div>
-      <pre id="jsBlock"></pre>
-    </div>
-    <div class="dm-panel">
       <div class="dm-panel-header">json</div>
       <pre id="jsonBlock"></pre>
+    </div>
+    <div class="dm-panel">
+      <div class="dm-panel-header">js</div>
+      <pre id="jsBlock"></pre>
     </div>
   </div>
 </div>
