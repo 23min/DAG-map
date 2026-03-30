@@ -37,6 +37,7 @@
   --dm-cls-recordable: #E8846B;
   --dm-cls-side-effecting: #D4944C;
   --dm-cls-gate: #C45B4A;
+  --dm-cls-pending: #B0AAA0;
 }
 
 /* ── Container ── */
@@ -340,27 +341,27 @@ body.dm-container {
 const THEMES = {
   cream: {
     paper: '#F5F0E8', ink: '#2C2C2C', muted: '#8C8680', border: '#D4CFC7',
-    classes: { pure: '#2B8A8E', recordable: '#E8846B', side_effecting: '#D4944C', gate: '#C45B4A' }
+    classes: { pure: '#2B8A8E', recordable: '#E8846B', side_effecting: '#D4944C', gate: '#C45B4A', pending: '#B0AAA0' }
   },
   light: {
     paper: '#FAFAFA', ink: '#333333', muted: '#999999', border: '#E0E0E0',
-    classes: { pure: '#0077B6', recordable: '#E36414', side_effecting: '#6C757D', gate: '#DC3545' }
+    classes: { pure: '#0077B6', recordable: '#E36414', side_effecting: '#6C757D', gate: '#DC3545', pending: '#BDBDBD' }
   },
   dark: {
     paper: '#1E1E2E', ink: '#CDD6F4', muted: '#6C7086', border: '#313244',
-    classes: { pure: '#94E2D5', recordable: '#F38BA8', side_effecting: '#F9E2AF', gate: '#EBA0AC' }
+    classes: { pure: '#94E2D5', recordable: '#F38BA8', side_effecting: '#F9E2AF', gate: '#EBA0AC', pending: '#45475A' }
   },
   blueprint: {
     paper: '#1B2838', ink: '#E0E8F0', muted: '#5A7A9A', border: '#2A4060',
-    classes: { pure: '#4FC3F7', recordable: '#FF8A65', side_effecting: '#FFD54F', gate: '#EF5350' }
+    classes: { pure: '#4FC3F7', recordable: '#FF8A65', side_effecting: '#FFD54F', gate: '#EF5350', pending: '#3D5A7A' }
   },
   mono: {
     paper: '#FFFFFF', ink: '#1A1A1A', muted: '#888888', border: '#CCCCCC',
-    classes: { pure: '#444444', recordable: '#777777', side_effecting: '#999999', gate: '#333333' }
+    classes: { pure: '#444444', recordable: '#777777', side_effecting: '#999999', gate: '#333333', pending: '#AAAAAA' }
   },
   metro: {
     paper: '#FFFFFF', ink: '#1A1A1A', muted: '#9E9E9E', border: '#D4EAF7',
-    classes: { pure: '#0078C8', recordable: '#E3242B', side_effecting: '#F5A623', gate: '#6A2D8E' },
+    classes: { pure: '#0078C8', recordable: '#E3242B', side_effecting: '#F5A623', gate: '#6A2D8E', pending: '#BDBDBD' },
     lineOpacity: 1.4
   }
 };
@@ -377,7 +378,6 @@ function resolveTheme(themeOption) {
   // Custom theme object — merge with cream defaults
   return { ...THEMES.cream, ...themeOption, classes: { ...THEMES.cream.classes, ...(themeOption.classes || {}) } };
 }
-
 
 // --- graph-utils.js ---
 // ================================================================
@@ -397,9 +397,17 @@ function buildGraph(nodes, edges) {
   const childrenOf = new Map();
   const parentsOf = new Map();
   nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
-  edges.forEach(([f, t]) => {
-    childrenOf.get(f).push(t);
-    parentsOf.get(t).push(f);
+  edges.forEach(([f, t], edgeIdx) => {
+    const srcChildren = childrenOf.get(f);
+    const dstParents = parentsOf.get(t);
+    if (!srcChildren || !dstParents) {
+      const parts = [];
+      if (!srcChildren) parts.push(`source "${f}"`);
+      if (!dstParents) parts.push(`target "${t}"`);
+      throw new Error(`buildGraph: edge[${edgeIdx}] references unknown ${parts.join(' and ')}`);
+    }
+    srcChildren.push(t);
+    dstParents.push(f);
   });
   return { nodeMap, childrenOf, parentsOf };
 }
@@ -468,6 +476,19 @@ function validateDag(nodes, edges) {
   }
 
   return warnings;
+}
+
+/**
+ * Validate a DAG definition and throw with a useful message if invalid.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @param {string} [context='DAG']
+ */
+function assertValidDag(nodes, edges, context = 'DAG') {
+  const warnings = validateDag(nodes, edges);
+  if (warnings.length > 0) {
+    throw new Error(`${context}: invalid DAG input. ${warnings.join('; ')}`);
+  }
 }
 
 // ================================================================
@@ -544,7 +565,6 @@ function swapPathXY(d) {
 
   return parts.join(' ');
 }
-
 
 // --- occupancy.js ---
 // ================================================================
@@ -686,7 +706,6 @@ class OccupancyGrid {
   }
 }
 
-
 // --- layout-flow.js ---
 // ================================================================
 // layout-flow.js — Obstacle-aware process flow layout
@@ -709,8 +728,6 @@ class OccupancyGrid {
 // shared stations maintain their relative order.
 
 
-
-
 function layoutFlow(dag, options = {}) {
   const { nodes, edges } = dag;
   const theme = resolveTheme(options.theme);
@@ -722,9 +739,12 @@ function layoutFlow(dag, options = {}) {
   const lineThickness = (options.lineThickness ?? 3) * s;
   const lineOpacity = Math.min((theme.lineOpacity ?? 1.0) * 0.7, 1);
   const labelSize = (options.labelSize ?? 3.6) * s;  // station card label font size
-  const routes = options.routes || [];
+  const routes = options.routes;
   const direction = options.direction || 'ttb';
   const cardSide = options.cardSide ?? 'right'; // default card placement
+  if (!Array.isArray(routes) || routes.length === 0) {
+    throw new Error('layoutFlow: routes is required and must contain at least one route');
+  }
 
   // ── Orientation abstraction ──
   // CK = column key (secondary/spread axis): 'x' for TTB, 'y' for LTR
@@ -733,6 +753,7 @@ function layoutFlow(dag, options = {}) {
   const CK = isLTR ? 'y' : 'x';  // column key
   const LK = isLTR ? 'x' : 'y';  // layer key
 
+  assertValidDag(nodes, edges, 'layoutFlow');
   const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
   const classColor = {};
   for (const [cls, hex] of Object.entries(theme.classes)) classColor[cls] = hex;
@@ -1182,7 +1203,9 @@ function layoutFlow(dag, options = {}) {
     // Card dimensions (always in screen w/h)
     const labelW = nd.label.length * fsLabel * 0.52;
     const indicatorW = n * 5 * s;
-    const dataW = (nd.count || '').length * fsData * 0.55;
+    const metricValue = nd.times ?? nd.count;
+    const metricText = metricValue === undefined || metricValue === null ? '' : String(metricValue);
+    const dataW = metricText.length * fsData * 0.55;
     const contentW = Math.max(labelW, indicatorW + dataW + 4 * s);
     const cardPadX = 5 * s;
     const cardPadY = 3 * s;
@@ -1607,7 +1630,11 @@ function layoutFlow(dag, options = {}) {
       const assignedMidFrac = gapAssign?.get(ri);
 
       const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignoreSet, assignedMidFrac);
-      segments.push({ d: result.d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
+      // Dim route segments where source or destination node is dimmed
+      const srcDim = nodeMap.get(p.id)?.dim === true;
+      const dstDim = nodeMap.get(q.id)?.dim === true;
+      const segOpacity = (srcDim || dstDim) ? Math.min(lineOpacity, 0.12) : lineOpacity;
+      segments.push({ d: result.d, color, thickness: lineThickness, opacity: segOpacity, dashed: false });
 
       // Try to place edge label — per route, on straight runs along the primary axis
       const edgeKey = `${ri}:${p.id}\u2192${q.id}`;
@@ -1745,7 +1772,6 @@ function layoutFlow(dag, options = {}) {
   };
 }
 
-
 // --- render.js ---
 // ================================================================
 // render.js — SVG rendering for dag-map
@@ -1763,6 +1789,11 @@ function layoutFlow(dag, options = {}) {
 function esc(s) {
   if (typeof s !== 'string') return s;
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Escape values interpolated into quoted XML attributes. */
+function escAttr(v) {
+  return esc(String(v ?? ''));
 }
 
 /**
@@ -1892,7 +1923,9 @@ function renderSVG(dag, layout, options = {}) {
         svg += `<path d="${seg.d}" stroke="${segColor(seg.color)}" stroke-width="${seg.thickness}" fill="none" `;
         svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${seg.opacity}"`;
         if (seg.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
-        if (fromId && toId) svg += ` data-edge-from="${fromId}" data-edge-to="${toId}" data-route="${ri}"`;
+        if (fromId && toId) {
+          svg += ` data-edge-from="${escAttr(fromId)}" data-edge-to="${escAttr(toId)}" data-route="${ri}"`;
+        }
         svg += `/>\n`;
       }
     });
@@ -1931,7 +1964,7 @@ function renderSVG(dag, layout, options = {}) {
         orientation: layout.orientation || 'ltr',
         laneX: layout.laneX || null,
       };
-      svg += `<g data-node-id="${nd.id}" data-node-cls="${nd.cls || 'pure'}">`;
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}">`;
       svg += renderNode(nd, pos, ctx);
       svg += `</g>\n`;
     } else {
@@ -1944,21 +1977,26 @@ function renderSVG(dag, layout, options = {}) {
         r = 3 * s;
       }
 
-      svg += `<g data-node-id="${nd.id}" data-node-cls="${nd.cls || 'pure'}">`;
+      const isDim = nd.dim === true;
+      const nodeOpacity = isDim ? 0.25 : 1;
 
-      svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}">`;
+
+      svg += `<circle data-id="${escAttr(nd.id)}" cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
       svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
       if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+      if (isDim) svg += ` opacity="${nodeOpacity}"`;
       svg += `/>`;
 
       if (isInterchange && !isGate) {
-        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="0.3"/>`;
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="${isDim ? 0.1 : 0.3}"/>`;
       }
       if (isGate) {
-        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="0.4"/>`;
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="${isDim ? 0.15 : 0.4}"/>`;
       }
 
       const fs = labelSize * s;
+      const labelOpacity = isDim ? 0.2 : 0.55;
       if (diagonalLabels) {
         const tickLen = 6 * s;
         const angle = -labelAngle;
@@ -1967,22 +2005,21 @@ function renderSVG(dag, layout, options = {}) {
         const tickEndY = pos.y + Math.sin(rad) * tickLen;
         svg += `<line x1="${pos.x.toFixed(1)}" y1="${(pos.y - r).toFixed(1)}" `;
         svg += `x2="${tickEndX.toFixed(1)}" y2="${(tickEndY - r).toFixed(1)}" `;
-        svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="0.3"/>`;
+        svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="${isDim ? 0.1 : 0.3}"/>`;
         const textX = tickEndX + 1 * s;
         const textY = tickEndY - r - 1 * s;
         svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
-        svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="0.55" `;
+        svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}" `;
         svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${esc(nd.label)}</text>`;
       } else if (layout.orientation === 'ttb') {
-        // TTB layout: place labels to the right of nodes
         const labelX = pos.x + r + 4 * s;
         const labelY = pos.y + fs * 0.35;
         svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${esc(nd.label)}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
       } else {
         const labelY = pos.y + r + 8 * s;
         svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${esc(nd.label)}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
       }
 
       svg += `</g>\n`;
@@ -2014,7 +2051,6 @@ function renderSVG(dag, layout, options = {}) {
   return svg;
 }
 
-
 // --- render-flow-station.js ---
 // ================================================================
 // render-flow-station.js — Station card + edge label renderers
@@ -2040,6 +2076,8 @@ function createStationRenderer(layout, routes) {
     const dotR = 3.2 * s;
     const fsLabel = layout.labelSize || 3.6 * s;
     const fsData = fsLabel * 0.78;
+    const isDim = node.dim === true;
+    const dimOp = isDim ? 0.25 : 1;
     let svg = '';
 
     const routeIndices = [];
@@ -2055,8 +2093,8 @@ function createStationRenderer(layout, routes) {
     routeIndices.forEach((ri, i) => {
       const col = ctx.theme.classes[routes[ri].cls];
       if (!col) return;
-      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR}" fill="${col}"/>`;
-      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"/>`;
+      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR}" fill="${col}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
+      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
     });
 
     // Card from layout's obstacle-aware placement
@@ -2065,21 +2103,22 @@ function createStationRenderer(layout, routes) {
       const { rect, cardPadX, cardPadY } = cp;
 
       svg += `<rect x="${rect.x}" y="${rect.y}" width="${rect.w}" height="${rect.h}" rx="${2.5 * s}" `;
-      svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${0.7 * s}"/>`;
+      svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${0.7 * s}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
 
       const labelY = rect.y + cardPadY + fsLabel * 0.85;
-      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500">${esc(node.label)}</text>`;
+      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500"${isDim ? ` opacity="${dimOp * 0.8}"` : ''}>${esc(node.label)}</text>`;
 
       const dataY = labelY + fsData + 3 * s;
       let dx = rect.x + cardPadX;
       routeIndices.forEach(ri => {
         const col = ctx.theme.classes[routes[ri].cls];
         if (!col) return;
-        svg += `<rect x="${dx}" y="${dataY - fsData * 0.7}" width="${3.5 * s}" height="${3.5 * s}" rx="${0.5 * s}" fill="${col}"/>`;
+        svg += `<rect x="${dx}" y="${dataY - fsData * 0.7}" width="${3.5 * s}" height="${3.5 * s}" rx="${0.5 * s}" fill="${col}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
         dx += 5 * s;
       });
-      if (node.times || node.count) {
-        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${esc(node.times || node.count)}</text>`;
+      const metricValue = node.times ?? node.count;
+      if (metricValue !== undefined && metricValue !== null) {
+        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start"${isDim ? ` opacity="${dimOp * 0.8}"` : ''}>${esc(String(metricValue))}</text>`;
       }
     }
 
@@ -2278,6 +2317,79 @@ const models = [
     { id: 'reject_flow', cls: 'c', nodes: ['assess','reject'] },
     { id: 'repair_flow', cls: 'd', nodes: ['approve_claim','repair','pay'] },
   ]),
+
+  // -- Heatmap-style models with dim nodes --
+
+  (function() {
+    // Manufacturing line mid-execution: first nodes done, rest pending/dimmed
+    var nodes = [
+      ['order', 'Order', '2.0K'],
+      ['plan', 'Plan', '1.8K'],
+      ['source_raw', 'Source Raw', '899'],
+      ['inspect_raw', 'Inspect Raw', '228'],
+      ['source_parts', 'Source Parts', '590'],
+      ['inspect_parts', 'Inspect Parts', '144'],
+      ['prepare', 'Prepare'],
+      ['assemble', 'Assemble'],
+      ['weld', 'Weld'],
+      ['paint', 'Paint'],
+      ['qa', 'QA Check'],
+      ['pack', 'Pack'],
+      ['ship', 'Ship'],
+    ];
+    var dimNodes = new Set(['prepare','assemble','weld','paint','qa','pack','ship']);
+    var model = mkModel('mfg_heatmap', 'Manufacturing (heatmap)', 'Material | Parts | Assembly | QA | Shipping', nodes, [
+      ['order','plan'],['plan','source_raw'],['plan','source_parts'],
+      ['source_raw','inspect_raw'],['source_parts','inspect_parts'],
+      ['inspect_raw','prepare'],['inspect_parts','prepare'],
+      ['prepare','assemble'],['assemble','weld'],['weld','paint'],
+      ['paint','qa'],['qa','pack'],['pack','ship'],
+    ], [
+      { id: 'material', cls: 'a', nodes: ['order','plan','source_raw','inspect_raw','prepare'] },
+      { id: 'parts', cls: 'b', nodes: ['plan','source_parts','inspect_parts','prepare'] },
+      { id: 'assembly', cls: 'c', nodes: ['prepare','assemble','weld','paint'] },
+      { id: 'quality', cls: 'd', nodes: ['paint','qa','pack'] },
+      { id: 'shipping', cls: 'e', nodes: ['pack','ship'] },
+    ]);
+    // Apply dim to pending nodes
+    model.dag.nodes.forEach(function(n) { if (dimNodes.has(n.id)) n.dim = true; });
+    return model;
+  })(),
+
+  (function() {
+    // Data pipeline with cold/hot path: main path active, side branches dimmed
+    var nodes = [
+      ['api_ingest', 'API Ingest', '1.3M'],
+      ['db_sync', 'DB Sync', '450K'],
+      ['file_import', 'File Import'],
+      ['validate', 'Validate', '1.7M'],
+      ['normalize', 'Normalize', '1.7M'],
+      ['enrich', 'Enrich', '1.6M'],
+      ['dedupe', 'Deduplicate', '1.5M'],
+      ['ml_score', 'ML Score', '1.5M'],
+      ['fast_track', 'Fast Track', '1.2M'],
+      ['manual_review', 'Manual Review'],
+      ['store', 'Store', '1.4M'],
+      ['notify', 'Notify', '1.4M'],
+      ['archive', 'Archive'],
+    ];
+    var dimNodes = new Set(['file_import','manual_review','archive']);
+    var model = mkModel('pipeline_heatmap', 'Data Pipeline (heatmap)', 'Ingest | Transform | Route | Store', nodes, [
+      ['api_ingest','validate'],['db_sync','validate'],['file_import','validate'],
+      ['validate','normalize'],['normalize','enrich'],
+      ['enrich','dedupe'],['dedupe','ml_score'],
+      ['ml_score','fast_track'],['ml_score','manual_review'],
+      ['fast_track','store'],['manual_review','store'],
+      ['store','notify'],['store','archive'],
+    ], [
+      { id: 'ingest', cls: 'a', nodes: ['api_ingest','db_sync','validate','normalize'] },
+      { id: 'transform', cls: 'b', nodes: ['validate','normalize','enrich','dedupe'] },
+      { id: 'scoring', cls: 'c', nodes: ['dedupe','ml_score','fast_track','store'] },
+      { id: 'storage', cls: 'd', nodes: ['store','notify'] },
+    ]);
+    model.dag.nodes.forEach(function(n) { if (dimNodes.has(n.id)) n.dim = true; });
+    return model;
+  })(),
 ];
 
 // ============================================================

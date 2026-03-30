@@ -59,6 +59,7 @@ export function layoutMetro(dag, options = {}) {
   const layerSpacing = (options.layerSpacing ?? 38) * s;
   const progressivePower = options.progressivePower ?? 2.2;
   const cornerRadius = (options.cornerRadius ?? 8) * s;
+  const dimOpacity = options.dimOpacity ?? 0.25;
   const maxLanes = options.maxLanes ?? null;
   const hasProvidedRoutes = !!(options.routes && options.routes.length > 0);
 
@@ -430,7 +431,12 @@ export function layoutMetro(dag, options = {}) {
       }
 
       const d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
-      segments.push({ d, color: segColor, thickness, opacity, dashed: segDashed });
+      // Dim route segments where source or destination node is dimmed
+      const dstNode = nodeMap.get(q.id);
+      const srcDim = srcNode?.dim === true;
+      const dstDim = dstNode?.dim === true;
+      const segOpacity = (srcDim || dstDim) ? Math.min(opacity, dimOpacity * 0.48) : opacity;
+      segments.push({ d, color: segColor, thickness, opacity: segOpacity, dashed: segDashed });
     }
     return segments;
   });
@@ -455,7 +461,10 @@ export function layoutMetro(dag, options = {}) {
     const refY = trunkYScreen;
 
     const d = `M ${p.x} ${p.y} ` + pathFn(p.x, p.y, q.x, q.y, extraIdx, 0, refY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
-    extraEdges.push({ d, color, thickness: 1.8 * s, opacity: Math.min(0.22 * opBoost, 1), dashed: srcNode?.cls === 'gate' });
+    const dstNode = nodeMap.get(t);
+    const extraDim = srcNode?.dim === true || dstNode?.dim === true;
+    const extraOpacity = extraDim ? Math.min(dimOpacity * 0.32, Math.min(0.22 * opBoost, 1)) : Math.min(0.22 * opBoost, 1);
+    extraEdges.push({ d, color, thickness: 1.8 * s, opacity: extraOpacity, dashed: srcNode?.cls === 'gate' });
   });
 
   // Node lane info (for compatibility)

@@ -924,7 +924,11 @@ export function layoutFlow(dag, options = {}) {
       const assignedMidFrac = gapAssign?.get(ri);
 
       const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignoreSet, assignedMidFrac);
-      segments.push({ d: result.d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
+      // Dim route segments where source or destination node is dimmed
+      const srcDim = nodeMap.get(p.id)?.dim === true;
+      const dstDim = nodeMap.get(q.id)?.dim === true;
+      const segOpacity = (srcDim || dstDim) ? Math.min(lineOpacity, 0.12) : lineOpacity;
+      segments.push({ d: result.d, color, thickness: lineThickness, opacity: segOpacity, dashed: false });
 
       // Try to place edge label — per route, on straight runs along the primary axis
       const edgeKey = `${ri}:${p.id}\u2192${q.id}`;

@@ -29,6 +29,7 @@
   --dm-cls-recordable: #E8846B;
   --dm-cls-side-effecting: #D4944C;
   --dm-cls-gate: #C45B4A;
+  --dm-cls-pending: #B0AAA0;
 }
 
 /* ── Container ── */

@@ -22,6 +22,8 @@ export function createStationRenderer(layout, routes) {
     const dotR = 3.2 * s;
     const fsLabel = layout.labelSize || 3.6 * s;
     const fsData = fsLabel * 0.78;
+    const isDim = node.dim === true;
+    const dimOp = isDim ? 0.25 : 1;
     let svg = '';
 
     const routeIndices = [];
@@ -37,8 +39,8 @@ export function createStationRenderer(layout, routes) {
     routeIndices.forEach((ri, i) => {
       const col = ctx.theme.classes[routes[ri].cls];
       if (!col) return;
-      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR}" fill="${col}"/>`;
-      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"/>`;
+      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR}" fill="${col}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
+      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
     });
 
     // Card from layout's obstacle-aware placement
@@ -47,22 +49,22 @@ export function createStationRenderer(layout, routes) {
       const { rect, cardPadX, cardPadY } = cp;
 
       svg += `<rect x="${rect.x}" y="${rect.y}" width="${rect.w}" height="${rect.h}" rx="${2.5 * s}" `;
-      svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${0.7 * s}"/>`;
+      svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${0.7 * s}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
 
       const labelY = rect.y + cardPadY + fsLabel * 0.85;
-      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500">${esc(node.label)}</text>`;
+      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500"${isDim ? ` opacity="${dimOp * 0.8}"` : ''}>${esc(node.label)}</text>`;
 
       const dataY = labelY + fsData + 3 * s;
       let dx = rect.x + cardPadX;
       routeIndices.forEach(ri => {
         const col = ctx.theme.classes[routes[ri].cls];
         if (!col) return;
-        svg += `<rect x="${dx}" y="${dataY - fsData * 0.7}" width="${3.5 * s}" height="${3.5 * s}" rx="${0.5 * s}" fill="${col}"/>`;
+        svg += `<rect x="${dx}" y="${dataY - fsData * 0.7}" width="${3.5 * s}" height="${3.5 * s}" rx="${0.5 * s}" fill="${col}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
         dx += 5 * s;
       });
       const metricValue = node.times ?? node.count;
       if (metricValue !== undefined && metricValue !== null) {
-        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${esc(String(metricValue))}</text>`;
+        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start"${isDim ? ` opacity="${dimOp * 0.8}"` : ''}>${esc(String(metricValue))}</text>`;
       }
     }
 

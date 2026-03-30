@@ -89,6 +89,30 @@ const svg = renderSVG(dag, layout, {
 });
 ```
 
+## Node dimming
+
+Set `dim: true` on any node to render it at reduced opacity. Dimmed nodes, their labels, and any edges touching them fade out — useful for showing pending/inactive nodes in execution visualizations or heatmap overlays.
+
+```javascript
+const dag = {
+  nodes: [
+    { id: 'a', label: 'completed', cls: 'pure' },
+    { id: 'b', label: 'running', cls: 'recordable' },
+    { id: 'c', label: 'pending', cls: 'pending', dim: true },
+    { id: 'd', label: 'pending', cls: 'pending', dim: true },
+  ],
+  edges: [['a', 'b'], ['b', 'c'], ['c', 'd']],
+};
+```
+
+The `dim` property affects:
+- **Node circles**: opacity reduced to 0.25
+- **Labels**: opacity reduced to 0.2
+- **Route segments**: edges touching a dimmed node drop to 0.12 opacity
+- **Extra edges**: cross-route edges touching a dimmed node drop to 0.08 opacity
+
+All 6 built-in themes include a `pending` class color (muted/neutral tone) designed to pair with `dim: true`. The CSS variable `--dm-cls-pending` is available when using `cssVars: true`.
+
 ## Color modes
 
 ### Inline colors (default)
@@ -344,7 +368,7 @@ layoutMetro(dag, { theme: myTheme });
 | `ink` | string | `'#2C2C2C'` | Primary text and station stroke color |
 | `muted` | string | `'#8C8680'` | Secondary text, legend labels |
 | `border` | string | `'#D4CFC7'` | Separator lines, borders |
-| `classes` | object | `{pure, recordable, side_effecting, gate}` | Color per node class (keyed by `cls` value) |
+| `classes` | object | `{pure, recordable, side_effecting, gate, pending}` | Color per node class (keyed by `cls` value) |
 | `lineOpacity` | number | `1.0` | Multiplier for route line opacity. Values >1 make lines bolder (e.g. `1.4` for the metro theme). Clamped to max 1.0 per line. |
 
 ### Custom node classes
@@ -384,6 +408,23 @@ These control the spatial structure of the graph. All spacing values are in px *
 | `mainSpacing` | `34` | Vertical distance between depth-1 branch lanes. Higher = routes fan further from trunk. |
 | `subSpacing` | `16` | Vertical distance between sub-branch lanes. Higher = sub-branches spread more. |
 | `maxLanes` | `null` | Maximum lane count. `null` = unlimited. Lower values force a more compact layout. |
+
+## DOM attributes
+
+When rendered inline in the DOM, each node produces SVG elements with data attributes for scripting:
+
+- `<g data-node-id="nodeId" data-node-cls="pure">` — group wrapper
+- `<circle data-id="nodeId" ...>` — the station circle itself
+
+Use these for click handlers, highlighting, or integration with frameworks:
+
+```javascript
+svg.querySelectorAll('circle[data-id]').forEach(circle => {
+  circle.addEventListener('click', () => {
+    console.log('Clicked:', circle.dataset.id);
+  });
+});
+```
 
 ## Docs
 

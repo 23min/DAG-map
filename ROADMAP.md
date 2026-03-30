@@ -26,7 +26,7 @@
 - [x] Hasse demo page with 13 example lattices and DAGs
 - [x] Callout panel with mathematical context for each lattice
 
-## v0.3 — Flow Layout (in progress, `feat/flow-layout` branch)
+## v0.3 — Flow Layout + Quality
 
 - [x] `layoutFlow` engine — obstacle-aware, trunk-first, TTB + LTR
 - [x] Station renderers (`createStationRenderer`, `createEdgeRenderer`)
@@ -36,6 +36,9 @@
 - [x] Interactive flow demo with 30 models, direction toggle, theme + parameter controls
 - [x] XSS escaping, barrel exports, `dagMap()` convenience function
 - [x] 253 unit tests + 60 Playwright visual tests
+- [x] Node dimming (`dim: true`) — reduced opacity for nodes, labels, and connecting edges
+- [x] `pending` class in all 6 themes + `--dm-cls-pending` CSS variable
+- [x] `data-id` attribute on station circles for DOM scripting
 - [ ] Fix O2C card/line overlap (expand card placement search)
 - [ ] See `gaps.md` and `flow-gaps.md` for remaining issues
 

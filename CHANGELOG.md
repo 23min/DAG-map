@@ -44,6 +44,24 @@ Spatial occupancy tracker (AABB collision detection) for obstacle-aware placemen
 
 253 unit tests (`node:test`, zero dependencies) + 60 Playwright visual tests (30 models × TTB + LTR).
 
+### New: Node dimming (`dim` property)
+
+Nodes with `dim: true` are rendered at reduced opacity — useful for showing pending/inactive nodes in execution visualizations or heatmap overlays.
+
+- **Nodes**: circle stroke opacity 0.25, interchange/gate fill opacity reduced proportionally
+- **Labels**: opacity reduced to 0.2 (from 0.55)
+- **Route segments**: edges touching a dimmed node are reduced to opacity 0.12
+- **Extra edges**: cross-route edges touching a dimmed node are reduced to opacity 0.08
+- Works with all themes and both layout engines (metro, flow)
+
+### New: `pending` node class
+
+All 6 built-in themes now include a `pending` class color (muted/neutral tones). CSS variable `--dm-cls-pending` added to `dag-map.css`. Useful for visualizing node execution state (pending/running/completed).
+
+### New: `data-id` attribute on station circles
+
+Each station `<circle>` element now carries a `data-id` attribute matching the node ID, enabling DOM queries like `circle[data-id="myNode"]` for click handlers and highlighting. This is in addition to the `data-node-id` on the parent `<g>` group.
+
 ### Changed
 
 - **`layout.js` renamed to `layout-metro.js`**

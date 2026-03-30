@@ -37,6 +37,7 @@
   --dm-cls-recordable: #E8846B;
   --dm-cls-side-effecting: #D4944C;
   --dm-cls-gate: #C45B4A;
+  --dm-cls-pending: #B0AAA0;
 }
 
 /* ── Container ── */
@@ -194,7 +195,7 @@
 
 </style>
 </head>
-<body class="dm-container">
+<body class="dm-container" style="display:flex; flex-direction:column; height:100vh;">
 <div class="dm-controls">
   <label for="dagSelect">DAG:</label>
   <select id="dagSelect">
@@ -206,6 +207,8 @@
     <option value="pipeline">pipeline</option>
     <option value="deep_tree">deep_tree</option>
     <option value="dense_merge">dense_merge</option>
+    <option value="execution_snapshot">execution_snapshot (dim)</option>
+    <option value="heatmap_pipeline">heatmap_pipeline (dim)</option>
   </select>
   <label for="directionSelect">Direction:</label>
   <select id="directionSelect">
@@ -258,10 +261,27 @@
       <span class="dm-val" id="subSpacingValue">16</span></label>
     <label>progressive power <input type="range" id="powerSlider" min="1.0" max="3.5" step="0.1" value="2.2">
       <span class="dm-val" id="powerValue">2.2</span></label>
+    <label>line gap <input type="range" id="lineGapSlider" min="0" max="10" step="0.5" value="0">
+      <span class="dm-val" id="lineGapValue">0</span></label>
   </div>
 </details>
-<div id="mapContainer"></div>
-<pre id="optionsBlock" class="dm-code"></pre>
+<div class="dm-controls" id="progressRow" style="padding:8px 24px; gap:8px;">
+  <label style="font-size:13px; white-space:nowrap;">progress <input type="range" id="progressSlider" min="0" max="100" step="1" value="100" style="width:300px">
+    <span class="dm-val" id="progressValue">all</span></label>
+  <label style="font-size:13px; white-space:nowrap;">dim opacity <input type="range" id="dimOpacitySlider" min="0" max="1" step="0.05" value="0.25" style="width:100px">
+    <span class="dm-val" id="dimOpacityValue">0.25</span></label>
+</div>
+<div id="mapContainer" style="flex:1; overflow:auto; min-height:0;"></div>
+<div style="display:flex; flex:1; min-height:0; border-top:1px solid var(--dm-border);">
+  <div style="flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden;">
+    <div style="padding:6px 16px; font-size:10px; font-family:var(--dm-font); letter-spacing:0.06em; text-transform:uppercase; color:var(--dm-muted); border-bottom:1px solid var(--dm-border); background:rgba(0,0,0,0.03); font-weight:500;">js</div>
+    <pre id="optionsBlock" class="dm-code" style="flex:1; margin:0; border:none; border-radius:0; overflow:auto;"></pre>
+  </div>
+  <div style="flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden; border-left:1px solid var(--dm-border);">
+    <div style="padding:6px 16px; font-size:10px; font-family:var(--dm-font); letter-spacing:0.06em; text-transform:uppercase; color:var(--dm-muted); border-bottom:1px solid var(--dm-border); background:rgba(0,0,0,0.03); font-weight:500;">json</div>
+    <pre id="jsonBlock" class="dm-code" style="flex:1; margin:0; border:none; border-radius:0; overflow:auto;"></pre>
+  </div>
+</div>
 <script>
 // ============================================================
 // dag-map DAG demo — all modules inlined
@@ -319,7 +339,6 @@ function bezierPath(px, py, qx, qy, _routeIdx, _segIdx, _refY) {
 
   return `L ${x1} ${py} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${qy} L ${qx} ${qy}`;
 }
-
 
 // --- route-angular.js ---
 // ================================================================
@@ -460,6 +479,316 @@ function angularPath(px, py, qx, qy, routeIdx, segIdx, refY, options = {}) {
   }
 }
 
+// --- route-metro.js ---
+// ================================================================
+// route-metro.js — Metro-style right-angle routing with rounded elbows
+// ================================================================
+// Produces clean H-V-H or V-H-V paths with quadratic bezier corners.
+// Designed for parallel-line layouts where visual clarity is paramount.
+//
+// For LTR layouts: horizontal → rounded elbow → vertical → rounded elbow → horizontal
+// For TTB layouts: vertical → rounded elbow → horizontal → rounded elbow → vertical
+
+/**
+ * Rounded elbow path between two points using right-angle bends.
+ *
+ * @param {number} px - source x
+ * @param {number} py - source y
+ * @param {number} qx - destination x
+ * @param {number} qy - destination y
+ * @param {number} routeIdx - route index (for deterministic midpoint variation)
+ * @param {number} segIdx - segment index within route
+ * @param {number} refY - reference Y (not used, kept for API compat)
+ * @param {object} [options]
+ * @param {number} [options.cornerRadius=8] - corner radius in px (before scale)
+ * @param {'h-first'|'v-first'|'auto'} [options.bendStyle='auto'] - which axis to run first
+ * @returns {string} SVG path data (without leading M)
+ */
+function metroPath(px, py, qx, qy, routeIdx, segIdx, refY, options = {}) {
+  const cornerRadius = options.cornerRadius ?? 8;
+  const bendStyle = options.bendStyle ?? 'auto';
+  const dx = qx - px, dy = qy - py;
+
+  // Straight horizontal or vertical — no bend needed
+  if (Math.abs(dy) < 1) return `L ${qx} ${qy}`;
+  if (Math.abs(dx) < 1) return `L ${qx} ${qy}`;
+
+  // Clamp radius so it doesn't exceed available space
+  const r = Math.min(cornerRadius, Math.abs(dx) / 2, Math.abs(dy) / 2);
+
+  if (r < 1) return `L ${qx} ${qy}`; // too small for rounded corners
+
+  // Determine bend direction
+  const useHFirst = bendStyle === 'h-first' ||
+    (bendStyle === 'auto' && Math.abs(dx) >= Math.abs(dy));
+
+  if (useHFirst) {
+    // H-V path: horizontal run → rounded corner → vertical run
+    const midFrac = options.midFrac ?? (0.45 + (((routeIdx * 7 + segIdx * 13) % 17) / 17) * 0.10);
+    const midX = px + dx * midFrac;
+
+    return hvPath(px, py, midX, qx, qy, r);
+  } else {
+    // V-H path: vertical run → rounded corner → horizontal run
+    const midFrac = options.midFrac ?? (0.45 + (((routeIdx * 7 + segIdx * 13) % 17) / 17) * 0.10);
+    const midY = py + dy * midFrac;
+
+    return vhPath(px, py, midY, qx, qy, r);
+  }
+}
+
+/**
+ * H-V-H path: horizontal → corner → vertical → corner → horizontal
+ */
+function hvPath(px, py, midX, qx, qy, r) {
+  const dy = qy - py;
+  const sy = Math.sign(dy); // +1 down, -1 up
+
+  // First elbow: at (midX, py) turning toward qy
+  const e1x = midX - r;        // approach point
+  const e1cx = midX;            // corner control point
+  const e1cy = py;
+  const e1ex = midX;            // exit point
+  const e1ey = py + sy * r;
+
+  // Second elbow: at (midX, qy) turning toward qx
+  const e2x = midX;             // approach point
+  const e2y = qy - sy * r;
+  const e2cx = midX;            // corner control point
+  const e2cy = qy;
+  const e2ex = midX + r * Math.sign(qx - midX); // exit toward qx
+  const e2ey = qy;
+
+  let d = '';
+  d += `L ${e1x.toFixed(1)} ${py} `;                      // horizontal to first elbow approach
+  d += `Q ${e1cx.toFixed(1)} ${e1cy} ${e1ex.toFixed(1)} ${e1ey.toFixed(1)} `; // rounded corner
+  d += `L ${e2x.toFixed(1)} ${e2y.toFixed(1)} `;          // vertical run
+  d += `Q ${e2cx.toFixed(1)} ${e2cy} ${e2ex.toFixed(1)} ${e2ey.toFixed(1)} `; // rounded corner
+  d += `L ${qx} ${qy}`;                                    // horizontal to destination
+
+  return d;
+}
+
+/**
+ * V-H-V path: vertical → corner → horizontal → corner → vertical
+ */
+function vhPath(px, py, midY, qx, qy, r) {
+  const dx = qx - px;
+  const sx = Math.sign(dx); // +1 right, -1 left
+  const dy = qy - py;
+  const sy = Math.sign(dy);
+
+  // First elbow: at (px, midY) turning toward qx
+  const e1y = midY - sy * r;
+  const e1cx = px;
+  const e1cy = midY;
+  const e1ex = px + sx * r;
+  const e1ey = midY;
+
+  // Second elbow: at (qx, midY) turning toward qy
+  const e2x = qx - sx * r;
+  const e2y = midY;
+  const e2cx = qx;
+  const e2cy = midY;
+  const e2ex = qx;
+  const e2ey = midY + sy * r;
+
+  let d = '';
+  d += `L ${px} ${e1y.toFixed(1)} `;                       // vertical to first elbow
+  d += `Q ${e1cx.toFixed(1)} ${e1cy.toFixed(1)} ${e1ex.toFixed(1)} ${e1ey.toFixed(1)} `; // rounded corner
+  d += `L ${e2x.toFixed(1)} ${e2y.toFixed(1)} `;           // horizontal run
+  d += `Q ${e2cx.toFixed(1)} ${e2cy.toFixed(1)} ${e2ex.toFixed(1)} ${e2ey.toFixed(1)} `; // rounded corner
+  d += `L ${qx} ${qy}`;                                     // vertical to destination
+
+  return d;
+}
+
+// --- graph-utils.js ---
+// ================================================================
+// graph-utils.js — Shared graph primitives for dag-map layout engines
+// ================================================================
+// Adjacency map construction and Kahn's algorithm topological sort
+// with longest-path rank assignment. Used by all three layout engines.
+
+/**
+ * Build adjacency maps from nodes and edges.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @returns {{ nodeMap: Map, childrenOf: Map, parentsOf: Map }}
+ */
+function buildGraph(nodes, edges) {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const childrenOf = new Map();
+  const parentsOf = new Map();
+  nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
+  edges.forEach(([f, t], edgeIdx) => {
+    const srcChildren = childrenOf.get(f);
+    const dstParents = parentsOf.get(t);
+    if (!srcChildren || !dstParents) {
+      const parts = [];
+      if (!srcChildren) parts.push(`source "${f}"`);
+      if (!dstParents) parts.push(`target "${t}"`);
+      throw new Error(`buildGraph: edge[${edgeIdx}] references unknown ${parts.join(' and ')}`);
+    }
+    srcChildren.push(t);
+    dstParents.push(f);
+  });
+  return { nodeMap, childrenOf, parentsOf };
+}
+
+/**
+ * Topological sort via Kahn's algorithm with longest-path rank assignment.
+ * @param {Array<{id: string}>} nodes
+ * @param {Map} childrenOf
+ * @param {Map} parentsOf
+ * @returns {{ topo: string[], rank: Map<string, number>, maxRank: number }}
+ */
+function topoSortAndRank(nodes, childrenOf, parentsOf) {
+  const rank = new Map();
+  const inDeg = new Map();
+  nodes.forEach(nd => inDeg.set(nd.id, parentsOf.get(nd.id).length));
+
+  const queue = nodes.filter(nd => inDeg.get(nd.id) === 0).map(nd => nd.id);
+  queue.forEach(id => rank.set(id, 0));
+
+  const topo = [];
+  while (queue.length) {
+    const u = queue.shift();
+    topo.push(u);
+    for (const v of childrenOf.get(u)) {
+      rank.set(v, Math.max(rank.get(v) || 0, rank.get(u) + 1));
+      inDeg.set(v, inDeg.get(v) - 1);
+      if (inDeg.get(v) === 0) queue.push(v);
+    }
+  }
+
+  const maxRank = topo.length > 0 ? Math.max(...topo.map(id => rank.get(id))) : 0;
+  return { topo, rank, maxRank };
+}
+
+/**
+ * Validate a DAG definition and return warnings for common issues.
+ * Non-throwing — returns an array of human-readable warning strings.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @returns {string[]} warnings (empty if valid)
+ */
+function validateDag(nodes, edges) {
+  const warnings = [];
+  const ids = new Set();
+
+  // Duplicate node IDs
+  for (const n of nodes) {
+    if (ids.has(n.id)) warnings.push(`Duplicate node ID: "${n.id}"`);
+    ids.add(n.id);
+  }
+
+  // Edges referencing unknown nodes
+  for (const [f, t] of edges) {
+    if (!ids.has(f)) warnings.push(`Edge source "${f}" is not a known node`);
+    if (!ids.has(t)) warnings.push(`Edge target "${t}" is not a known node`);
+  }
+
+  // Cycle detection via topo sort
+  if (warnings.length === 0 && nodes.length > 0) {
+    const { childrenOf, parentsOf } = buildGraph(nodes, edges);
+    const { topo } = topoSortAndRank(nodes, childrenOf, parentsOf);
+    if (topo.length < nodes.length) {
+      const missing = nodes.filter(n => !topo.includes(n.id)).map(n => n.id);
+      warnings.push(`Cycle detected — ${missing.length} node(s) unreachable: ${missing.join(', ')}`);
+    }
+  }
+
+  return warnings;
+}
+
+/**
+ * Validate a DAG definition and throw with a useful message if invalid.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @param {string} [context='DAG']
+ */
+function assertValidDag(nodes, edges, context = 'DAG') {
+  const warnings = validateDag(nodes, edges);
+  if (warnings.length > 0) {
+    throw new Error(`${context}: invalid DAG input. ${warnings.join('; ')}`);
+  }
+}
+
+// ================================================================
+// SVG path coordinate swap (X↔Y) for orientation transforms
+// ================================================================
+
+// How many coordinate values each SVG command consumes per repetition.
+// Commands that take (x,y) pairs: values are swapped pairwise.
+// H↔V are single-axis and swap command letter instead.
+// A (arc) is not supported — its 7-param layout doesn't pair-swap cleanly.
+const CMD_PARAMS = {
+  M: 2, L: 2, T: 2,      // 1 pair
+  Q: 4, S: 4,             // 2 pairs
+  C: 6,                   // 3 pairs
+  H: 1, V: 1,             // single axis — letter swaps
+  Z: 0,                   // no params
+};
+
+/**
+ * Swap X↔Y coordinates in an SVG path string.
+ * Handles M, L, C, Q, S, T, H, V, Z (both absolute and relative).
+ * Throws on A/a (arc) — arc parameter layout requires special handling.
+ *
+ * @param {string} d - SVG path data string
+ * @returns {string} path with all X and Y coordinates swapped
+ */
+function swapPathXY(d) {
+  if (!d) return '';
+
+  // Tokenize: split into command + numbers sequences.
+  // Regex captures a command letter followed by its numeric arguments.
+  const tokens = [];
+  const re = /([MLCSQTHVZAmlcsqthvza])\s*([^MLCSQTHVZAmlcsqthvza]*)/g;
+  let m;
+  while ((m = re.exec(d)) !== null) {
+    const cmd = m[1];
+    const argStr = m[2].trim();
+    const nums = argStr.length > 0 ? argStr.split(/[\s,]+/).map(Number) : [];
+    tokens.push({ cmd, nums });
+  }
+
+  const parts = [];
+  for (const { cmd, nums } of tokens) {
+    const upper = cmd.toUpperCase();
+
+    if (upper === 'A') {
+      throw new Error('swapPathXY: arc commands (A/a) are not supported');
+    }
+
+    if (upper === 'Z') {
+      parts.push(cmd);
+      continue;
+    }
+
+    if (upper === 'H') {
+      // H x → V x (swap command letter, keep value)
+      parts.push((cmd === 'H' ? 'V' : 'v') + ' ' + nums.join(' '));
+      continue;
+    }
+
+    if (upper === 'V') {
+      // V y → H y
+      parts.push((cmd === 'V' ? 'H' : 'h') + ' ' + nums.join(' '));
+      continue;
+    }
+
+    // Pair-swapping commands: swap every (x, y) → (y, x)
+    const swapped = [];
+    for (let i = 0; i < nums.length; i += 2) {
+      swapped.push(nums[i + 1], nums[i]);
+    }
+    parts.push(cmd + ' ' + swapped.join(' '));
+  }
+
+  return parts.join(' ');
+}
 
 // --- themes.js ---
 // ================================================================
@@ -474,27 +803,27 @@ function angularPath(px, py, qx, qy, routeIdx, segIdx, refY, options = {}) {
 const THEMES = {
   cream: {
     paper: '#F5F0E8', ink: '#2C2C2C', muted: '#8C8680', border: '#D4CFC7',
-    classes: { pure: '#2B8A8E', recordable: '#E8846B', side_effecting: '#D4944C', gate: '#C45B4A' }
+    classes: { pure: '#2B8A8E', recordable: '#E8846B', side_effecting: '#D4944C', gate: '#C45B4A', pending: '#B0AAA0' }
   },
   light: {
     paper: '#FAFAFA', ink: '#333333', muted: '#999999', border: '#E0E0E0',
-    classes: { pure: '#0077B6', recordable: '#E36414', side_effecting: '#6C757D', gate: '#DC3545' }
+    classes: { pure: '#0077B6', recordable: '#E36414', side_effecting: '#6C757D', gate: '#DC3545', pending: '#BDBDBD' }
   },
   dark: {
     paper: '#1E1E2E', ink: '#CDD6F4', muted: '#6C7086', border: '#313244',
-    classes: { pure: '#94E2D5', recordable: '#F38BA8', side_effecting: '#F9E2AF', gate: '#EBA0AC' }
+    classes: { pure: '#94E2D5', recordable: '#F38BA8', side_effecting: '#F9E2AF', gate: '#EBA0AC', pending: '#45475A' }
   },
   blueprint: {
     paper: '#1B2838', ink: '#E0E8F0', muted: '#5A7A9A', border: '#2A4060',
-    classes: { pure: '#4FC3F7', recordable: '#FF8A65', side_effecting: '#FFD54F', gate: '#EF5350' }
+    classes: { pure: '#4FC3F7', recordable: '#FF8A65', side_effecting: '#FFD54F', gate: '#EF5350', pending: '#3D5A7A' }
   },
   mono: {
     paper: '#FFFFFF', ink: '#1A1A1A', muted: '#888888', border: '#CCCCCC',
-    classes: { pure: '#444444', recordable: '#777777', side_effecting: '#999999', gate: '#333333' }
+    classes: { pure: '#444444', recordable: '#777777', side_effecting: '#999999', gate: '#333333', pending: '#AAAAAA' }
   },
   metro: {
     paper: '#FFFFFF', ink: '#1A1A1A', muted: '#9E9E9E', border: '#D4EAF7',
-    classes: { pure: '#0078C8', recordable: '#E3242B', side_effecting: '#F5A623', gate: '#6A2D8E' },
+    classes: { pure: '#0078C8', recordable: '#E3242B', side_effecting: '#F5A623', gate: '#6A2D8E', pending: '#BDBDBD' },
     lineOpacity: 1.4
   }
 };
@@ -512,8 +841,7 @@ function resolveTheme(themeOption) {
   return { ...THEMES.cream, ...themeOption, classes: { ...THEMES.cream.classes, ...(themeOption.classes || {}) } };
 }
 
-
-// --- layout.js ---
+// --- layout-metro.js ---
 // ================================================================
 // layout.js — Shared layout engine for dag-map
 // ================================================================
@@ -521,23 +849,6 @@ function resolveTheme(themeOption) {
 // Y-position assignment with occupancy tracking, node positioning,
 // and route/extra-edge path building with pluggable routing.
 
-
-
-
-// ================================================================
-// COLORS & CONSTANTS (kept for backward compatibility)
-// ================================================================
-const C = {
-  paper: '#F5F0E8', ink: '#2C2C2C', muted: '#8C8680', border: '#D4CFC7',
-  teal: '#2B8A8E', coral: '#E8846B', amber: '#D4944C', red: '#C45B4A',
-};
-
-const CLASS_COLOR = {
-  pure: C.teal,
-  recordable: C.coral,
-  side_effecting: C.amber,
-  gate: C.red,
-};
 
 /**
  * Determine the dominant node class among a set of node IDs.
@@ -570,50 +881,38 @@ function dominantClass(nodeIds, nodeMap) {
  * @param {number} [options.layerSpacing=38] - px between topological layers
  * @param {number} [options.progressivePower=2.2] - power for progressive curves
  * @param {number} [options.scale=1.5] - scale multiplier for all spatial values
+ * @param {'ltr'|'ttb'} [options.direction='ltr'] - layout direction
  * @returns {object} { positions, routePaths, extraEdges, width, height, routes, ... }
  */
 function layoutMetro(dag, options = {}) {
   const routing = options.routing || 'bezier';
   const direction = options.direction || 'ltr';
+  const isTTB = direction === 'ttb';
   const theme = resolveTheme(options.theme);
-  const classColor = {
-    pure: theme.classes.pure,
-    recordable: theme.classes.recordable,
-    side_effecting: theme.classes.side_effecting,
-    gate: theme.classes.gate,
-  };
+  // Build classColor from all theme classes (not just hardcoded four)
+  const classColor = { ...theme.classes };
   const s = options.scale ?? 1.5;
   const TRUNK_Y = (options.trunkY ?? 160) * s;
   const MAIN_SPACING = (options.mainSpacing ?? 34) * s;
   const SUB_SPACING = (options.subSpacing ?? 16) * s;
   const layerSpacing = (options.layerSpacing ?? 38) * s;
   const progressivePower = options.progressivePower ?? 2.2;
+  const cornerRadius = (options.cornerRadius ?? 8) * s;
+  const dimOpacity = options.dimOpacity ?? 0.25;
   const maxLanes = options.maxLanes ?? null;
+  const hasProvidedRoutes = !!(options.routes && options.routes.length > 0);
 
   const { nodes, edges } = dag;
-  const nodeMap = new Map(nodes.map(n => [n.id, n]));
-  const childrenOf = new Map(), parentsOf = new Map();
-  nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
-  edges.forEach(([f, t]) => { childrenOf.get(f).push(t); parentsOf.get(t).push(f); });
+  assertValidDag(nodes, edges, 'layoutMetro');
+  const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
 
   // ── STEP 1: Topological sort + layer assignment ──
-  const layer = new Map();
-  const inDeg = new Map();
-  nodes.forEach(nd => inDeg.set(nd.id, parentsOf.get(nd.id).length));
-  const queue = nodes.filter(nd => inDeg.get(nd.id) === 0).map(nd => nd.id);
-  queue.forEach(id => layer.set(id, 0));
-  const topo = [];
-  while (queue.length) {
-    const u = queue.shift(); topo.push(u);
-    for (const v of childrenOf.get(u)) {
-      layer.set(v, Math.max(layer.get(v) || 0, layer.get(u) + 1));
-      inDeg.set(v, inDeg.get(v) - 1);
-      if (inDeg.get(v) === 0) queue.push(v);
-    }
-  }
-  const maxLayer = Math.max(...topo.map(id => layer.get(id)));
+  const { topo, rank: layer, maxRank: maxLayer } = topoSortAndRank(nodes, childrenOf, parentsOf);
 
-  // ── STEP 2: Extract routes via greedy longest-path ──
+  // ── STEP 2: Extract routes ──
+  // Either use consumer-provided routes or auto-discover via greedy longest-path.
+  const lineGap = (options.lineGap ?? 5) * s; // perpendicular gap between parallel lines
+
   function longestPathIn(nodeSet) {
     const dist = new Map(), prev = new Map();
     nodeSet.forEach(id => { dist.set(id, 0); prev.set(id, null); });
@@ -637,45 +936,104 @@ function layoutMetro(dag, options = {}) {
   const routes = [];
   const assigned = new Set();
   const nodeRoute = new Map();
+  const nodeRoutes = new Map(); // node → Set<routeIdx> (all routes through this node)
+  nodes.forEach(nd => nodeRoutes.set(nd.id, new Set()));
 
-  const trunk = longestPathIn(new Set(topo));
-  routes.push({ nodes: trunk, lane: 0, parentRoute: -1, depth: 0 });
-  trunk.forEach(id => { assigned.add(id); nodeRoute.set(id, 0); });
+  if (options.routes && options.routes.length > 0) {
+    // ── Consumer-provided routes ──
+    // Sort by length descending — longest route becomes trunk
+    const provided = options.routes
+      .map((r, i) => ({ ...r, originalIndex: i }))
+      .sort((a, b) => b.nodes.length - a.nodes.length);
 
-  let safety = 0;
-  while (assigned.size < nodes.length && safety++ < 300) {
-    const unassigned = [];
-    nodes.forEach(nd => { if (!assigned.has(nd.id)) unassigned.push(nd.id); });
-    if (unassigned.length === 0) break;
+    provided.forEach((pr, i) => {
+      // Determine parent route: the earlier route that shares the most nodes
+      let parentRouteIdx = -1;
+      let bestOverlap = 0;
+      const prNodeSet = new Set(pr.nodes);
+      for (let j = 0; j < i; j++) {
+        const overlap = routes[j].nodes.filter(id => prNodeSet.has(id)).length;
+        if (overlap > bestOverlap) { bestOverlap = overlap; parentRouteIdx = j; }
+      }
+      if (i === 0) parentRouteIdx = -1;
+      const depth = parentRouteIdx >= 0 ? routes[parentRouteIdx].depth + 1 : 0;
 
-    const unassignedSet = new Set(unassigned);
-    let bestPath = longestPathIn(unassignedSet);
-    if (bestPath.length === 0) {
-      unassigned.forEach(id => { assigned.add(id); nodeRoute.set(id, 0); });
-      break;
-    }
+      routes.push({
+        nodes: pr.nodes,
+        lane: 0,
+        parentRoute: parentRouteIdx >= 0 ? parentRouteIdx : (i === 0 ? -1 : 0),
+        depth,
+        cls: pr.cls || null,
+        id: pr.id || null,
+      });
 
-    const firstNode = bestPath[0];
-    const assignedParents = parentsOf.get(firstNode).filter(p => assigned.has(p));
-    let parentRouteIdx = 0;
-    if (assignedParents.length > 0) {
-      bestPath.unshift(assignedParents[0]);
-      parentRouteIdx = nodeRoute.get(assignedParents[0]) ?? 0;
-    }
-
-    const lastNode = bestPath[bestPath.length - 1];
-    const assignedChildren = childrenOf.get(lastNode).filter(c => assigned.has(c));
-    if (assignedChildren.length > 0) {
-      bestPath.push(assignedChildren[0]);
-    }
-
-    const ri = routes.length;
-    const parentDepth = routes[parentRouteIdx]?.depth ?? 0;
-    routes.push({ nodes: bestPath, lane: 0, parentRoute: parentRouteIdx, depth: parentDepth + 1 });
-    bestPath.forEach(id => {
-      if (!assigned.has(id)) { assigned.add(id); nodeRoute.set(id, ri); }
+      const ri = routes.length - 1;
+      pr.nodes.forEach(id => {
+        if (!assigned.has(id)) { assigned.add(id); nodeRoute.set(id, ri); }
+        nodeRoutes.get(id)?.add(ri);
+      });
     });
+
+    // Any nodes not in any route get assigned to route 0
+    nodes.forEach(nd => {
+      if (!assigned.has(nd.id)) {
+        assigned.add(nd.id);
+        nodeRoute.set(nd.id, 0);
+      }
+    });
+  } else {
+    // ── Auto-discover routes via greedy longest-path ──
+    const trunk = longestPathIn(new Set(topo));
+    routes.push({ nodes: trunk, lane: 0, parentRoute: -1, depth: 0 });
+    trunk.forEach(id => { assigned.add(id); nodeRoute.set(id, 0); nodeRoutes.get(id)?.add(0); });
+
+    let safety = 0;
+    while (assigned.size < nodes.length && safety++ < 300) {
+      const unassigned = [];
+      nodes.forEach(nd => { if (!assigned.has(nd.id)) unassigned.push(nd.id); });
+      if (unassigned.length === 0) break;
+
+      const unassignedSet = new Set(unassigned);
+      let bestPath = longestPathIn(unassignedSet);
+      if (bestPath.length === 0) {
+        unassigned.forEach(id => { assigned.add(id); nodeRoute.set(id, 0); });
+        break;
+      }
+
+      const firstNode = bestPath[0];
+      const assignedParents = parentsOf.get(firstNode).filter(p => assigned.has(p));
+      let parentRouteIdx = 0;
+      if (assignedParents.length > 0) {
+        bestPath.unshift(assignedParents[0]);
+        parentRouteIdx = nodeRoute.get(assignedParents[0]) ?? 0;
+      }
+
+      const lastNode = bestPath[bestPath.length - 1];
+      const assignedChildren = childrenOf.get(lastNode).filter(c => assigned.has(c));
+      if (assignedChildren.length > 0) {
+        bestPath.push(assignedChildren[0]);
+      }
+
+      const ri = routes.length;
+      const parentDepth = routes[parentRouteIdx]?.depth ?? 0;
+      routes.push({ nodes: bestPath, lane: 0, parentRoute: parentRouteIdx, depth: parentDepth + 1 });
+      bestPath.forEach(id => {
+        if (!assigned.has(id)) { assigned.add(id); nodeRoute.set(id, ri); }
+        nodeRoutes.get(id)?.add(ri);
+      });
+    }
   }
+
+  // ── Build shared segment map for parallel offset rendering ──
+  // segmentRoutes: "A→B" → [routeIdx, ...] (ordered)
+  const segmentRoutes = new Map();
+  routes.forEach((route, ri) => {
+    for (let i = 1; i < route.nodes.length; i++) {
+      const key = `${route.nodes[i - 1]}\u2192${route.nodes[i]}`;
+      if (!segmentRoutes.has(key)) segmentRoutes.set(key, []);
+      segmentRoutes.get(key).push(ri);
+    }
+  });
 
   // ── STEP 3: Y-position assignment with occupancy tracking ──
   const routeChildren = new Map();
@@ -733,8 +1091,11 @@ function layoutMetro(dag, options = {}) {
     const parentY = routeY.get(pi);
     const children = routeChildren.get(pi) || [];
 
-    // Sort: longest routes first
-    children.sort((a, b) => routeOwnLength[b] - routeOwnLength[a]);
+    // With provided routes, keep route order (gives consumer control over above/below).
+    // With auto-discovered routes, sort longest first.
+    if (!hasProvidedRoutes) {
+      children.sort((a, b) => routeOwnLength[b] - routeOwnLength[a]);
+    }
 
     let childAbove = 0, childBelow = 0;
 
@@ -748,10 +1109,12 @@ function layoutMetro(dag, options = {}) {
       // Spacing depends on depth and route length
       const spacing = (depth <= 1 && ownLength > 2) ? MAIN_SPACING : SUB_SPACING;
 
-      // Direction: side_effecting below, recordable above,
-      // pure alternates but prefers above for balance
+      // With provided routes, alternate strictly: first child above, second below, etc.
+      // With auto-discovered routes, use class-based heuristics.
       let preferBelow;
-      if (cls === 'side_effecting') {
+      if (hasProvidedRoutes) {
+        preferBelow = childBelow <= childAbove;
+      } else if (cls === 'side_effecting') {
         preferBelow = true;
       } else if (cls === 'recordable' && depth === 1) {
         preferBelow = false;
@@ -827,16 +1190,23 @@ function layoutMetro(dag, options = {}) {
   const trunkYScreen = topPad + (TRUNK_Y - minY);
 
   // ── STEP 5: Build route paths ──
-  const pathFn = routing === 'bezier' ? bezierPath : angularPath;
+  const pathFn = routing === 'metro' ? metroPath : routing === 'bezier' ? bezierPath : angularPath;
   const opBoost = theme.lineOpacity ?? 1.0;
 
   const routePaths = routes.map((route, ri) => {
     const pts = route.nodes.map(id => ({ ...positions.get(id), id }));
     const ownNodes = route.nodes.filter(id => nodeRoute.get(id) === ri);
-    const color = classColor[dominantClass(ownNodes, nodeMap)] || classColor.pure;
+
+    // Route color: use route's cls if provided, else dominant class
+    const routeCls = route.cls || dominantClass(ownNodes, nodeMap);
+    const color = classColor[routeCls] || classColor.pure || Object.values(classColor)[0];
 
     let thickness, opacity;
-    if (ri === 0) {
+    if (hasProvidedRoutes) {
+      // With provided routes, all lines are equal weight
+      thickness = 3 * s;
+      opacity = Math.min(0.55 * opBoost, 1);
+    } else if (ri === 0) {
       thickness = 5 * s;
       opacity = Math.min(0.6 * opBoost, 1);
     } else if (ownNodes.length > 5) {
@@ -850,36 +1220,62 @@ function layoutMetro(dag, options = {}) {
       opacity = Math.min(0.28 * opBoost, 1);
     }
 
+    // Precompute per-node offset for this route.
+    // At each node, find all routes passing through it and assign a consistent
+    // slot so the line enters and exits at the same Y-offset.
+    const nodeOffsetY = new Map();
+    for (const id of route.nodes) {
+      const nr = nodeRoutes.get(id);
+      if (nr && nr.size > 1) {
+        const allRoutes = [...nr].sort((a, b) => a - b); // stable order
+        const idx = allRoutes.indexOf(ri);
+        const n = allRoutes.length;
+        nodeOffsetY.set(id, (idx - (n - 1) / 2) * lineGap);
+      } else {
+        nodeOffsetY.set(id, 0);
+      }
+    }
+
     const segments = [];
     for (let i = 1; i < pts.length; i++) {
       const p = pts[i - 1], q = pts[i];
+
+      // Use node-based offsets for continuity through stations
+      const offPy = nodeOffsetY.get(p.id) || 0;
+      const offQy = nodeOffsetY.get(q.id) || 0;
+
+      const px = p.x, py = p.y + offPy;
+      const qx = q.x, qy = q.y + offQy;
+
+      // Segment color: use route color for provided routes, else source node class
       const srcNode = nodeMap.get(p.id);
-      const segColor = classColor[srcNode?.cls] || color;
-      const segDashed = srcNode?.cls === 'gate';
+      const segColor = hasProvidedRoutes ? color : (classColor[srcNode?.cls] || color);
+      const segDashed = srcNode?.cls === 'gate' || route.cls === 'gate';
 
       // Determine reference Y for convergence/divergence detection
       let segRefY;
       if (routing === 'angular') {
-        // R9: Interchange-based direction detection
         const srcIsOwn = nodeRoute.get(p.id) === ri;
         const dstIsOwn = nodeRoute.get(q.id) === ri;
 
         if (!srcIsOwn && dstIsOwn) {
-          // FORK: source is interchange, dest is own node -> DIVERGENCE
-          segRefY = p.y;
+          segRefY = py;
         } else if (srcIsOwn && !dstIsOwn) {
-          // RETURN: source is own node, dest is interchange -> CONVERGENCE
-          segRefY = q.y;
+          segRefY = qy;
         } else {
-          // Both own or both interchange -> use trunk Y as fallback
           segRefY = trunkYScreen;
         }
       } else {
         segRefY = trunkYScreen;
       }
 
-      const d = `M ${p.x} ${p.y} ` + pathFn(p.x, p.y, q.x, q.y, ri, i, segRefY, { progressivePower });
-      segments.push({ d, color: segColor, thickness, opacity, dashed: segDashed });
+      const d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
+      // Dim route segments where source or destination node is dimmed
+      const dstNode = nodeMap.get(q.id);
+      const srcDim = srcNode?.dim === true;
+      const dstDim = dstNode?.dim === true;
+      const segOpacity = (srcDim || dstDim) ? Math.min(opacity, dimOpacity * 0.48) : opacity;
+      segments.push({ d, color: segColor, thickness, opacity: segOpacity, dashed: segDashed });
     }
     return segments;
   });
@@ -903,8 +1299,11 @@ function layoutMetro(dag, options = {}) {
     // Extra edges always use trunkScreenY as reference
     const refY = trunkYScreen;
 
-    const d = `M ${p.x} ${p.y} ` + pathFn(p.x, p.y, q.x, q.y, extraIdx, 0, refY, { progressivePower });
-    extraEdges.push({ d, color, thickness: 1.8 * s, opacity: Math.min(0.22 * opBoost, 1), dashed: srcNode?.cls === 'gate' });
+    const d = `M ${p.x} ${p.y} ` + pathFn(p.x, p.y, q.x, q.y, extraIdx, 0, refY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
+    const dstNode = nodeMap.get(t);
+    const extraDim = srcNode?.dim === true || dstNode?.dim === true;
+    const extraOpacity = extraDim ? Math.min(dimOpacity * 0.32, Math.min(0.22 * opBoost, 1)) : Math.min(0.22 * opBoost, 1);
+    extraEdges.push({ d, color, thickness: 1.8 * s, opacity: extraOpacity, dashed: srcNode?.cls === 'gate' });
   });
 
   // Node lane info (for compatibility)
@@ -915,28 +1314,41 @@ function layoutMetro(dag, options = {}) {
   });
 
   if (direction === 'ttb') {
+    // Swap X↔Y in all positions
     for (const [id, pos] of positions) {
       positions.set(id, { x: pos.y, y: pos.x });
     }
-    function swapPathCoords(d) {
-      return d.replace(/([MLCQ])\s*/gi, '\n$1 ').split('\n').filter(Boolean).map(seg => {
-        const cmd = seg[0];
-        const nums = seg.slice(1).trim().split(/[\s,]+/).map(Number);
-        const swapped = [];
-        for (let i = 0; i < nums.length; i += 2) {
-          swapped.push(nums[i + 1], nums[i]);
-        }
-        return cmd + ' ' + swapped.join(' ');
-      }).join(' ');
-    }
+
+    // Rewrite SVG path data: swap all coordinate pairs
     for (const segments of routePaths) {
-      for (const seg of segments) { seg.d = swapPathCoords(seg.d); }
+      for (const seg of segments) {
+        seg.d = swapPathXY(seg.d);
+      }
     }
-    for (const seg of extraEdges) { seg.d = swapPathCoords(seg.d); }
+    for (const seg of extraEdges) {
+      seg.d = swapPathXY(seg.d);
+    }
+
     return {
-      positions, routePaths, extraEdges, width: height, height: width,
-      maxLayer, routes, nodeLane, nodeRoute, laneSpacing: MAIN_SPACING,
-      layerSpacing, minY, maxY, routeYScreen, trunkYScreen, scale: s, theme,
+      positions,
+      routePaths,
+      extraEdges,
+      width: height,
+      height: width,
+      maxLayer,
+      routes,
+      nodeLane,
+      nodeRoute,
+      nodeRoutes,
+      segmentRoutes,
+      laneSpacing: MAIN_SPACING,
+      layerSpacing,
+      minY,
+      maxY,
+      routeYScreen,
+      trunkYScreen,
+      scale: s,
+      theme,
       orientation: 'ttb',
     };
   }
@@ -951,6 +1363,8 @@ function layoutMetro(dag, options = {}) {
     routes,
     nodeLane,
     nodeRoute,
+    nodeRoutes,
+    segmentRoutes,
     laneSpacing: MAIN_SPACING,
     layerSpacing,
     minY,
@@ -961,7 +1375,6 @@ function layoutMetro(dag, options = {}) {
     theme,
   };
 }
-
 
 // --- render.js ---
 // ================================================================
@@ -975,7 +1388,17 @@ function layoutMetro(dag, options = {}) {
 //   cssVars: false (default) — inline hex colors, portable SVG
 //   cssVars: true — CSS var() references, themeable from CSS
 
-// Backward-compat import — only used if layout.theme is missing
+
+/** Escape user-supplied strings for safe SVG/XML interpolation. */
+function esc(s) {
+  if (typeof s !== 'string') return s;
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Escape values interpolated into quoted XML attributes. */
+function escAttr(v) {
+  return esc(String(v ?? ''));
+}
 
 /**
  * Render a DAG layout as an SVG string.
@@ -984,22 +1407,33 @@ function layoutMetro(dag, options = {}) {
  * @param {object} layout - result from layoutMetro()
  * @param {object} [options]
  * @param {string} [options.title] - title displayed at top of SVG
+ * @param {string|null} [options.subtitle] - subtitle text (null to hide)
+ * @param {string} [options.font] - font-family for SVG text
  * @param {boolean} [options.diagonalLabels=false] - tube-map style diagonal labels
  * @param {number} [options.labelAngle=45] - angle in degrees for diagonal labels (0-90)
  * @param {boolean} [options.showLegend=true] - show legend at bottom
  * @param {object} [options.legendLabels] - custom legend labels per class
  * @param {boolean} [options.cssVars=false] - use CSS var() references instead of inline colors
+ * @param {number} [options.labelSize=5] - label font size multiplier (before scale)
+ * @param {function} [options.renderNode] - custom node renderer: (node, pos, ctx) => SVG string
+ * @param {function} [options.renderEdge] - custom edge renderer: (edge, segment, ctx) => SVG string
  * @returns {string} SVG markup
  */
 function renderSVG(dag, layout, options = {}) {
   const {
     title,
+    subtitle,
     diagonalLabels = false,
     labelAngle = 45,
     showLegend = true,
     cssVars = false,
     labelSize = 5,
+    dimOpacity = 0.25,
+    renderNode,
+    renderEdge,
   } = options;
+
+  const font = options.font || "'IBM Plex Mono', 'Courier New', monospace";
 
   const defaultLegendLabels = {
     pure: 'Primary',
@@ -1010,7 +1444,7 @@ function renderSVG(dag, layout, options = {}) {
   const legendLabels = { ...defaultLegendLabels, ...(options.legendLabels || {}) };
 
   // Resolve colors from theme (with backward-compat fallback)
-  const theme = layout.theme || { paper: C.paper, ink: C.ink, muted: C.muted, border: C.border, classes: { pure: C.teal, recordable: C.coral, side_effecting: C.amber, gate: C.red } };
+  const theme = layout.theme || resolveTheme('cream');
 
   // Color resolver: either inline hex or CSS var() reference
   const clsVar = (cls) => `var(--dm-cls-${cls.replace(/_/g, '-')})`;
@@ -1028,7 +1462,7 @@ function renderSVG(dag, layout, options = {}) {
     cls:    (cls) => theme.classes[cls] || theme.classes.pure,
   };
 
-  const { positions, routePaths, extraEdges, width, height, routes, nodeRoute } = layout;
+  const { positions, routePaths, extraEdges, width, height, routes, nodeRoute, nodeRoutes } = layout;
   const s = layout.scale || 1;
   const nodeMap = new Map(dag.nodes.map(n => [n.id, n]));
   const inDeg = new Map(), outDeg = new Map();
@@ -1036,12 +1470,15 @@ function renderSVG(dag, layout, options = {}) {
   dag.edges.forEach(([f, t]) => { outDeg.set(f, outDeg.get(f) + 1); inDeg.set(t, inDeg.get(t) + 1); });
 
   const displayTitle = title || `DAG (${dag.nodes.length} OPS)`;
+  const displaySubtitle = subtitle !== undefined ? subtitle : 'Topological layout. Colored lines = execution paths by node class.';
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="'IBM Plex Mono', 'Courier New', monospace">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="${font}">\n`;
   svg += `<rect width="${width}" height="${height}" fill="${col.paper}"/>\n`;
 
-  svg += `<text x="${24 * s}" y="${22 * s}" font-size="${10 * s}" fill="${col.ink}" letter-spacing="0.06em" opacity="0.5">${displayTitle}</text>\n`;
-  svg += `<text x="${24 * s}" y="${34 * s}" font-size="${6.5 * s}" fill="${col.muted}">Topological layout. Colored lines = execution paths by node class.</text>\n`;
+  svg += `<text x="${24 * s}" y="${22 * s}" font-size="${10 * s}" fill="${col.ink}" letter-spacing="0.06em" opacity="0.5">${esc(displayTitle)}</text>\n`;
+  if (displaySubtitle) {
+    svg += `<text x="${24 * s}" y="${34 * s}" font-size="${6.5 * s}" fill="${col.muted}">${esc(displaySubtitle)}</text>\n`;
+  }
 
   // Route lines — extra edges first (behind)
   // Note: route/edge colors come from layout (already resolved to hex).
@@ -1055,23 +1492,51 @@ function renderSVG(dag, layout, options = {}) {
     return hexColor; // fallback to hex if no match
   }
 
-  extraEdges.forEach(seg => {
-    svg += `<path d="${seg.d}" stroke="${segColor(seg.color)}" stroke-width="${seg.thickness}" fill="none" `;
-    svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${seg.opacity}"`;
-    if (seg.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
-    svg += `/>\n`;
-  });
+  // Build edge lookup for data attributes
+  const edgeIndex = new Map();
+  dag.edges.forEach(([f, t], i) => { edgeIndex.set(`${f}\u2192${t}`, i); });
 
-  routePaths.forEach(segments => {
-    segments.forEach(seg => {
+  // Extra edges (cross-route connections)
+  extraEdges.forEach((seg, i) => {
+    if (renderEdge) {
+      const ctx = { theme, scale: s, isExtraEdge: true, index: i };
+      svg += renderEdge(null, { ...seg, color: segColor(seg.color) }, ctx);
+      svg += '\n';
+    } else {
       svg += `<path d="${seg.d}" stroke="${segColor(seg.color)}" stroke-width="${seg.thickness}" fill="none" `;
       svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${seg.opacity}"`;
       if (seg.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
+      svg += ` data-edge-extra="true"`;
       svg += `/>\n`;
+    }
+  });
+
+  // Route edges
+  routes.forEach((route, ri) => {
+    const segments = routePaths[ri];
+    if (!segments) return;
+    segments.forEach((seg, si) => {
+      const fromId = route.nodes[si];
+      const toId = route.nodes[si + 1];
+
+      if (renderEdge) {
+        const edge = fromId && toId ? { from: fromId, to: toId } : null;
+        const ctx = { theme, scale: s, isExtraEdge: false, routeIndex: ri, segmentIndex: si };
+        svg += renderEdge(edge, { ...seg, color: segColor(seg.color) }, ctx);
+        svg += '\n';
+      } else {
+        svg += `<path d="${seg.d}" stroke="${segColor(seg.color)}" stroke-width="${seg.thickness}" fill="none" `;
+        svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${seg.opacity}"`;
+        if (seg.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
+        if (fromId && toId) {
+          svg += ` data-edge-from="${escAttr(fromId)}" data-edge-to="${escAttr(toId)}" data-route="${ri}"`;
+        }
+        svg += `/>\n`;
+      }
     });
   });
 
-  // Stations
+  // Stations (nodes)
   dag.nodes.forEach(nd => {
     const pos = positions.get(nd.id);
     if (!pos) return;
@@ -1081,51 +1546,89 @@ function renderSVG(dag, layout, options = {}) {
 
     const ri = nodeRoute.get(nd.id);
     const depth = (ri !== undefined && routes[ri]) ? routes[ri].depth : 0;
-    let r;
-    if (isInterchange) {
-      r = 5.5 * s;
-    } else if (depth <= 1) {
-      r = 3.5 * s;
+
+    // Compute route info for this node
+    const nRoutes = nodeRoutes ? nodeRoutes.get(nd.id) : null;
+    const routeCount = nRoutes ? nRoutes.size : 1;
+    const routeClasses = nRoutes
+      ? [...nRoutes].map(idx => routes[idx]?.cls).filter(Boolean)
+      : [];
+
+    if (renderNode) {
+      const ctx = {
+        theme,
+        scale: s,
+        isInterchange,
+        depth,
+        inDegree: inDeg.get(nd.id),
+        outDegree: outDeg.get(nd.id),
+        color,
+        routeIndex: ri,
+        routeCount,
+        routeClasses,
+        orientation: layout.orientation || 'ltr',
+        laneX: layout.laneX || null,
+      };
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}">`;
+      svg += renderNode(nd, pos, ctx);
+      svg += `</g>\n`;
     } else {
-      r = 3 * s;
-    }
+      let r;
+      if (isInterchange) {
+        r = 5.5 * s;
+      } else if (depth <= 1) {
+        r = 3.5 * s;
+      } else {
+        r = 3 * s;
+      }
 
-    svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
-    svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
-    if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
-    svg += `/>\n`;
+      const isDim = nd.dim === true;
+      const dO = dimOpacity; // shorthand
+      const nodeOpacity = isDim ? dO : 1;
 
-    if (isInterchange && !isGate) {
-      svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="0.3"/>\n`;
-    }
-    if (isGate) {
-      svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="0.4"/>\n`;
-    }
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}">`;
 
-    const fs = labelSize * s;
-    if (diagonalLabels) {
-      const tickLen = 6 * s;
-      const angle = -labelAngle;
-      const rad = angle * Math.PI / 180;
-      const tickEndX = pos.x + Math.cos(rad) * tickLen;
-      const tickEndY = pos.y + Math.sin(rad) * tickLen;
-      svg += `<line x1="${pos.x.toFixed(1)}" y1="${(pos.y - r).toFixed(1)}" `;
-      svg += `x2="${tickEndX.toFixed(1)}" y2="${(tickEndY - r).toFixed(1)}" `;
-      svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="0.3"/>\n`;
-      const textX = tickEndX + 1 * s;
-      const textY = tickEndY - r - 1 * s;
-      svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
-      svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="0.55" `;
-      svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${nd.label}</text>\n`;
-    } else if (layout.orientation === 'ttb') {
-      const labelX = pos.x + r + 4 * s;
-      const labelY = pos.y + fs * 0.35;
-      svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-      svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${nd.label}</text>\n`;
-    } else {
-      const labelY = pos.y + r + 8 * s;
-      svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-      svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${nd.label}</text>\n`;
+      svg += `<circle data-id="${escAttr(nd.id)}" cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
+      svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
+      if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+      if (isDim) svg += ` opacity="${nodeOpacity}"`;
+      svg += `/>`;
+
+      if (isInterchange && !isGate) {
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="${isDim ? dO * 0.4 : 0.3}"/>`;
+      }
+      if (isGate) {
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="${isDim ? dO * 0.6 : 0.4}"/>`;
+      }
+
+      const fs = labelSize * s;
+      const labelOpacity = isDim ? dO * 0.8 : 0.55;
+      if (diagonalLabels) {
+        const tickLen = 6 * s;
+        const angle = -labelAngle;
+        const rad = angle * Math.PI / 180;
+        const tickEndX = pos.x + Math.cos(rad) * tickLen;
+        const tickEndY = pos.y + Math.sin(rad) * tickLen;
+        svg += `<line x1="${pos.x.toFixed(1)}" y1="${(pos.y - r).toFixed(1)}" `;
+        svg += `x2="${tickEndX.toFixed(1)}" y2="${(tickEndY - r).toFixed(1)}" `;
+        svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="${isDim ? dO * 0.4 : 0.3}"/>`;
+        const textX = tickEndX + 1 * s;
+        const textY = tickEndY - r - 1 * s;
+        svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
+        svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}" `;
+        svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${esc(nd.label)}</text>`;
+      } else if (layout.orientation === 'ttb') {
+        const labelX = pos.x + r + 4 * s;
+        const labelY = pos.y + fs * 0.35;
+        svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
+      } else {
+        const labelY = pos.y + r + 8 * s;
+        svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
+      }
+
+      svg += `</g>\n`;
     }
   });
 
@@ -1134,16 +1637,16 @@ function renderSVG(dag, layout, options = {}) {
     const ly = height - 55 * s;
     svg += `<line x1="${24 * s}" y1="${ly}" x2="${width - 24 * s}" y2="${ly}" stroke="${col.border}" stroke-width="${0.3 * s}"/>\n`;
 
-    const lines = [
-      [legendLabels.pure, col.cls('pure')], [legendLabels.side_effecting, col.cls('side_effecting')],
-      [legendLabels.recordable, col.cls('recordable')], [legendLabels.gate, col.cls('gate')],
-    ];
-    lines.forEach(([label, color], i) => {
+    // Derive legend entries from theme classes
+    const classKeys = Object.keys(theme.classes);
+    classKeys.forEach((cls, i) => {
+      const label = legendLabels[cls] || cls;
+      const color = col.cls(cls);
       const x = 24 * s + i * 160 * s;
       svg += `<line x1="${x}" y1="${ly + 16 * s}" x2="${x + 22 * s}" y2="${ly + 16 * s}" stroke="${color}" stroke-width="${3.5 * s}" opacity="0.5" stroke-linecap="round"`;
-      if (i === 3) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
+      if (cls === 'gate') svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
       svg += `/>\n`;
-      svg += `<text x="${x + 28 * s}" y="${ly + 19 * s}" font-size="${6.5 * s}" fill="${col.muted}">${label}</text>\n`;
+      svg += `<text x="${x + 28 * s}" y="${ly + 19 * s}" font-size="${6.5 * s}" fill="${col.muted}">${esc(label)}</text>\n`;
     });
 
     const vertSpread = layout.maxY - layout.minY;
@@ -1167,8 +1670,10 @@ function renderSVG(dag, layout, options = {}) {
  * @param {string} [cls='pure'] - node class: pure, recordable, side_effecting, gate
  * @returns {{id: string, label: string, cls: string}}
  */
-function n(id, label, cls) {
-  return { id, label: label || id, cls: cls || 'pure' };
+function n(id, label, cls, dim) {
+  var node = { id, label: label || id, cls: cls || 'pure' };
+  if (dim) node.dim = true;
+  return node;
 }
 
 const DAGS = {
@@ -1346,10 +1851,71 @@ const DAGS = {
     for (let i = 0; i < 4; i++) edges.push([`m${i}`, 'final']);
     return { nodes, edges };
   },
+
+  // -- Models with dim/pending support --
+
+  execution_snapshot: () => ({
+    // A pipeline mid-execution: some nodes done, one running, rest pending
+    nodes: [
+      n('order', 'Order', 'pure'),
+      n('plan', 'Plan', 'pure'),
+      n('source', 'Source Raw', 'side_effecting'),
+      n('inspect', 'Inspect Raw', 'recordable'),
+      n('parts_a', 'Source Parts', 'side_effecting'),
+      n('parts_b', 'Inspect Parts', 'recordable'),
+      n('prepare', 'Prepare', 'recordable'),
+      n('assemble', 'Assemble', 'pending', true),
+      n('weld', 'Weld', 'pending', true),
+      n('paint', 'Paint', 'pending', true),
+      n('qa', 'QA Check', 'pending', true),
+      n('rework', 'Rework', 'pending', true),
+      n('pack', 'Pack', 'pending', true),
+      n('ship', 'Ship', 'pending', true),
+      n('invoice', 'Invoice', 'pending', true),
+    ],
+    edges: [
+      ['order', 'plan'], ['plan', 'source'], ['plan', 'parts_a'],
+      ['source', 'inspect'], ['parts_a', 'parts_b'],
+      ['inspect', 'prepare'], ['parts_b', 'prepare'],
+      ['prepare', 'assemble'], ['assemble', 'weld'], ['weld', 'paint'],
+      ['paint', 'qa'], ['qa', 'pack'], ['qa', 'rework'],
+      ['rework', 'pack'], ['pack', 'ship'], ['ship', 'invoice'],
+    ]
+  }),
+
+  heatmap_pipeline: () => ({
+    // A data pipeline with hotspot highlighting: active path bright, cold paths dimmed
+    nodes: [
+      n('ingest_a', 'API Ingest', 'side_effecting'),
+      n('ingest_b', 'DB Sync', 'side_effecting', true),
+      n('ingest_c', 'File Import', 'side_effecting', true),
+      n('validate', 'Validate', 'pure'),
+      n('normalize', 'Normalize', 'pure'),
+      n('enrich', 'Enrich', 'recordable'),
+      n('dedupe', 'Deduplicate', 'pure'),
+      n('score', 'ML Score', 'recordable'),
+      n('route_a', 'Fast Track', 'pure'),
+      n('route_b', 'Manual Review', 'gate', true),
+      n('store', 'Store', 'side_effecting'),
+      n('notify', 'Notify', 'side_effecting'),
+      n('archive', 'Archive', 'side_effecting', true),
+    ],
+    edges: [
+      ['ingest_a', 'validate'], ['ingest_b', 'validate'], ['ingest_c', 'validate'],
+      ['validate', 'normalize'], ['normalize', 'enrich'],
+      ['enrich', 'dedupe'], ['dedupe', 'score'],
+      ['score', 'route_a'], ['score', 'route_b'],
+      ['route_a', 'store'], ['route_b', 'store'],
+      ['store', 'notify'], ['store', 'archive'],
+    ]
+  }),
 };
 
 
 // --- app ---
+// Click-to-toggle: nodes whose dim state is manually flipped
+var dimOverrides = new Set(); // node IDs toggled by click
+
 function render() {
   var dagName = document.getElementById('dagSelect').value;
   var direction = document.getElementById('directionSelect').value;
@@ -1385,12 +1951,51 @@ function render() {
   root.style.setProperty('--dm-border', resolved.border);
 
   var dag = DAGS[dagName]();
+
+  // Execution progress slider: compute topo order, dim nodes beyond cursor
+  var progressPct = parseInt(document.getElementById('progressSlider').value, 10);
+  document.getElementById('progressSlider').max = dag.nodes.length;
+  var progressVal = Math.min(parseInt(document.getElementById('progressSlider').value, 10), dag.nodes.length);
+  document.getElementById('progressSlider').value = progressVal;
+  document.getElementById('progressValue').textContent = progressVal >= dag.nodes.length ? 'all' : progressVal + '/' + dag.nodes.length;
+
+  // Topo sort for progress ordering
+  var graph = buildGraph(dag.nodes, dag.edges);
+  var topoResult = topoSortAndRank(dag.nodes, graph.childrenOf, graph.parentsOf);
+  var topoOrder = topoResult.topo;
+
+  // Apply dim: nodes after the progress cursor are dimmed, click overrides toggle
+  var activeSet = new Set(topoOrder.slice(0, progressVal));
+  dag.nodes.forEach(function(nd) {
+    var sliderDim = !activeSet.has(nd.id);
+    // Click override flips the slider state
+    nd.dim = dimOverrides.has(nd.id) ? !sliderDim : sliderDim;
+    if (nd.dim && nd.cls !== 'pending') nd._origCls = nd.cls;
+    if (nd.dim) nd.cls = 'pending';
+    else if (nd._origCls) { nd.cls = nd._origCls; delete nd._origCls; }
+  });
+
   var title = dagName.toUpperCase().replace(/_/g, ' ') + ' (' + dag.nodes.length + ' OPS)';
-  var layoutOpts = { routing: routing, direction: direction, theme: theme, scale: scale, layerSpacing: layerSpacing, mainSpacing: mainSpacing, subSpacing: subSpacing, progressivePower: progressivePower };
-  var renderOpts = { title: title, diagonalLabels: diagonalLabels, labelAngle: labelAngle, labelSize: labelSize, cssVars: cssVars };
+  var lineGap = parseFloat(document.getElementById('lineGapSlider').value);
+  document.getElementById('lineGapValue').textContent = lineGap;
+  var dimOpacity = parseFloat(document.getElementById('dimOpacitySlider').value);
+  document.getElementById('dimOpacityValue').textContent = dimOpacity;
+  var layoutOpts = { routing: routing, direction: direction, theme: theme, scale: scale, layerSpacing: layerSpacing, mainSpacing: mainSpacing, subSpacing: subSpacing, progressivePower: progressivePower, lineGap: lineGap, dimOpacity: dimOpacity };
+  var renderOpts = { title: title, diagonalLabels: diagonalLabels, labelAngle: labelAngle, labelSize: labelSize, cssVars: cssVars, dimOpacity: dimOpacity };
   var layout = layoutMetro(dag, layoutOpts);
   var svg = renderSVG(dag, layout, renderOpts);
   document.getElementById('mapContainer').innerHTML = svg;
+
+  // Click-to-toggle dim on nodes
+  document.getElementById('mapContainer').querySelectorAll('g[data-node-id]').forEach(function(g) {
+    g.style.cursor = 'pointer';
+    g.addEventListener('click', function() {
+      var nodeId = g.dataset.nodeId;
+      if (dimOverrides.has(nodeId)) dimOverrides.delete(nodeId);
+      else dimOverrides.add(nodeId);
+      render();
+    });
+  });
 
   // Build copyable code snippet — only show non-default options
   var lo = {};
@@ -1402,6 +2007,7 @@ function render() {
   if (mainSpacing !== 34) lo.mainSpacing = mainSpacing;
   if (subSpacing !== 16) lo.subSpacing = subSpacing;
   if (progressivePower !== 2.2) lo.progressivePower = progressivePower;
+  if (lineGap !== 0) lo.lineGap = lineGap;
 
   var ro = {};
   if (diagonalLabels) ro.diagonalLabels = true;
@@ -1429,14 +2035,39 @@ function render() {
 
   var el = document.getElementById('optionsBlock');
   el.innerHTML = highlight(code);
+
+  // JSON panel — current model data with dim states
+  var jsonData = {
+    nodes: dag.nodes.map(function(nd) {
+      var o = { id: nd.id, label: nd.label, cls: nd.cls };
+      if (nd.dim) o.dim = true;
+      return o;
+    }),
+    edges: dag.edges,
+  };
+  var jsonStr = JSON.stringify(jsonData, null, 2);
+  var jsonEl = document.getElementById('jsonBlock');
+  jsonEl.innerHTML = jsonStr
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"([^"]+)"\s*:/g, '<span style="color:#0550AE">"$1"</span>:')
+    .replace(/:\s*"([^"]+)"/g, ': <span style="color:#0A3069">"$1"</span>')
+    .replace(/:\s*(true|false)/g, ': <span style="color:#CF222E">$1</span>');
 }
-['dagSelect', 'directionSelect', 'routingSelect', 'themeSelect'].forEach(function(id) {
+document.getElementById('dagSelect').addEventListener('change', function() {
+  document.getElementById('progressSlider').value = 9999; // will be clamped to max in render()
+  dimOverrides.clear();
+  render();
+});
+document.getElementById('progressSlider').addEventListener('input', function() {
+  dimOverrides.clear();
+});
+['directionSelect', 'routingSelect', 'themeSelect'].forEach(function(id) {
   document.getElementById(id).addEventListener('change', render);
 });
 ['diagonalLabels', 'cssVars'].forEach(function(id) {
   document.getElementById(id).addEventListener('change', render);
 });
-['labelAngle', 'labelSizeSlider', 'scaleSlider', 'layerSpacingSlider', 'mainSpacingSlider', 'subSpacingSlider', 'powerSlider'].forEach(function(id) {
+['labelAngle', 'labelSizeSlider', 'scaleSlider', 'layerSpacingSlider', 'mainSpacingSlider', 'subSpacingSlider', 'powerSlider', 'lineGapSlider', 'progressSlider', 'dimOpacitySlider'].forEach(function(id) {
   document.getElementById(id).addEventListener('input', render);
 });
 render();
