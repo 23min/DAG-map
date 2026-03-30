@@ -51,6 +51,7 @@ export function renderSVG(dag, layout, options = {}) {
     showLegend = true,
     cssVars = false,
     labelSize = 5,
+    dimOpacity = 0.25,
     renderNode,
     renderEdge,
     metrics,
@@ -222,31 +223,33 @@ export function renderSVG(dag, layout, options = {}) {
         r = 3 * s;
       }
 
+      const isDim = nd.dim === true;
+      const dO = dimOpacity;
+      const nodeOpacity = isDim ? dO : 1;
+
       svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}"${metricAttr}>`;
 
-      svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
-      if (hasMetric) {
-        svg += `fill="${color}" stroke="${color}" stroke-width="${1.2 * s}" opacity="0.85"`;
-      } else {
-        svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
-        if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
-      }
+      svg += `<circle data-id="${escAttr(nd.id)}" cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
+      svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
+      if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+      if (isDim) svg += ` opacity="${nodeOpacity}"`;
       svg += `/>`;
 
-      if (!hasMetric && isInterchange && !isGate) {
-        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="0.3"/>`;
+      if (isInterchange && !isGate) {
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="${isDim ? dO * 0.4 : 0.3}"/>`;
       }
-      if (!hasMetric && isGate) {
-        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="0.4"/>`;
+      if (isGate) {
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="${isDim ? dO * 0.6 : 0.4}"/>`;
       }
 
       // Metric label (rendered above the node)
       if (hasMetric && metric.label) {
         svg += `<text x="${pos.x.toFixed(1)}" y="${(pos.y - r - 2 * s).toFixed(1)}" `;
-        svg += `font-size="${3.5 * s}" fill="${col.ink}" text-anchor="middle" opacity="0.8">${esc(metric.label)}</text>`;
+        svg += `font-size="${labelSize * 0.9 * s}" fill="${color}" text-anchor="middle" font-weight="600" opacity="${isDim ? dO * 0.8 : 0.9}">${esc(metric.label)}</text>`;
       }
 
       const fs = labelSize * s;
+      const labelOpacity = isDim ? dO * 0.8 : 0.55;
       if (diagonalLabels) {
         const tickLen = 6 * s;
         const angle = -labelAngle;
@@ -255,22 +258,21 @@ export function renderSVG(dag, layout, options = {}) {
         const tickEndY = pos.y + Math.sin(rad) * tickLen;
         svg += `<line x1="${pos.x.toFixed(1)}" y1="${(pos.y - r).toFixed(1)}" `;
         svg += `x2="${tickEndX.toFixed(1)}" y2="${(tickEndY - r).toFixed(1)}" `;
-        svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="0.3"/>`;
+        svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="${isDim ? dO * 0.4 : 0.3}"/>`;
         const textX = tickEndX + 1 * s;
         const textY = tickEndY - r - 1 * s;
         svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
-        svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="0.55" `;
+        svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}" `;
         svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${esc(nd.label)}</text>`;
       } else if (layout.orientation === 'ttb') {
-        // TTB layout: place labels to the right of nodes
         const labelX = pos.x + r + 4 * s;
         const labelY = pos.y + fs * 0.35;
         svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${esc(nd.label)}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
       } else {
         const labelY = pos.y + r + 8 * s;
         svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${esc(nd.label)}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
       }
 
       svg += `</g>\n`;
