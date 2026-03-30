@@ -456,4 +456,52 @@ export const models = [
     { id: 'customer_svc', cls: 'h', nodes: ['customer','return'] },
   ]),
 
+  // ── 9. Dim/heatmap models ───────────────────────────────────
+
+  (function() {
+    var model = m('mfg_dim', '31 — Manufacturing with dim (4 classes, 10 nodes)', [
+      ['order', 'Order', '2K'], ['plan', 'Plan', '1.8K'],
+      ['source', 'Source', '900'], ['inspect', 'Inspect', '228'],
+      ['prepare', 'Prepare'], ['assemble', 'Assemble'],
+      ['weld', 'Weld'], ['paint', 'Paint'],
+      ['qa', 'QA Check'], ['ship', 'Ship'],
+    ], [
+      ['order','plan'],['plan','source'],['source','inspect'],['inspect','prepare'],
+      ['prepare','assemble'],['assemble','weld'],['weld','paint'],['paint','qa'],['qa','ship'],
+    ], [
+      { id: 'material', cls: 'a', nodes: ['order','plan','source','inspect','prepare'] },
+      { id: 'assembly', cls: 'b', nodes: ['prepare','assemble','weld','paint'] },
+      { id: 'quality', cls: 'c', nodes: ['paint','qa','ship'] },
+      { id: 'logistics', cls: 'd', nodes: ['qa','ship'] },
+    ]);
+    ['prepare','assemble','weld','paint','qa','ship'].forEach(function(id) {
+      var nd = model.dag.nodes.find(function(n) { return n.id === id; });
+      if (nd) nd.dim = true;
+    });
+    return model;
+  })(),
+
+  (function() {
+    var model = m('pipeline_dim', '32 — Pipeline with dim (3 classes, 8 nodes)', [
+      ['ingest_a', 'API Ingest', '1.3M'], ['ingest_b', 'File Import'],
+      ['validate', 'Validate', '1.5M'], ['transform', 'Transform', '1.5M'],
+      ['score', 'ML Score', '1.4M'], ['review', 'Manual Review'],
+      ['store', 'Store', '1.4M'], ['archive', 'Archive'],
+    ], [
+      ['ingest_a','validate'],['ingest_b','validate'],
+      ['validate','transform'],['transform','score'],
+      ['score','store'],['score','review'],['review','store'],
+      ['store','archive'],
+    ], [
+      { id: 'hot_path', cls: 'a', nodes: ['ingest_a','validate','transform','score','store'] },
+      { id: 'cold_ingest', cls: 'b', nodes: ['ingest_b','validate'] },
+      { id: 'manual', cls: 'c', nodes: ['score','review','store'] },
+    ]);
+    ['ingest_b','review','archive'].forEach(function(id) {
+      var nd = model.dag.nodes.find(function(n) { return n.id === id; });
+      if (nd) nd.dim = true;
+    });
+    return model;
+  })(),
+
 ];

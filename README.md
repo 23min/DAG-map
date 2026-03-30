@@ -89,6 +89,37 @@ const svg = renderSVG(dag, layout, {
 });
 ```
 
+## Node dimming
+
+Set `dim: true` on any node to render it at reduced opacity. Dimmed nodes, their labels, and any edges touching them fade out — useful for showing pending/inactive nodes in execution visualizations or heatmap overlays.
+
+```javascript
+const dag = {
+  nodes: [
+    { id: 'a', label: 'completed', cls: 'pure' },
+    { id: 'b', label: 'running', cls: 'recordable' },
+    { id: 'c', label: 'pending', cls: 'pending', dim: true },
+    { id: 'd', label: 'pending', cls: 'pending', dim: true },
+  ],
+  edges: [['a', 'b'], ['b', 'c'], ['c', 'd']],
+};
+```
+
+Control the dim intensity with `dimOpacity` (0–1, default 0.25) in both `layoutMetro` and `renderSVG` options. All 6 built-in themes include a `pending` class color.
+
+## DOM attributes
+
+Each node produces SVG elements with data attributes for scripting:
+
+- `<g data-node-id="nodeId" data-node-cls="pure">` — group wrapper
+- `<circle data-id="nodeId" ...>` — the station circle
+
+```javascript
+svg.querySelectorAll('circle[data-id]').forEach(circle => {
+  circle.addEventListener('click', () => console.log('Clicked:', circle.dataset.id));
+});
+```
+
 ## Color modes
 
 ### Inline colors (default)

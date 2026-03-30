@@ -37,6 +37,7 @@
   --dm-cls-recordable: #E8846B;
   --dm-cls-side-effecting: #D4944C;
   --dm-cls-gate: #C45B4A;
+  --dm-cls-pending: #B0AAA0;
 }
 
 /* ── Container ── */
@@ -59,7 +60,7 @@
   border: 1px solid var(--dm-border);
   border-radius: var(--dm-radius);
   font-family: var(--dm-font);
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--dm-ink);
   white-space: pre;
@@ -111,12 +112,46 @@
   width: 80px;
 }
 
-.dm-version {
-  font-size: 12px;
-  color: var(--dm-muted);
+.dm-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
+}
+.dm-nav-link {
+  font-family: var(--dm-font);
+  font-size: 11px;
+  color: var(--dm-muted);
+  text-decoration: none;
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius);
+  padding: 3px 10px;
+  transition: opacity 0.15s, border-color 0.15s;
   opacity: 0.7;
 }
+.dm-nav-link:hover { opacity: 1; border-color: var(--dm-muted); }
+.dm-nav-current {
+  font-family: var(--dm-font);
+  font-size: 11px;
+  color: var(--dm-ink);
+  border: 1px solid var(--dm-muted);
+  border-radius: var(--dm-radius);
+  padding: 3px 10px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+.dm-nav-github {
+  color: var(--dm-muted);
+  text-decoration: none;
+  border: 1px solid var(--dm-border);
+  border-radius: var(--dm-radius);
+  padding: 3px 6px;
+  opacity: 0.5;
+  transition: opacity 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+}
+.dm-nav-github:hover { opacity: 1; border-color: var(--dm-muted); }
 
 /* ── Advanced panel ── */
 .dm-advanced {
@@ -176,19 +211,6 @@
 
 .dm-angle-control.visible {
   display: flex;
-}
-
-/* ── GitHub link ── */
-.dm-github {
-  color: var(--dm-muted);
-  opacity: 0.5;
-  transition: opacity 0.15s;
-  display: flex;
-  align-items: center;
-}
-
-.dm-github:hover {
-  opacity: 1;
 }
 
 
@@ -283,12 +305,15 @@ body.dm-container {
     <option value="mono">mono</option>
     <option value="metro">metro</option>
   </select>
-  <span class="dm-version">dag-map flow 0.1.0</span>
-  <a href="dag.html" class="dm-version" title="DAG metro demo">dag</a>
-  <a href="hasse.html" class="dm-version" title="Hasse diagram demo">hasse</a>
-  <a href="https://github.com/23min/DAG-map" target="_blank" rel="noopener" class="dm-github" title="View on GitHub">
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-  </a>
+  <span class="dm-nav">
+    <a href="dag.html" class="dm-nav-link" title="DAG metro demo">dag</a>
+    <a href="hasse.html" class="dm-nav-link" title="Hasse diagram demo">hasse</a>
+    <span class="dm-nav-current">flow</span>
+    <a href="heatmap.html" class="dm-nav-link" title="Heatmap demo">heatmap</a>
+    <a href="https://github.com/23min/DAG-map" target="_blank" rel="noopener" class="dm-nav-github" title="View on GitHub">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+  </span>
 </div>
 <details class="dm-advanced">
   <summary>advanced</summary>
@@ -305,8 +330,8 @@ body.dm-container {
       <span class="dm-val" id="cornerRadiusValue">5</span></label>
     <label>line thickness <input type="range" id="lineThicknessSlider" min="1" max="8" step="0.5" value="3">
       <span class="dm-val" id="lineThicknessValue">3</span></label>
-    <label>label size <input type="range" id="labelSizeSlider" min="2" max="6" step="0.2" value="3.6">
-      <span class="dm-val" id="labelSizeValue">3.6</span></label>
+    <label>label size <input type="range" id="labelSizeSlider" min="2" max="8" step="0.2" value="4.2">
+      <span class="dm-val" id="labelSizeValue">4.2</span></label>
   </div>
 </details>
 <div class="dm-split" id="splitContainer">
@@ -326,7 +351,6 @@ body.dm-container {
 // ============================================================
 // dag-map flow demo — all modules inlined
 // ============================================================
-
 // --- themes.js ---
 // ================================================================
 // themes.js — Theme definitions for dag-map
@@ -340,27 +364,27 @@ body.dm-container {
 const THEMES = {
   cream: {
     paper: '#F5F0E8', ink: '#2C2C2C', muted: '#8C8680', border: '#D4CFC7',
-    classes: { pure: '#2B8A8E', recordable: '#E8846B', side_effecting: '#D4944C', gate: '#C45B4A' }
+    classes: { pure: '#2B8A8E', recordable: '#E8846B', side_effecting: '#D4944C', gate: '#C45B4A', pending: '#B0AAA0' }
   },
   light: {
     paper: '#FAFAFA', ink: '#333333', muted: '#999999', border: '#E0E0E0',
-    classes: { pure: '#0077B6', recordable: '#E36414', side_effecting: '#6C757D', gate: '#DC3545' }
+    classes: { pure: '#0077B6', recordable: '#E36414', side_effecting: '#6C757D', gate: '#DC3545', pending: '#BDBDBD' }
   },
   dark: {
     paper: '#1E1E2E', ink: '#CDD6F4', muted: '#6C7086', border: '#313244',
-    classes: { pure: '#94E2D5', recordable: '#F38BA8', side_effecting: '#F9E2AF', gate: '#EBA0AC' }
+    classes: { pure: '#94E2D5', recordable: '#F38BA8', side_effecting: '#F9E2AF', gate: '#EBA0AC', pending: '#45475A' }
   },
   blueprint: {
     paper: '#1B2838', ink: '#E0E8F0', muted: '#5A7A9A', border: '#2A4060',
-    classes: { pure: '#4FC3F7', recordable: '#FF8A65', side_effecting: '#FFD54F', gate: '#EF5350' }
+    classes: { pure: '#4FC3F7', recordable: '#FF8A65', side_effecting: '#FFD54F', gate: '#EF5350', pending: '#3D5A7A' }
   },
   mono: {
     paper: '#FFFFFF', ink: '#1A1A1A', muted: '#888888', border: '#CCCCCC',
-    classes: { pure: '#444444', recordable: '#777777', side_effecting: '#999999', gate: '#333333' }
+    classes: { pure: '#444444', recordable: '#777777', side_effecting: '#999999', gate: '#333333', pending: '#AAAAAA' }
   },
   metro: {
     paper: '#FFFFFF', ink: '#1A1A1A', muted: '#9E9E9E', border: '#D4EAF7',
-    classes: { pure: '#0078C8', recordable: '#E3242B', side_effecting: '#F5A623', gate: '#6A2D8E' },
+    classes: { pure: '#0078C8', recordable: '#E3242B', side_effecting: '#F5A623', gate: '#6A2D8E', pending: '#BDBDBD' },
     lineOpacity: 1.4
   }
 };
@@ -377,7 +401,6 @@ function resolveTheme(themeOption) {
   // Custom theme object — merge with cream defaults
   return { ...THEMES.cream, ...themeOption, classes: { ...THEMES.cream.classes, ...(themeOption.classes || {}) } };
 }
-
 
 // --- graph-utils.js ---
 // ================================================================
@@ -397,9 +420,17 @@ function buildGraph(nodes, edges) {
   const childrenOf = new Map();
   const parentsOf = new Map();
   nodes.forEach(n => { childrenOf.set(n.id, []); parentsOf.set(n.id, []); });
-  edges.forEach(([f, t]) => {
-    childrenOf.get(f).push(t);
-    parentsOf.get(t).push(f);
+  edges.forEach(([f, t], edgeIdx) => {
+    const srcChildren = childrenOf.get(f);
+    const dstParents = parentsOf.get(t);
+    if (!srcChildren || !dstParents) {
+      const parts = [];
+      if (!srcChildren) parts.push(`source "${f}"`);
+      if (!dstParents) parts.push(`target "${t}"`);
+      throw new Error(`buildGraph: edge[${edgeIdx}] references unknown ${parts.join(' and ')}`);
+    }
+    srcChildren.push(t);
+    dstParents.push(f);
   });
   return { nodeMap, childrenOf, parentsOf };
 }
@@ -468,6 +499,19 @@ function validateDag(nodes, edges) {
   }
 
   return warnings;
+}
+
+/**
+ * Validate a DAG definition and throw with a useful message if invalid.
+ * @param {Array<{id: string}>} nodes
+ * @param {Array<[string, string]>} edges
+ * @param {string} [context='DAG']
+ */
+function assertValidDag(nodes, edges, context = 'DAG') {
+  const warnings = validateDag(nodes, edges);
+  if (warnings.length > 0) {
+    throw new Error(`${context}: invalid DAG input. ${warnings.join('; ')}`);
+  }
 }
 
 // ================================================================
@@ -545,6 +589,129 @@ function swapPathXY(d) {
   return parts.join(' ');
 }
 
+// --- route-metro.js ---
+// ================================================================
+// route-metro.js — Metro-style right-angle routing with rounded elbows
+// ================================================================
+// Produces clean H-V-H or V-H-V paths with quadratic bezier corners.
+// Designed for parallel-line layouts where visual clarity is paramount.
+//
+// For LTR layouts: horizontal → rounded elbow → vertical → rounded elbow → horizontal
+// For TTB layouts: vertical → rounded elbow → horizontal → rounded elbow → vertical
+
+/**
+ * Rounded elbow path between two points using right-angle bends.
+ *
+ * @param {number} px - source x
+ * @param {number} py - source y
+ * @param {number} qx - destination x
+ * @param {number} qy - destination y
+ * @param {number} routeIdx - route index (for deterministic midpoint variation)
+ * @param {number} segIdx - segment index within route
+ * @param {number} refY - reference Y (not used, kept for API compat)
+ * @param {object} [options]
+ * @param {number} [options.cornerRadius=8] - corner radius in px (before scale)
+ * @param {'h-first'|'v-first'|'auto'} [options.bendStyle='auto'] - which axis to run first
+ * @returns {string} SVG path data (without leading M)
+ */
+function metroPath(px, py, qx, qy, routeIdx, segIdx, refY, options = {}) {
+  const cornerRadius = options.cornerRadius ?? 8;
+  const bendStyle = options.bendStyle ?? 'auto';
+  const dx = qx - px, dy = qy - py;
+
+  // Straight horizontal or vertical — no bend needed
+  if (Math.abs(dy) < 1) return `L ${qx} ${qy}`;
+  if (Math.abs(dx) < 1) return `L ${qx} ${qy}`;
+
+  // Clamp radius so it doesn't exceed available space
+  const r = Math.min(cornerRadius, Math.abs(dx) / 2, Math.abs(dy) / 2);
+
+  if (r < 1) return `L ${qx} ${qy}`; // too small for rounded corners
+
+  // Determine bend direction
+  const useHFirst = bendStyle === 'h-first' ||
+    (bendStyle === 'auto' && Math.abs(dx) >= Math.abs(dy));
+
+  if (useHFirst) {
+    // H-V path: horizontal run → rounded corner → vertical run
+    const midFrac = options.midFrac ?? (0.45 + (((routeIdx * 7 + segIdx * 13) % 17) / 17) * 0.10);
+    const midX = px + dx * midFrac;
+
+    return hvPath(px, py, midX, qx, qy, r);
+  } else {
+    // V-H path: vertical run → rounded corner → horizontal run
+    const midFrac = options.midFrac ?? (0.45 + (((routeIdx * 7 + segIdx * 13) % 17) / 17) * 0.10);
+    const midY = py + dy * midFrac;
+
+    return vhPath(px, py, midY, qx, qy, r);
+  }
+}
+
+/**
+ * H-V-H path: horizontal → corner → vertical → corner → horizontal
+ */
+function hvPath(px, py, midX, qx, qy, r) {
+  const dy = qy - py;
+  const sy = Math.sign(dy); // +1 down, -1 up
+
+  // First elbow: at (midX, py) turning toward qy
+  const e1x = midX - r;        // approach point
+  const e1cx = midX;            // corner control point
+  const e1cy = py;
+  const e1ex = midX;            // exit point
+  const e1ey = py + sy * r;
+
+  // Second elbow: at (midX, qy) turning toward qx
+  const e2x = midX;             // approach point
+  const e2y = qy - sy * r;
+  const e2cx = midX;            // corner control point
+  const e2cy = qy;
+  const e2ex = midX + r * Math.sign(qx - midX); // exit toward qx
+  const e2ey = qy;
+
+  let d = '';
+  d += `L ${e1x.toFixed(1)} ${py} `;                      // horizontal to first elbow approach
+  d += `Q ${e1cx.toFixed(1)} ${e1cy} ${e1ex.toFixed(1)} ${e1ey.toFixed(1)} `; // rounded corner
+  d += `L ${e2x.toFixed(1)} ${e2y.toFixed(1)} `;          // vertical run
+  d += `Q ${e2cx.toFixed(1)} ${e2cy} ${e2ex.toFixed(1)} ${e2ey.toFixed(1)} `; // rounded corner
+  d += `L ${qx} ${qy}`;                                    // horizontal to destination
+
+  return d;
+}
+
+/**
+ * V-H-V path: vertical → corner → horizontal → corner → vertical
+ */
+function vhPath(px, py, midY, qx, qy, r) {
+  const dx = qx - px;
+  const sx = Math.sign(dx); // +1 right, -1 left
+  const dy = qy - py;
+  const sy = Math.sign(dy);
+
+  // First elbow: at (px, midY) turning toward qx
+  const e1y = midY - sy * r;
+  const e1cx = px;
+  const e1cy = midY;
+  const e1ex = px + sx * r;
+  const e1ey = midY;
+
+  // Second elbow: at (qx, midY) turning toward qy
+  const e2x = qx - sx * r;
+  const e2y = midY;
+  const e2cx = qx;
+  const e2cy = midY;
+  const e2ex = qx;
+  const e2ey = midY + sy * r;
+
+  let d = '';
+  d += `L ${px} ${e1y.toFixed(1)} `;                       // vertical to first elbow
+  d += `Q ${e1cx.toFixed(1)} ${e1cy.toFixed(1)} ${e1ex.toFixed(1)} ${e1ey.toFixed(1)} `; // rounded corner
+  d += `L ${e2x.toFixed(1)} ${e2y.toFixed(1)} `;           // horizontal run
+  d += `Q ${e2cx.toFixed(1)} ${e2cy.toFixed(1)} ${e2ex.toFixed(1)} ${e2ey.toFixed(1)} `; // rounded corner
+  d += `L ${qx} ${qy}`;                                     // vertical to destination
+
+  return d;
+}
 
 // --- occupancy.js ---
 // ================================================================
@@ -686,7 +853,6 @@ class OccupancyGrid {
   }
 }
 
-
 // --- layout-flow.js ---
 // ================================================================
 // layout-flow.js — Obstacle-aware process flow layout
@@ -709,8 +875,6 @@ class OccupancyGrid {
 // shared stations maintain their relative order.
 
 
-
-
 function layoutFlow(dag, options = {}) {
   const { nodes, edges } = dag;
   const theme = resolveTheme(options.theme);
@@ -722,9 +886,12 @@ function layoutFlow(dag, options = {}) {
   const lineThickness = (options.lineThickness ?? 3) * s;
   const lineOpacity = Math.min((theme.lineOpacity ?? 1.0) * 0.7, 1);
   const labelSize = (options.labelSize ?? 3.6) * s;  // station card label font size
-  const routes = options.routes || [];
+  const routes = options.routes;
   const direction = options.direction || 'ttb';
   const cardSide = options.cardSide ?? 'right'; // default card placement
+  if (!Array.isArray(routes) || routes.length === 0) {
+    throw new Error('layoutFlow: routes is required and must contain at least one route');
+  }
 
   // ── Orientation abstraction ──
   // CK = column key (secondary/spread axis): 'x' for TTB, 'y' for LTR
@@ -733,6 +900,7 @@ function layoutFlow(dag, options = {}) {
   const CK = isLTR ? 'y' : 'x';  // column key
   const LK = isLTR ? 'x' : 'y';  // layer key
 
+  assertValidDag(nodes, edges, 'layoutFlow');
   const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
   const classColor = {};
   for (const [cls, hex] of Object.entries(theme.classes)) classColor[cls] = hex;
@@ -1182,7 +1350,9 @@ function layoutFlow(dag, options = {}) {
     // Card dimensions (always in screen w/h)
     const labelW = nd.label.length * fsLabel * 0.52;
     const indicatorW = n * 5 * s;
-    const dataW = (nd.count || '').length * fsData * 0.55;
+    const metricValue = nd.times ?? nd.count;
+    const metricText = metricValue === undefined || metricValue === null ? '' : String(metricValue);
+    const dataW = metricText.length * fsData * 0.55;
     const contentW = Math.max(labelW, indicatorW + dataW + 4 * s);
     const cardPadX = 5 * s;
     const cardPadY = 3 * s;
@@ -1607,7 +1777,10 @@ function layoutFlow(dag, options = {}) {
       const assignedMidFrac = gapAssign?.get(ri);
 
       const result = routeSegment(p.x, p.y, q.x, q.y, ri, routeOwner, ignoreSet, assignedMidFrac);
-      segments.push({ d: result.d, color, thickness: lineThickness, opacity: lineOpacity, dashed: false });
+      const srcDim = nodeMap.get(p.id)?.dim === true;
+      const dstDim = nodeMap.get(q.id)?.dim === true;
+      const segOpacity = (srcDim || dstDim) ? Math.min(lineOpacity, 0.12) : lineOpacity;
+      segments.push({ d: result.d, color, thickness: lineThickness, opacity: segOpacity, dashed: false });
 
       // Try to place edge label — per route, on straight runs along the primary axis
       const edgeKey = `${ri}:${p.id}\u2192${q.id}`;
@@ -1745,6 +1918,54 @@ function layoutFlow(dag, options = {}) {
   };
 }
 
+// --- color-scales.js ---
+// ================================================================
+// color-scales.js — Curated color scales for heatmap mode
+// ================================================================
+// Each scale is a function (t: 0..1) => "rgb(r,g,b)"
+// 0 = low/cool/good, 1 = high/hot/bad
+
+function _csPalette(t) {
+  const c = Math.max(0, Math.min(1, t));
+  let r, g, b;
+  if (c < 0.5) {
+    const u = c * 2;
+    r = Math.round(0x2B + (0xD4 - 0x2B) * u);
+    g = Math.round(0x8A + (0x94 - 0x8A) * u);
+    b = Math.round(0x8E + (0x4C - 0x8E) * u);
+  } else {
+    const u = (c - 0.5) * 2;
+    r = Math.round(0xD4 + (0xC4 - 0xD4) * u);
+    g = Math.round(0x94 + (0x5B - 0x94) * u);
+    b = Math.round(0x4C + (0x4A - 0x4C) * u);
+  }
+  return `rgb(${r},${g},${b})`;
+}
+
+function _csThermal(t) {
+  const c = Math.max(0, Math.min(1, t));
+  let r, g, b;
+  if (c < 0.5) {
+    const u = c * 2;
+    r = Math.round(70 + 85 * u);
+    g = Math.round(130 - 3 * u);
+    b = Math.round(180 + 0 * u);
+  } else {
+    const u = (c - 0.5) * 2;
+    r = Math.round(155 + 57 * u);
+    g = Math.round(127 - 6 * u);
+    b = Math.round(180 - 73 * u);
+  }
+  return `rgb(${r},${g},${b})`;
+}
+
+function _csMono(t) {
+  const c = Math.max(0, Math.min(1, t));
+  const v = Math.round(200 - 150 * c);
+  return `rgb(${v},${v},${v})`;
+}
+
+const colorScales = { palette: _csPalette, thermal: _csThermal, mono: _csMono };
 
 // --- render.js ---
 // ================================================================
@@ -1763,6 +1984,11 @@ function layoutFlow(dag, options = {}) {
 function esc(s) {
   if (typeof s !== 'string') return s;
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Escape values interpolated into quoted XML attributes. */
+function escAttr(v) {
+  return esc(String(v ?? ''));
 }
 
 /**
@@ -1793,9 +2019,15 @@ function renderSVG(dag, layout, options = {}) {
     showLegend = true,
     cssVars = false,
     labelSize = 5,
+    dimOpacity = 0.25,
     renderNode,
     renderEdge,
+    metrics,
+    edgeMetrics,
+    colorScale: userColorScale,
   } = options;
+
+  const colorScale = userColorScale || colorScales.palette;
 
   const font = options.font || "'IBM Plex Mono', 'Courier New', monospace";
 
@@ -1883,16 +2115,25 @@ function renderSVG(dag, layout, options = {}) {
       const fromId = route.nodes[si];
       const toId = route.nodes[si + 1];
 
+      // Check for edge-level metric
+      const edgeKey = fromId && toId ? `${fromId}\u2192${toId}` : null;
+      const edgeMetric = edgeKey && edgeMetrics && edgeMetrics.get ? edgeMetrics.get(edgeKey) : undefined;
+      const hasEdgeMetric = edgeMetric !== undefined && edgeMetric !== null;
+      const edgeColor = hasEdgeMetric ? colorScale(edgeMetric.value) : segColor(seg.color);
+      const edgeOpacity = hasEdgeMetric ? Math.max(seg.opacity, 0.8) : seg.opacity;
+
       if (renderEdge) {
         const edge = fromId && toId ? { from: fromId, to: toId } : null;
-        const ctx = { theme, scale: s, isExtraEdge: false, routeIndex: ri, segmentIndex: si };
-        svg += renderEdge(edge, { ...seg, color: segColor(seg.color) }, ctx);
+        const ctx = { theme, scale: s, isExtraEdge: false, routeIndex: ri, segmentIndex: si, edgeMetric };
+        svg += renderEdge(edge, { ...seg, color: edgeColor }, ctx);
         svg += '\n';
       } else {
-        svg += `<path d="${seg.d}" stroke="${segColor(seg.color)}" stroke-width="${seg.thickness}" fill="none" `;
-        svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${seg.opacity}"`;
+        svg += `<path d="${seg.d}" stroke="${edgeColor}" stroke-width="${seg.thickness}" fill="none" `;
+        svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${edgeOpacity}"`;
         if (seg.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
-        if (fromId && toId) svg += ` data-edge-from="${fromId}" data-edge-to="${toId}" data-route="${ri}"`;
+        if (fromId && toId) {
+          svg += ` data-edge-from="${escAttr(fromId)}" data-edge-to="${escAttr(toId)}" data-route="${ri}"`;
+        }
         svg += `/>\n`;
       }
     });
@@ -1902,7 +2143,10 @@ function renderSVG(dag, layout, options = {}) {
   dag.nodes.forEach(nd => {
     const pos = positions.get(nd.id);
     if (!pos) return;
-    const color = col.cls(nd.cls || 'pure');
+    const metric = metrics && metrics.get ? metrics.get(nd.id) : undefined;
+    const hasMetric = metric !== undefined && metric !== null;
+    const baseColor = col.cls(nd.cls || 'pure');
+    const color = hasMetric ? colorScale(metric.value) : baseColor;
     const isInterchange = (inDeg.get(nd.id) > 1 || outDeg.get(nd.id) > 1);
     const isGate = nd.cls === 'gate';
 
@@ -1915,6 +2159,8 @@ function renderSVG(dag, layout, options = {}) {
     const routeClasses = nRoutes
       ? [...nRoutes].map(idx => routes[idx]?.cls).filter(Boolean)
       : [];
+
+    const metricAttr = hasMetric ? ` data-metric-value="${metric.value}"` : '';
 
     if (renderNode) {
       const ctx = {
@@ -1930,8 +2176,9 @@ function renderSVG(dag, layout, options = {}) {
         routeClasses,
         orientation: layout.orientation || 'ltr',
         laneX: layout.laneX || null,
+        metric,
       };
-      svg += `<g data-node-id="${nd.id}" data-node-cls="${nd.cls || 'pure'}">`;
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}"${metricAttr}>`;
       svg += renderNode(nd, pos, ctx);
       svg += `</g>\n`;
     } else {
@@ -1944,21 +2191,37 @@ function renderSVG(dag, layout, options = {}) {
         r = 3 * s;
       }
 
-      svg += `<g data-node-id="${nd.id}" data-node-cls="${nd.cls || 'pure'}">`;
+      const isDim = nd.dim === true;
+      const dO = dimOpacity;
+      const nodeOpacity = isDim ? dO : 1;
 
-      svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
-      svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
-      if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}"${metricAttr}>`;
+
+      svg += `<circle data-id="${escAttr(nd.id)}" cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
+      if (hasMetric) {
+        svg += `fill="${color}" stroke="${color}" stroke-width="${1.2 * s}" opacity="${isDim ? nodeOpacity * 0.85 : 0.85}"`;
+      } else {
+        svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
+        if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+        if (isDim) svg += ` opacity="${nodeOpacity}"`;
+      }
       svg += `/>`;
 
-      if (isInterchange && !isGate) {
-        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="0.3"/>`;
+      if (!hasMetric && isInterchange && !isGate) {
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="${isDim ? dO * 0.4 : 0.3}"/>`;
       }
-      if (isGate) {
-        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="0.4"/>`;
+      if (!hasMetric && isGate) {
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="${isDim ? dO * 0.6 : 0.4}"/>`;
+      }
+
+      // Metric label (rendered above the node)
+      if (hasMetric && metric.label) {
+        svg += `<text x="${pos.x.toFixed(1)}" y="${(pos.y - r - 2 * s).toFixed(1)}" `;
+        svg += `font-size="${3.5 * s}" fill="${col.ink}" text-anchor="middle" opacity="${isDim ? dO * 0.8 : 0.8}">${esc(metric.label)}</text>`;
       }
 
       const fs = labelSize * s;
+      const labelOpacity = isDim ? dO * 0.8 : 0.55;
       if (diagonalLabels) {
         const tickLen = 6 * s;
         const angle = -labelAngle;
@@ -1967,22 +2230,21 @@ function renderSVG(dag, layout, options = {}) {
         const tickEndY = pos.y + Math.sin(rad) * tickLen;
         svg += `<line x1="${pos.x.toFixed(1)}" y1="${(pos.y - r).toFixed(1)}" `;
         svg += `x2="${tickEndX.toFixed(1)}" y2="${(tickEndY - r).toFixed(1)}" `;
-        svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="0.3"/>`;
+        svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="${isDim ? dO * 0.4 : 0.3}"/>`;
         const textX = tickEndX + 1 * s;
         const textY = tickEndY - r - 1 * s;
         svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
-        svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="0.55" `;
+        svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}" `;
         svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${esc(nd.label)}</text>`;
       } else if (layout.orientation === 'ttb') {
-        // TTB layout: place labels to the right of nodes
         const labelX = pos.x + r + 4 * s;
         const labelY = pos.y + fs * 0.35;
         svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="0.55">${esc(nd.label)}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
       } else {
         const labelY = pos.y + r + 8 * s;
         svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="0.55">${esc(nd.label)}</text>`;
+        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
       }
 
       svg += `</g>\n`;
@@ -2014,7 +2276,6 @@ function renderSVG(dag, layout, options = {}) {
   return svg;
 }
 
-
 // --- render-flow-station.js ---
 // ================================================================
 // render-flow-station.js — Station card + edge label renderers
@@ -2040,6 +2301,8 @@ function createStationRenderer(layout, routes) {
     const dotR = 3.2 * s;
     const fsLabel = layout.labelSize || 3.6 * s;
     const fsData = fsLabel * 0.78;
+    const isDim = node.dim === true;
+    const dimOp = isDim ? 0.25 : 1;
     let svg = '';
 
     const routeIndices = [];
@@ -2055,8 +2318,8 @@ function createStationRenderer(layout, routes) {
     routeIndices.forEach((ri, i) => {
       const col = ctx.theme.classes[routes[ri].cls];
       if (!col) return;
-      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR}" fill="${col}"/>`;
-      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"/>`;
+      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR}" fill="${col}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
+      svg += `<circle cx="${dotCoords[i].x}" cy="${dotCoords[i].y}" r="${dotR * 0.35}" fill="${ctx.theme.paper}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
     });
 
     // Card from layout's obstacle-aware placement
@@ -2065,21 +2328,22 @@ function createStationRenderer(layout, routes) {
       const { rect, cardPadX, cardPadY } = cp;
 
       svg += `<rect x="${rect.x}" y="${rect.y}" width="${rect.w}" height="${rect.h}" rx="${2.5 * s}" `;
-      svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${0.7 * s}"/>`;
+      svg += `fill="${ctx.theme.paper}" stroke="${ctx.theme.muted}" stroke-width="${0.7 * s}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
 
       const labelY = rect.y + cardPadY + fsLabel * 0.85;
-      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500">${esc(node.label)}</text>`;
+      svg += `<text x="${rect.x + cardPadX}" y="${labelY}" font-size="${fsLabel}" fill="${ctx.theme.ink}" text-anchor="start" font-weight="500"${isDim ? ` opacity="${dimOp * 0.8}"` : ''}>${esc(node.label)}</text>`;
 
       const dataY = labelY + fsData + 3 * s;
       let dx = rect.x + cardPadX;
       routeIndices.forEach(ri => {
         const col = ctx.theme.classes[routes[ri].cls];
         if (!col) return;
-        svg += `<rect x="${dx}" y="${dataY - fsData * 0.7}" width="${3.5 * s}" height="${3.5 * s}" rx="${0.5 * s}" fill="${col}"/>`;
+        svg += `<rect x="${dx}" y="${dataY - fsData * 0.7}" width="${3.5 * s}" height="${3.5 * s}" rx="${0.5 * s}" fill="${col}"${isDim ? ` opacity="${dimOp}"` : ''}/>`;
         dx += 5 * s;
       });
-      if (node.times || node.count) {
-        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start">${esc(node.times || node.count)}</text>`;
+      const metricValue = node.times ?? node.count;
+      if (metricValue !== undefined && metricValue !== null) {
+        svg += `<text x="${dx + 2 * s}" y="${dataY}" font-size="${fsData}" fill="${ctx.theme.muted}" text-anchor="start"${isDim ? ` opacity="${dimOp * 0.8}"` : ''}>${esc(String(metricValue))}</text>`;
       }
     }
 
@@ -2147,6 +2411,7 @@ function createEdgeRenderer(layout, edgeVolumes) {
 }
 
 
+
 // ============================================================
 // Model data
 // ============================================================
@@ -2181,7 +2446,7 @@ function mkModel(id, label, subtitle, nodes, edges, routes, opts) {
     routes: routes.map(r => ({ id: r.id, cls: r.cls, nodes: r.nodes })),
     edgeVolumes,
     theme: { ...palette, classes: Object.fromEntries(routes.map(r => [r.cls, palette.classes[r.cls]])) },
-    opts: { scale: 1.8, layerSpacing: 50, columnSpacing: 70, dotSpacing: 12, cornerRadius: 5, lineThickness: 3, labelSize: 3.6, ...opts },
+    opts: { scale: 1.8, layerSpacing: 50, columnSpacing: 70, dotSpacing: 12, cornerRadius: 5, lineThickness: 3, labelSize: 4.2, ...opts },
   };
 }
 
@@ -2278,6 +2543,60 @@ const models = [
     { id: 'reject_flow', cls: 'c', nodes: ['assess','reject'] },
     { id: 'repair_flow', cls: 'd', nodes: ['approve_claim','repair','pay'] },
   ]),
+
+  (function() {
+    var nodes = [
+      ['order', 'Order', '2.0K'], ['plan', 'Plan', '1.8K'],
+      ['source_raw', 'Source Raw', '899'], ['inspect_raw', 'Inspect Raw', '228'],
+      ['source_parts', 'Source Parts', '590'], ['inspect_parts', 'Inspect Parts', '144'],
+      ['prepare', 'Prepare'], ['assemble', 'Assemble'],
+      ['weld', 'Weld'], ['paint', 'Paint'],
+      ['qa', 'QA Check'], ['pack', 'Pack'], ['ship', 'Ship'],
+    ];
+    var dimNodes = new Set(['prepare','assemble','weld','paint','qa','pack','ship']);
+    var model = mkModel('mfg_dim', 'Manufacturing (dim)', 'Material | Parts | Assembly | QA | Shipping', nodes, [
+      ['order','plan'],['plan','source_raw'],['plan','source_parts'],
+      ['source_raw','inspect_raw'],['source_parts','inspect_parts'],
+      ['inspect_raw','prepare'],['inspect_parts','prepare'],
+      ['prepare','assemble'],['assemble','weld'],['weld','paint'],
+      ['paint','qa'],['qa','pack'],['pack','ship'],
+    ], [
+      { id: 'material', cls: 'a', nodes: ['order','plan','source_raw','inspect_raw','prepare'] },
+      { id: 'parts', cls: 'b', nodes: ['plan','source_parts','inspect_parts','prepare'] },
+      { id: 'assembly', cls: 'c', nodes: ['prepare','assemble','weld','paint'] },
+      { id: 'quality', cls: 'd', nodes: ['paint','qa','pack'] },
+      { id: 'shipping', cls: 'e', nodes: ['pack','ship'] },
+    ]);
+    model.dag.nodes.forEach(function(n) { if (dimNodes.has(n.id)) n.dim = true; });
+    return model;
+  })(),
+
+  (function() {
+    var nodes = [
+      ['api_ingest', 'API Ingest', '1.3M'], ['db_sync', 'DB Sync', '450K'],
+      ['file_import', 'File Import'], ['validate', 'Validate', '1.7M'],
+      ['normalize', 'Normalize', '1.7M'], ['enrich', 'Enrich', '1.6M'],
+      ['dedupe', 'Deduplicate', '1.5M'], ['ml_score', 'ML Score', '1.5M'],
+      ['fast_track', 'Fast Track', '1.2M'], ['manual_review', 'Manual Review'],
+      ['store', 'Store', '1.4M'], ['notify', 'Notify', '1.4M'], ['archive', 'Archive'],
+    ];
+    var dimNodes = new Set(['file_import','manual_review','archive']);
+    var model = mkModel('pipeline_dim', 'Data Pipeline (dim)', 'Ingest | Transform | Route | Store', nodes, [
+      ['api_ingest','validate'],['db_sync','validate'],['file_import','validate'],
+      ['validate','normalize'],['normalize','enrich'],
+      ['enrich','dedupe'],['dedupe','ml_score'],
+      ['ml_score','fast_track'],['ml_score','manual_review'],
+      ['fast_track','store'],['manual_review','store'],
+      ['store','notify'],['store','archive'],
+    ], [
+      { id: 'ingest', cls: 'a', nodes: ['api_ingest','db_sync','validate','normalize'] },
+      { id: 'transform', cls: 'b', nodes: ['validate','normalize','enrich','dedupe'] },
+      { id: 'scoring', cls: 'c', nodes: ['dedupe','ml_score','fast_track','store'] },
+      { id: 'storage', cls: 'd', nodes: ['store','notify'] },
+    ]);
+    model.dag.nodes.forEach(function(n) { if (dimNodes.has(n.id)) n.dim = true; });
+    return model;
+  })(),
 ];
 
 // ============================================================
