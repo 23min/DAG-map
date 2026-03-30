@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dag-map — Heatmap demo</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'IBM Plex Mono', 'Courier New', monospace; background: #1E1E2E; color: #CDD6F4; padding: 2rem; }
+h1 { font-size: 1.2rem; margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+p { font-size: 0.8rem; color: #6C7086; margin-bottom: 1.5rem; }
+.controls { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.controls label { font-size: 0.75rem; color: #A6ADC8; }
+.controls select, .controls input[type=range] { font-family: inherit; font-size: 0.75rem; background: #313244; color: #CDD6F4; border: 1px solid #45475A; border-radius: 4px; padding: 0.3rem 0.5rem; }
+.controls input[type=range] { width: 120px; }
+#output { background: #1E1E2E; border-radius: 8px; }
+#output svg { max-width: 100%; height: auto; }
+.legend { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; font-size: 0.7rem; color: #6C7086; }
+.legend .swatch { width: 16px; height: 16px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1>HEATMAP MODE</h1>
+<p>Color nodes by metric value. Drag the slider to simulate changing time bins.</p>
+
+<div class="controls">
+  <label>DAG:
+    <select id="dagSelect">
+      <option value="pipeline">Pipeline (8 nodes)</option>
+      <option value="diamond">Diamond (6 nodes)</option>
+      <option value="factory" selected>Factory (15 nodes)</option>
+    </select>
+  </label>
+  <label>Time bin:
+    <input type="range" id="binSlider" min="0" max="20" value="5">
+    <span id="binValue">5</span>
+  </label>
+  <label>Color scale:
+    <select id="scaleSelect">
+      <option value="palette" selected>Palette (teal → red)</option>
+      <option value="thermal">Thermal (blue → salmon)</option>
+      <option value="mono">Mono (light → dark)</option>
+    </select>
+  </label>
+  <label>Theme:
+    <select id="themeSelect">
+      <option value="dark" selected>Dark</option>
+      <option value="cream">Cream</option>
+      <option value="blueprint">Blueprint</option>
+    </select>
+  </label>
+</div>
+
+<div id="output"></div>
+
+<div class="legend">
+  <span>Low</span>
+  <div id="gradientBar" style="width: 120px; height: 12px; border-radius: 3px;"></div>
+  <span>High</span>
+</div>
+
+<script type="module">
+import { dagMap, colorScales } from '../src/index.js';
+
+// ── Sample DAGs ──
+const DAGS = {
+  pipeline: () => ({
+    nodes: [
+      { id: 'ingest', label: 'Ingest', cls: 'pure' },
+      { id: 'validate', label: 'Validate', cls: 'pure' },
+      { id: 'transform', label: 'Transform', cls: 'pure' },
+      { id: 'enrich', label: 'Enrich', cls: 'pure' },
+      { id: 'dedupe', label: 'Deduplicate', cls: 'pure' },
+      { id: 'index', label: 'Index', cls: 'pure' },
+      { id: 'cache', label: 'Cache', cls: 'pure' },
+      { id: 'serve', label: 'Serve', cls: 'pure' },
+    ],
+    edges: [
+      ['ingest', 'validate'], ['validate', 'transform'], ['transform', 'enrich'],
+      ['enrich', 'dedupe'], ['dedupe', 'index'], ['index', 'cache'], ['cache', 'serve'],
+    ],
+  }),
+
+  diamond: () => ({
+    nodes: [
+      { id: 'start', label: 'Start', cls: 'pure' },
+      { id: 'branch_a', label: 'Branch A', cls: 'recordable' },
+      { id: 'branch_b', label: 'Branch B', cls: 'side_effecting' },
+      { id: 'branch_c', label: 'Branch C', cls: 'gate' },
+      { id: 'merge', label: 'Merge', cls: 'pure' },
+      { id: 'end', label: 'End', cls: 'pure' },
+    ],
+    edges: [
+      ['start', 'branch_a'], ['start', 'branch_b'], ['start', 'branch_c'],
+      ['branch_a', 'merge'], ['branch_b', 'merge'], ['branch_c', 'merge'],
+      ['merge', 'end'],
+    ],
+  }),
+
+  factory: () => ({
+    nodes: [
+      { id: 'order', label: 'Order', cls: 'pure' },
+      { id: 'plan', label: 'Plan', cls: 'pure' },
+      { id: 'source_a', label: 'Source Raw', cls: 'recordable' },
+      { id: 'source_b', label: 'Source Parts', cls: 'recordable' },
+      { id: 'inspect_raw', label: 'Inspect Raw', cls: 'gate' },
+      { id: 'inspect_parts', label: 'Inspect Parts', cls: 'gate' },
+      { id: 'prep', label: 'Prepare', cls: 'pure' },
+      { id: 'assemble', label: 'Assemble', cls: 'pure' },
+      { id: 'weld', label: 'Weld', cls: 'side_effecting' },
+      { id: 'paint', label: 'Paint', cls: 'side_effecting' },
+      { id: 'qa', label: 'QA Check', cls: 'gate' },
+      { id: 'rework', label: 'Rework', cls: 'recordable' },
+      { id: 'pack', label: 'Pack', cls: 'pure' },
+      { id: 'ship', label: 'Ship', cls: 'pure' },
+      { id: 'invoice', label: 'Invoice', cls: 'pure' },
+    ],
+    edges: [
+      ['order', 'plan'], ['plan', 'source_a'], ['plan', 'source_b'],
+      ['source_a', 'inspect_raw'], ['source_b', 'inspect_parts'],
+      ['inspect_raw', 'prep'], ['inspect_parts', 'prep'],
+      ['prep', 'assemble'], ['assemble', 'weld'], ['weld', 'paint'],
+      ['paint', 'qa'], ['qa', 'pack'], ['qa', 'rework'],
+      ['rework', 'pack'], ['pack', 'ship'], ['pack', 'invoice'],
+    ],
+  }),
+};
+
+// ── Color scales (from library) ──
+const SCALES = colorScales;
+
+// ── Simulated metrics per bin ──
+// Each node gets a sine wave with different phase, simulating utilization over time
+function generateMetrics(dag, bin, maxBins) {
+  const metrics = new Map();
+  dag.nodes.forEach((node, i) => {
+    const phase = (i * 1.7) + (bin / maxBins) * Math.PI * 2;
+    const value = (Math.sin(phase) + 1) / 2; // 0..1
+    const pct = Math.round(value * 100);
+    metrics.set(node.id, { value, label: `${pct}%` });
+  });
+
+  // Edge metrics: average of source and target node values
+  const edgeMetrics = new Map();
+  for (const [from, to] of dag.edges) {
+    const fromMetric = metrics.get(from);
+    const toMetric = metrics.get(to);
+    if (fromMetric && toMetric) {
+      const value = (fromMetric.value + toMetric.value) / 2;
+      edgeMetrics.set(`${from}\u2192${to}`, { value });
+    }
+  }
+
+  return { metrics, edgeMetrics };
+}
+
+// ── Render ──
+function render() {
+  const dagName = document.getElementById('dagSelect').value;
+  const bin = parseInt(document.getElementById('binSlider').value, 10);
+  const scaleName = document.getElementById('scaleSelect').value;
+  const themeName = document.getElementById('themeSelect').value;
+
+  document.getElementById('binValue').textContent = bin;
+
+  const dag = DAGS[dagName]();
+  const maxBins = 20;
+  const { metrics, edgeMetrics } = generateMetrics(dag, bin, maxBins);
+  const colorScale = SCALES[scaleName] || SCALES.palette;
+
+  // Update background for theme
+  const bgs = { dark: '#1E1E2E', cream: '#F5F0E8', blueprint: '#1B2838' };
+  const fgs = { dark: '#CDD6F4', cream: '#2C2C2C', blueprint: '#E0E8F0' };
+  document.body.style.background = bgs[themeName] || bgs.dark;
+  document.body.style.color = fgs[themeName] || fgs.dark;
+
+  const result = dagMap(dag, {
+    theme: themeName,
+    routing: 'bezier',
+    showLegend: false,
+    title: ' ',
+    subtitle: null,
+    scale: 1.5,
+    metrics,
+    edgeMetrics,
+    colorScale,
+  });
+
+  document.getElementById('output').innerHTML = result.svg;
+
+  // Update gradient bar
+  const bar = document.getElementById('gradientBar');
+  const stops = [];
+  for (let i = 0; i <= 10; i++) {
+    stops.push(colorScale(i / 10) + ` ${i * 10}%`);
+  }
+  bar.style.background = `linear-gradient(to right, ${stops.join(', ')})`;
+}
+
+// Wire controls
+document.getElementById('dagSelect').addEventListener('change', render);
+document.getElementById('binSlider').addEventListener('input', render);
+document.getElementById('scaleSelect').addEventListener('change', render);
+document.getElementById('themeSelect').addEventListener('change', render);
+
+render();
+</script>
+</body>
+</html>

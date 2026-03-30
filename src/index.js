@@ -13,6 +13,7 @@ import { metroPath } from './route-metro.js';
 import { THEMES, resolveTheme } from './themes.js';
 import { createStationRenderer, createEdgeRenderer } from './render-flow-station.js';
 import { validateDag, swapPathXY } from './graph-utils.js';
+import { colorScales } from './color-scales.js';
 
 export { layoutMetro, dominantClass };
 export { layoutHasse };
@@ -24,6 +25,7 @@ export { metroPath };
 export { THEMES, resolveTheme };
 export { createStationRenderer, createEdgeRenderer };
 export { validateDag, swapPathXY };
+export { colorScales };
 
 /**
  * Convenience function: compute layout and render SVG in one call.

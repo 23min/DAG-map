@@ -10,6 +10,7 @@
 //   cssVars: true — CSS var() references, themeable from CSS
 
 import { resolveTheme } from './themes.js';
+import { colorScales } from './color-scales.js';
 
 /** Escape user-supplied strings for safe SVG/XML interpolation. */
 function esc(s) {
@@ -52,7 +53,12 @@ export function renderSVG(dag, layout, options = {}) {
     labelSize = 5,
     renderNode,
     renderEdge,
+    metrics,
+    edgeMetrics,
+    colorScale: userColorScale,
   } = options;
+
+  const colorScale = userColorScale || colorScales.palette;
 
   const font = options.font || "'IBM Plex Mono', 'Courier New', monospace";
 
@@ -140,14 +146,21 @@ export function renderSVG(dag, layout, options = {}) {
       const fromId = route.nodes[si];
       const toId = route.nodes[si + 1];
 
+      // Check for edge-level metric
+      const edgeKey = fromId && toId ? `${fromId}\u2192${toId}` : null;
+      const edgeMetric = edgeKey && edgeMetrics && edgeMetrics.get ? edgeMetrics.get(edgeKey) : undefined;
+      const hasEdgeMetric = edgeMetric !== undefined && edgeMetric !== null;
+      const edgeColor = hasEdgeMetric ? colorScale(edgeMetric.value) : segColor(seg.color);
+      const edgeOpacity = hasEdgeMetric ? Math.max(seg.opacity, 0.8) : seg.opacity;
+
       if (renderEdge) {
         const edge = fromId && toId ? { from: fromId, to: toId } : null;
-        const ctx = { theme, scale: s, isExtraEdge: false, routeIndex: ri, segmentIndex: si };
-        svg += renderEdge(edge, { ...seg, color: segColor(seg.color) }, ctx);
+        const ctx = { theme, scale: s, isExtraEdge: false, routeIndex: ri, segmentIndex: si, edgeMetric };
+        svg += renderEdge(edge, { ...seg, color: edgeColor }, ctx);
         svg += '\n';
       } else {
-        svg += `<path d="${seg.d}" stroke="${segColor(seg.color)}" stroke-width="${seg.thickness}" fill="none" `;
-        svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${seg.opacity}"`;
+        svg += `<path d="${seg.d}" stroke="${edgeColor}" stroke-width="${seg.thickness}" fill="none" `;
+        svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${edgeOpacity}"`;
         if (seg.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
         if (fromId && toId) {
           svg += ` data-edge-from="${escAttr(fromId)}" data-edge-to="${escAttr(toId)}" data-route="${ri}"`;
@@ -161,7 +174,10 @@ export function renderSVG(dag, layout, options = {}) {
   dag.nodes.forEach(nd => {
     const pos = positions.get(nd.id);
     if (!pos) return;
-    const color = col.cls(nd.cls || 'pure');
+    const metric = metrics && metrics.get ? metrics.get(nd.id) : undefined;
+    const hasMetric = metric !== undefined && metric !== null;
+    const baseColor = col.cls(nd.cls || 'pure');
+    const color = hasMetric ? colorScale(metric.value) : baseColor;
     const isInterchange = (inDeg.get(nd.id) > 1 || outDeg.get(nd.id) > 1);
     const isGate = nd.cls === 'gate';
 
@@ -174,6 +190,8 @@ export function renderSVG(dag, layout, options = {}) {
     const routeClasses = nRoutes
       ? [...nRoutes].map(idx => routes[idx]?.cls).filter(Boolean)
       : [];
+
+    const metricAttr = hasMetric ? ` data-metric-value="${metric.value}"` : '';
 
     if (renderNode) {
       const ctx = {
@@ -189,8 +207,9 @@ export function renderSVG(dag, layout, options = {}) {
         routeClasses,
         orientation: layout.orientation || 'ltr',
         laneX: layout.laneX || null,
+        metric,
       };
-      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}">`;
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}"${metricAttr}>`;
       svg += renderNode(nd, pos, ctx);
       svg += `</g>\n`;
     } else {
@@ -203,18 +222,28 @@ export function renderSVG(dag, layout, options = {}) {
         r = 3 * s;
       }
 
-      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}">`;
+      svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}"${metricAttr}>`;
 
       svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
-      svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
-      if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+      if (hasMetric) {
+        svg += `fill="${color}" stroke="${color}" stroke-width="${1.2 * s}" opacity="0.85"`;
+      } else {
+        svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
+        if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+      }
       svg += `/>`;
 
-      if (isInterchange && !isGate) {
+      if (!hasMetric && isInterchange && !isGate) {
         svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="0.3"/>`;
       }
-      if (isGate) {
+      if (!hasMetric && isGate) {
         svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="0.4"/>`;
+      }
+
+      // Metric label (rendered above the node)
+      if (hasMetric && metric.label) {
+        svg += `<text x="${pos.x.toFixed(1)}" y="${(pos.y - r - 2 * s).toFixed(1)}" `;
+        svg += `font-size="${3.5 * s}" fill="${col.ink}" text-anchor="middle" opacity="0.8">${esc(metric.label)}</text>`;
       }
 
       const fs = labelSize * s;
