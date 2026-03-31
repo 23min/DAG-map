@@ -72,7 +72,7 @@ export function layoutMetro(dag, options = {}) {
 
   // ── STEP 2: Extract routes ──
   // Either use consumer-provided routes or auto-discover via greedy longest-path.
-  const lineGap = (options.lineGap ?? 5) * s; // perpendicular gap between parallel lines
+  // lineGap is set after route discovery (needs route count)
 
   function longestPathIn(nodeSet) {
     const dist = new Map(), prev = new Map();
@@ -195,6 +195,11 @@ export function layoutMetro(dag, options = {}) {
       segmentRoutes.get(key).push(ri);
     }
   });
+
+  // lineGap: perpendicular gap between parallel lines at shared nodes.
+  // Only non-zero when consumer provides multiple routes (visible parallel lines).
+  // Auto-discovered routes are internal — they don't need visual separation.
+  const lineGap = (options.lineGap ?? (hasProvidedRoutes && routes.length > 1 ? 5 : 0)) * s;
 
   // ── STEP 3: Y-position assignment with occupancy tracking ──
   const routeChildren = new Map();
