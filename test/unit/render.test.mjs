@@ -205,4 +205,82 @@ describe('renderSVG', () => {
     const svg = renderSVG(dag, layout);
     assert.ok(svg.includes('X&lt;Y'));
   });
+
+  // ── CSS classes on text elements ───────────────────────────────
+
+  it('adds dm-title class to title text', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { title: 'My Title' });
+    assert.ok(svg.includes('class="dm-title"'));
+  });
+
+  it('adds dm-subtitle class to subtitle text', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { subtitle: 'My Sub' });
+    assert.ok(svg.includes('class="dm-subtitle"'));
+  });
+
+  it('adds dm-label class to node labels', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout);
+    assert.ok(svg.includes('class="dm-label"'));
+  });
+
+  it('adds dm-legend-text class to legend labels', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { showLegend: true });
+    assert.ok(svg.includes('class="dm-legend-text"'));
+  });
+
+  it('adds dm-stats class to stats line', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { showLegend: true });
+    assert.ok(svg.includes('class="dm-stats"'));
+  });
+
+  // ── Font size options ──────────────────────────────────────────
+
+  it('respects titleSize option', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { title: 'T', titleSize: 14 });
+    const s = layout.scale || 1;
+    assert.ok(svg.includes(`font-size="${14 * s}"`));
+  });
+
+  it('respects subtitleSize option', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { subtitle: 'S', subtitleSize: 8 });
+    const s = layout.scale || 1;
+    assert.ok(svg.includes(`font-size="${8 * s}"`));
+  });
+
+  it('respects legendSize option', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { legendSize: 8 });
+    const s = layout.scale || 1;
+    assert.ok(svg.includes(`font-size="${8 * s}"`));
+  });
+
+  // ── cssVars mode: size variables ───────────────────────────────
+
+  it('emits CSS size variables in cssVars mode', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { cssVars: true });
+    assert.ok(svg.includes('--dm-title-size:'));
+    assert.ok(svg.includes('--dm-label-size:'));
+    assert.ok(svg.includes('--dm-legend-size:'));
+    assert.ok(svg.includes('--dm-stats-size:'));
+  });
+
+  it('uses style= with var() for font-size in cssVars mode', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { cssVars: true, title: 'T' });
+    assert.ok(svg.includes('style="font-size: var(--dm-title-size,'));
+  });
+
+  it('does not emit CSS variables in inline mode', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { cssVars: false });
+    assert.ok(!svg.includes('--dm-title-size'));
+  });
 });

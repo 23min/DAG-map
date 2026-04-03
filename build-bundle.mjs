@@ -14,22 +14,39 @@ function stripModuleSyntax(code) {
     .replace(/^export\s+default\s+/gm, '');
 }
 
-const files = ['route-bezier.js', 'route-angular.js', 'themes.js', 'layout.js', 'render.js'];
+const files = [
+  'route-bezier.js',
+  'route-angular.js',
+  'route-metro.js',
+  'graph-utils.js',
+  'themes.js',
+  'color-scales.js',
+  'layout-metro.js',
+  'layout-hasse.js',
+  'occupancy.js',
+  'layout-flow.js',
+  'render-flow-station.js',
+  'render.js',
+];
 const sources = files.map(f => `// --- ${f} ---\n` + stripModuleSyntax(readFileSync(join(__dirname, 'src', f), 'utf-8')));
 
 const bundle = `// dag-map-bundle.js — auto-generated, do not edit
 (function() {
 ${sources.join('\n\n')}
 
-  // Expose API
   window.DagMap = {
     layoutMetro: layoutMetro,
+    layoutHasse: layoutHasse,
+    layoutFlow: layoutFlow,
     renderSVG: renderSVG,
     resolveTheme: resolveTheme,
     THEMES: THEMES,
-    C: C,
-    CLASS_COLOR: CLASS_COLOR,
     dominantClass: dominantClass,
+    validateDag: validateDag,
+    swapPathXY: swapPathXY,
+    colorScales: colorScales,
+    createStationRenderer: createStationRenderer,
+    createEdgeRenderer: createEdgeRenderer,
   };
 })();
 `;

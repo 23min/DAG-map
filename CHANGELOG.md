@@ -66,6 +66,18 @@ Each station `<circle>` element now carries a `data-id` attribute matching the n
 
 The metro demo (`demo/dag.html`) now includes an execution progress slider, dim opacity slider, click-to-toggle dim on nodes, and a live JSON panel.
 
+### New: CSS classes on SVG text elements
+
+All text elements now carry semantic CSS classes (`dm-title`, `dm-subtitle`, `dm-label`, `dm-metric-label`, `dm-legend-text`, `dm-stats`) for external styling without re-rendering. Works in both inline and `cssVars` modes.
+
+### New: Configurable font sizes
+
+`renderSVG` accepts `titleSize`, `subtitleSize`, `labelSize`, and `legendSize` options (multipliers before scale). In `cssVars` mode, these are also exposed as CSS custom properties (`--dm-title-size`, `--dm-subtitle-size`, `--dm-label-size`, `--dm-legend-size`, `--dm-stats-size`) with `var()` references and a `<style>` block with computed defaults.
+
+### New: Standalone bundle documentation
+
+`build-bundle.mjs` updated to include all source modules. `window.DagMap` API documented in README with full function reference table.
+
 ### Changed
 
 - **`layout.js` renamed to `layout-metro.js`**
@@ -73,6 +85,7 @@ The metro demo (`demo/dag.html`) now includes an execution progress slider, dim 
 - **`render.js`** — XSS escaping on all user-supplied strings; theme-system-only fallback (removed `C`/`CLASS_COLOR` backward-compat constants)
 - **`layout-hasse.js`** — uses shared `graph-utils.js` instead of private copies
 - **CSS files** — moved to `src/dag-map.css` and `src/hasse.css`
+- **`build-bundle.mjs`** — includes all 12 source modules; exposed API updated (`layoutHasse`, `layoutFlow`, `colorScales`, `createStationRenderer`, `createEdgeRenderer`, `validateDag`, `swapPathXY`; removed deprecated `C`/`CLASS_COLOR`)
 
 ### Known issues
 
