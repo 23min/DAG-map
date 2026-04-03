@@ -38,6 +38,9 @@ function escAttr(v) {
  * @param {object} [options.legendLabels] - custom legend labels per class
  * @param {boolean} [options.cssVars=false] - use CSS var() references instead of inline colors
  * @param {number} [options.labelSize=5] - label font size multiplier (before scale)
+ * @param {number} [options.titleSize=10] - title font size multiplier (before scale)
+ * @param {number} [options.subtitleSize=6.5] - subtitle font size multiplier (before scale)
+ * @param {number} [options.legendSize=6.5] - legend text font size multiplier (before scale)
  * @param {function} [options.renderNode] - custom node renderer: (node, pos, ctx) => SVG string
  * @param {function} [options.renderEdge] - custom edge renderer: (edge, segment, ctx) => SVG string
  * @returns {string} SVG markup
@@ -51,6 +54,9 @@ export function renderSVG(dag, layout, options = {}) {
     showLegend = true,
     cssVars = false,
     labelSize = 5,
+    titleSize = 10,
+    subtitleSize = 6.5,
+    legendSize = 6.5,
     dimOpacity = 0.25,
     renderNode,
     renderEdge,
@@ -100,12 +106,42 @@ export function renderSVG(dag, layout, options = {}) {
   const displayTitle = title || `DAG (${dag.nodes.length} OPS)`;
   const displaySubtitle = subtitle !== undefined ? subtitle : 'Topological layout. Colored lines = execution paths by node class.';
 
+  // Computed sizes in SVG coordinate units
+  const sz = {
+    title: titleSize * s,
+    subtitle: subtitleSize * s,
+    label: labelSize * s,
+    legend: legendSize * s,
+    stats: (legendSize - 0.5) * s,
+  };
+
+  // Size resolver: either inline value or CSS var() reference
+  const fs = cssVars ? {
+    title:    `var(--dm-title-size, ${sz.title})`,
+    subtitle: `var(--dm-subtitle-size, ${sz.subtitle})`,
+    label:    `var(--dm-label-size, ${sz.label})`,
+    legend:   `var(--dm-legend-size, ${sz.legend})`,
+    stats:    `var(--dm-stats-size, ${sz.stats})`,
+  } : sz;
+
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="${font}">\n`;
+
+  if (cssVars) {
+    svg += `<style>\n`;
+    svg += `  svg { --dm-title-size: ${sz.title}; --dm-subtitle-size: ${sz.subtitle}; --dm-label-size: ${sz.label}; --dm-legend-size: ${sz.legend}; --dm-stats-size: ${sz.stats}; }\n`;
+    svg += `</style>\n`;
+  }
+
   svg += `<rect width="${width}" height="${height}" fill="${col.paper}"/>\n`;
 
-  svg += `<text x="${24 * s}" y="${22 * s}" font-size="${10 * s}" fill="${col.ink}" letter-spacing="0.06em" opacity="0.5">${esc(displayTitle)}</text>\n`;
+  // In cssVars mode, use style= (CSS property) so var() works; otherwise use font-size= (SVG attribute)
+  const fsAttr = (cls, size) => cssVars
+    ? `style="font-size: ${size}"`
+    : `font-size="${size}"`;
+
+  svg += `<text class="dm-title" x="${24 * s}" y="${22 * s}" ${fsAttr('title', fs.title)} fill="${col.ink}" letter-spacing="0.06em" opacity="0.5">${esc(displayTitle)}</text>\n`;
   if (displaySubtitle) {
-    svg += `<text x="${24 * s}" y="${34 * s}" font-size="${6.5 * s}" fill="${col.muted}">${esc(displaySubtitle)}</text>\n`;
+    svg += `<text class="dm-subtitle" x="${24 * s}" y="${34 * s}" ${fsAttr('subtitle', fs.subtitle)} fill="${col.muted}">${esc(displaySubtitle)}</text>\n`;
   }
 
   // Route lines — extra edges first (behind)
@@ -244,11 +280,12 @@ export function renderSVG(dag, layout, options = {}) {
 
       // Metric label (rendered above the node)
       if (hasMetric && metric.label) {
-        svg += `<text x="${pos.x.toFixed(1)}" y="${(pos.y - r - 2 * s).toFixed(1)}" `;
+        svg += `<text class="dm-metric-label" x="${pos.x.toFixed(1)}" y="${(pos.y - r - 2 * s).toFixed(1)}" `;
         svg += `font-size="${labelSize * 0.9 * s}" fill="${color}" text-anchor="middle" font-weight="600" opacity="${isDim ? dO * 0.8 : 0.9}">${esc(metric.label)}</text>`;
       }
 
-      const fs = labelSize * s;
+      const lfs = sz.label;  // label font size in SVG units (for positioning)
+      const lfsCss = fs.label;  // label font size value (inline or var())
       const labelOpacity = isDim ? dO * 0.8 : 0.55;
       if (diagonalLabels) {
         const tickLen = 6 * s;
@@ -261,18 +298,18 @@ export function renderSVG(dag, layout, options = {}) {
         svg += `stroke="${col.ink}" stroke-width="${0.6 * s}" opacity="${isDim ? dO * 0.4 : 0.3}"/>`;
         const textX = tickEndX + 1 * s;
         const textY = tickEndY - r - 1 * s;
-        svg += `<text x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
-        svg += `font-size="${fs * 0.9}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}" `;
+        svg += `<text class="dm-label" x="${textX.toFixed(1)}" y="${textY.toFixed(1)}" `;
+        svg += `${fsAttr('label', lfs * 0.9)} fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}" `;
         svg += `transform="rotate(${angle} ${textX.toFixed(1)} ${textY.toFixed(1)})">${esc(nd.label)}</text>`;
       } else if (layout.orientation === 'ttb') {
         const labelX = pos.x + r + 4 * s;
-        const labelY = pos.y + fs * 0.35;
-        svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
+        const labelY = pos.y + lfs * 0.35;
+        svg += `<text class="dm-label" x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" `;
+        svg += `${fsAttr('label', lfsCss)} fill="${col.ink}" text-anchor="start" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
       } else {
         const labelY = pos.y + r + 8 * s;
-        svg += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
-        svg += `font-size="${fs}" fill="${col.ink}" text-anchor="middle" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
+        svg += `<text class="dm-label" x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" `;
+        svg += `${fsAttr('label', lfsCss)} fill="${col.ink}" text-anchor="middle" opacity="${labelOpacity}">${esc(nd.label)}</text>`;
       }
 
       svg += `</g>\n`;
@@ -293,11 +330,11 @@ export function renderSVG(dag, layout, options = {}) {
       svg += `<line x1="${x}" y1="${ly + 16 * s}" x2="${x + 22 * s}" y2="${ly + 16 * s}" stroke="${color}" stroke-width="${3.5 * s}" opacity="0.5" stroke-linecap="round"`;
       if (cls === 'gate') svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
       svg += `/>\n`;
-      svg += `<text x="${x + 28 * s}" y="${ly + 19 * s}" font-size="${6.5 * s}" fill="${col.muted}">${esc(label)}</text>\n`;
+      svg += `<text class="dm-legend-text" x="${x + 28 * s}" y="${ly + 19 * s}" ${fsAttr('legend', fs.legend)} fill="${col.muted}">${esc(label)}</text>\n`;
     });
 
     const vertSpread = layout.maxY - layout.minY;
-    svg += `<text x="${24 * s}" y="${ly + 38 * s}" font-size="${6 * s}" fill="${col.muted}">${dag.nodes.length} ops | ${dag.edges.length} edges | ${routes.length} routes | spread: ${vertSpread.toFixed(0)}px | scale: ${s}x</text>\n`;
+    svg += `<text class="dm-stats" x="${24 * s}" y="${ly + 38 * s}" ${fsAttr('stats', fs.stats)} fill="${col.muted}">${dag.nodes.length} ops | ${dag.edges.length} edges | ${routes.length} routes | spread: ${vertSpread.toFixed(0)}px | scale: ${s}x</text>\n`;
   }
 
   svg += `</svg>`;

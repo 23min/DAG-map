@@ -41,6 +41,36 @@ const { layout, svg } = dagMap(dag);
 document.getElementById('container').innerHTML = svg;
 ```
 
+### Standalone bundle (no build step)
+
+For environments without ES modules (LiveView, server-rendered HTML, prototypes), use the pre-built bundle:
+
+```html
+<script src="dag-map-bundle.js"></script>
+<script>
+  const layout = DagMap.layoutMetro(dag);
+  const svg = DagMap.renderSVG(dag, layout, { cssVars: true });
+  document.getElementById('container').innerHTML = svg;
+</script>
+```
+
+Build it with `node build-bundle.mjs` (output: `dist/dag-map-bundle.js`). The `window.DagMap` object exposes:
+
+| Function | Description |
+|----------|-------------|
+| `layoutMetro(dag, opts?)` | Metro layout engine |
+| `layoutHasse(dag, opts?)` | Hasse diagram layout |
+| `layoutFlow(dag, opts?)` | Process-mining flow layout |
+| `renderSVG(dag, layout, opts?)` | SVG renderer |
+| `resolveTheme(name)` | Resolve theme name to theme object |
+| `THEMES` | All built-in theme objects |
+| `dominantClass(dag)` | Most common node class in a DAG |
+| `validateDag(nodes, edges)` | Non-throwing DAG validation |
+| `swapPathXY(d)` | SVG path X↔Y coordinate swap |
+| `colorScales` | Color scale functions for heatmap mode |
+| `createStationRenderer(layout, routes)` | Flow layout station renderer |
+| `createEdgeRenderer(layout, volumes?)` | Flow layout edge renderer |
+
 ## API
 
 ### `dagMap(dag, options?)` — convenience function
@@ -76,6 +106,7 @@ import { renderSVG } from 'dag-map';
 
 const svg = renderSVG(dag, layout, {
   title: 'MY PIPELINE',     // title text at top of SVG
+  subtitle: 'Custom sub',   // subtitle text (default: auto-generated)
   diagonalLabels: false,     // tube-map style angled station labels
   labelAngle: 45,            // angle in degrees (0–90) when diagonalLabels is true
   showLegend: true,          // show legend at bottom
@@ -86,6 +117,11 @@ const svg = renderSVG(dag, layout, {
     side_effecting: 'I/O',
     gate: 'Approval',
   },
+  // Font size multipliers (before scale):
+  titleSize: 10,             // title font size (default: 10)
+  subtitleSize: 6.5,         // subtitle font size (default: 6.5)
+  labelSize: 5,              // node label font size (default: 5)
+  legendSize: 6.5,           // legend + stats font size (default: 6.5)
 });
 ```
 
@@ -120,6 +156,27 @@ svg.querySelectorAll('circle[data-id]').forEach(circle => {
 });
 ```
 
+## CSS classes
+
+All text elements in the SVG carry semantic CSS classes for external styling:
+
+| Class | Element |
+|-------|---------|
+| `dm-title` | Title text |
+| `dm-subtitle` | Subtitle text |
+| `dm-label` | Node (station) labels |
+| `dm-metric-label` | Metric value labels above nodes (heatmap mode) |
+| `dm-legend-text` | Legend entry labels |
+| `dm-stats` | Stats line at bottom (node/edge/route counts) |
+
+These classes are always present regardless of `cssVars` mode. Use them for font-size overrides, animations, or hiding elements:
+
+```css
+.dm-title { font-size: 18px !important; }
+.dm-label { opacity: 0.8; }
+.dm-stats { display: none; }  /* hide the stats line */
+```
+
 ## Color modes
 
 ### Inline colors (default)
@@ -152,6 +209,22 @@ The SVG output uses `var(--dm-paper)`, `var(--dm-cls-pure)`, etc. Override them 
     --dm-cls-gate: #EBA0AC;
   }
 }
+```
+
+In `cssVars` mode, font sizes are also exposed as CSS custom properties with computed defaults:
+
+| Variable | Default | Controls |
+|----------|---------|----------|
+| `--dm-title-size` | `titleSize * scale` | Title text |
+| `--dm-subtitle-size` | `subtitleSize * scale` | Subtitle text |
+| `--dm-label-size` | `labelSize * scale` | Node labels |
+| `--dm-legend-size` | `legendSize * scale` | Legend text |
+| `--dm-stats-size` | `(legendSize - 0.5) * scale` | Stats line |
+
+Text elements use `style="font-size: var(--dm-title-size, <default>)"` so you can override sizes from CSS without re-rendering:
+
+```css
+svg { --dm-title-size: 20px; --dm-label-size: 8px; }
 ```
 
 Default values for all CSS variables are provided in `src/dag-map.css` (metro layouts) and `src/hasse.css` (Hasse diagrams). Include the appropriate file for your use case — or both if using both layout engines.
