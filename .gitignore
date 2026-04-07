@@ -4,3 +4,5 @@ dist/
 test/results/
 test/.tmp/
 test/gallery.html
+
+bench/
