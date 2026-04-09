@@ -89,10 +89,11 @@ export function layoutMetro(dag, options = {}) {
   const { routes, nodeRoute, nodeRoutes, segmentRoutes, hasProvidedRoutes } = routeResult;
 
   // ── STEP 3: Order nodes within layers (strategy — no-op by default) ──
-  strats.orderNodes({ nodes, childrenOf, parentsOf, layer, maxLayer });
+  const strategyConfig = options.strategyConfig || {};
+  strats.orderNodes({ nodes, childrenOf, parentsOf, layer, maxLayer, config: strategyConfig });
 
   // ── STEP 4: Reduce crossings (strategy — no-op by default) ──
-  strats.reduceCrossings({ nodes, childrenOf, parentsOf, layer, maxLayer });
+  strats.reduceCrossings({ nodes, childrenOf, parentsOf, layer, maxLayer, config: strategyConfig });
 
   // ── STEP 5: Assign Y positions (strategy) ──
   const lineGap = (options.lineGap ?? (hasProvidedRoutes && routes.length > 1 ? 5 : 0)) * s;
