@@ -135,7 +135,7 @@ export function layoutMetro(dag, options = {}) {
   const height = topPad + (maxY - minY) + bottomPad;
 
   // ── STEP 6b: Refine coordinates (strategy — no-op by default) ──
-  strats.refineCoordinates({ nodes, positions, childrenOf, parentsOf });
+  strats.refineCoordinates({ nodes, positions, childrenOf, parentsOf, config: strategyConfig });
 
   // Compute screen Y for each route (after topPad/minY shift)
   const routeYScreen = new Map();

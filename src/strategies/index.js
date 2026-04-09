@@ -21,6 +21,7 @@ import { reduceCrossingsGreedy } from './reduce-crossings-greedy.js';
 
 // Coordinate refinement
 import { refineCoordinatesNone } from './refine-coordinates-none.js';
+import { refineCoordinatesBarycenter } from './refine-coordinates-barycenter.js';
 
 // Register all strategies
 registerStrategy('extractRoutes', 'default', extractRoutesDefault);
@@ -35,5 +36,6 @@ registerStrategy('reduceCrossings', 'barycenter', reduceCrossingsBarycenter);
 registerStrategy('reduceCrossings', 'greedy', reduceCrossingsGreedy);
 
 registerStrategy('refineCoordinates', 'none', refineCoordinatesNone);
+registerStrategy('refineCoordinates', 'barycenter', refineCoordinatesBarycenter);
 
 export { resolveStrategies };
