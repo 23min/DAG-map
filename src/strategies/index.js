@@ -14,6 +14,7 @@ import { assignLanesOrdered } from './assign-lanes-ordered.js';
 import { orderNodesNone } from './order-nodes-none.js';
 import { orderNodesBarycenter } from './order-nodes-barycenter.js';
 import { orderNodesMedian } from './order-nodes-median.js';
+import { orderNodesSpectral } from './order-nodes-spectral.js';
 
 // Crossing reduction
 import { reduceCrossingsNone } from './reduce-crossings-none.js';
@@ -38,6 +39,7 @@ registerStrategy('assignLanes', 'ordered', assignLanesOrdered);
 registerStrategy('orderNodes', 'none', orderNodesNone);
 registerStrategy('orderNodes', 'barycenter', orderNodesBarycenter);
 registerStrategy('orderNodes', 'median', orderNodesMedian);
+registerStrategy('orderNodes', 'spectral', orderNodesSpectral);
 
 registerStrategy('reduceCrossings', 'none', reduceCrossingsNone);
 registerStrategy('reduceCrossings', 'barycenter', reduceCrossingsBarycenter);
