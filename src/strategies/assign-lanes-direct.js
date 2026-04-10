@@ -33,14 +33,31 @@ export function assignLanesDirect(ctx) {
     }
   }
 
-  // Assign Y: center each layer around TRUNK_Y
+  // Find trunk nodes (route 0) to pin them at TRUNK_Y
+  const trunkNodes = new Set(routes[0]?.nodes || []);
+
+  // Assign Y: pin trunk at TRUNK_Y, space others around it
   const nodeY = new Map();
   for (const layerNodes of layers) {
-    const n = layerNodes.length;
-    const totalHeight = (n - 1) * spacing;
-    const startY = TRUNK_Y - totalHeight / 2;
-    for (let i = 0; i < n; i++) {
-      nodeY.set(layerNodes[i], startY + i * spacing);
+    // Find trunk node index in this layer's sorted order
+    let trunkIdx = -1;
+    for (let i = 0; i < layerNodes.length; i++) {
+      if (trunkNodes.has(layerNodes[i])) { trunkIdx = i; break; }
+    }
+
+    if (trunkIdx >= 0) {
+      // Pin trunk at TRUNK_Y, others relative
+      for (let i = 0; i < layerNodes.length; i++) {
+        nodeY.set(layerNodes[i], TRUNK_Y + (i - trunkIdx) * spacing);
+      }
+    } else {
+      // No trunk node — center around TRUNK_Y
+      const n = layerNodes.length;
+      const totalHeight = (n - 1) * spacing;
+      const startY = TRUNK_Y - totalHeight / 2;
+      for (let i = 0; i < n; i++) {
+        nodeY.set(layerNodes[i], startY + i * spacing);
+      }
     }
   }
 
