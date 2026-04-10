@@ -107,7 +107,8 @@ export function layoutMetro(dag, options = {}) {
 
   const laneResult = strats.assignLanes({
     routes, layer, nodeRoute, nodeMap, hasProvidedRoutes, nodeOrder,
-    config: { TRUNK_Y, MAIN_SPACING, SUB_SPACING, maxLanes },
+    childrenOf, parentsOf, maxLayer,
+    config: { TRUNK_Y, MAIN_SPACING, SUB_SPACING, maxLanes, ...strategyConfig },
   });
   const { routeY } = laneResult;
 
@@ -158,24 +159,40 @@ export function layoutMetro(dag, options = {}) {
     });
   });
 
-  // Compute width from actual node positions (not rigid formula)
-  let maxX = 0;
-  for (const [, pos] of positions) {
-    if (pos.x > maxX) maxX = pos.x;
-  }
-  const width = maxX + margin.right;
-  const height = topPad + (maxY - minY) + bottomPad;
-
   // ── STEP 6b: Refine coordinates (strategy — no-op by default) ──
   strats.refineCoordinates({ nodes, positions, childrenOf, parentsOf, config: strategyConfig,
     nodeRoute, routes, routeY });
 
+  // Recompute bounds AFTER refinement — positions may have shifted
+  let finalMinX = Infinity, finalMaxX = -Infinity;
+  let finalMinY = Infinity, finalMaxY = -Infinity;
+  for (const [, pos] of positions) {
+    if (pos.x < finalMinX) finalMinX = pos.x;
+    if (pos.x > finalMaxX) finalMaxX = pos.x;
+    if (pos.y < finalMinY) finalMinY = pos.y;
+    if (pos.y > finalMaxY) finalMaxY = pos.y;
+  }
+
+  // Shift all positions so nothing is off-screen (min at padding)
+  const shiftX = finalMinX < margin.left ? margin.left - finalMinX : 0;
+  const shiftY = finalMinY < topPad ? topPad - finalMinY : 0;
+  if (shiftX > 0 || shiftY > 0) {
+    for (const [id, pos] of positions) {
+      positions.set(id, { x: pos.x + shiftX, y: pos.y + shiftY });
+    }
+    finalMinX += shiftX; finalMaxX += shiftX;
+    finalMinY += shiftY; finalMaxY += shiftY;
+  }
+
+  const width = finalMaxX + margin.right;
+  const height = finalMaxY + bottomPad;
+
   // Compute screen Y for each route (after topPad/minY shift)
   const routeYScreen = new Map();
   for (const [ri, y] of routeY.entries()) {
-    routeYScreen.set(ri, topPad + (y - minY));
+    routeYScreen.set(ri, topPad + (y - minY) + shiftY);
   }
-  const trunkYScreen = topPad + (TRUNK_Y - minY);
+  const trunkYScreen = topPad + (TRUNK_Y - minY) + shiftY;
 
   // ── STEP 7: Build route paths ──
   const pathFn = routing === 'metro' ? metroPath : routing === 'bezier' ? bezierPath : angularPath;

@@ -9,6 +9,7 @@ import { extractRoutesDefault } from './extract-routes-default.js';
 // Lane assignment
 import { assignLanesDefault } from './assign-lanes-default.js';
 import { assignLanesOrdered } from './assign-lanes-ordered.js';
+import { assignLanesComposed } from './assign-lanes-composed.js';
 
 // Node ordering
 import { orderNodesNone } from './order-nodes-none.js';
@@ -16,6 +17,7 @@ import { orderNodesBarycenter } from './order-nodes-barycenter.js';
 import { orderNodesMedian } from './order-nodes-median.js';
 import { orderNodesSpectral } from './order-nodes-spectral.js';
 import { orderNodesHybrid } from './order-nodes-hybrid.js';
+import { orderNodesShuffle } from './order-nodes-shuffle.js';
 
 // Crossing reduction
 import { reduceCrossingsNone } from './reduce-crossings-none.js';
@@ -36,12 +38,17 @@ import { refineCoordinatesBarycenter } from './refine-coordinates-barycenter.js'
 registerStrategy('extractRoutes', 'default', extractRoutesDefault);
 registerStrategy('assignLanes', 'default', assignLanesDefault);
 registerStrategy('assignLanes', 'ordered', assignLanesOrdered);
+registerStrategy('assignLanes', 'composed', assignLanesComposed);
+
+import { assignLanesDirect } from './assign-lanes-direct.js';
+registerStrategy('assignLanes', 'direct', assignLanesDirect);
 
 registerStrategy('orderNodes', 'none', orderNodesNone);
 registerStrategy('orderNodes', 'barycenter', orderNodesBarycenter);
 registerStrategy('orderNodes', 'median', orderNodesMedian);
 registerStrategy('orderNodes', 'spectral', orderNodesSpectral);
 registerStrategy('orderNodes', 'hybrid', orderNodesHybrid);
+registerStrategy('orderNodes', 'shuffle', orderNodesShuffle);
 
 registerStrategy('reduceCrossings', 'none', reduceCrossingsNone);
 registerStrategy('reduceCrossings', 'barycenter', reduceCrossingsBarycenter);
