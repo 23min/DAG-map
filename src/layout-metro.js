@@ -54,6 +54,8 @@ export function dominantClass(nodeIds, nodeMap) {
  * @param {number} [options.scale=1.5] - scale multiplier for all spatial values
  * @param {'ltr'|'ttb'} [options.direction='ltr'] - layout direction
  * @param {object} [options.strategies] - strategy overrides per pipeline slot
+ * @param {Object<string,number>} [options.nodeX] - consumer-provided X positions per node id (for strategies.positionX='custom')
+ * @param {number[]} [options.layerWeights] - per-layer width multipliers (for strategies.positionX='proportional')
  * @returns {object} { positions, routePaths, extraEdges, width, height, routes, ... }
  */
 export function layoutMetro(dag, options = {}) {
@@ -90,16 +92,21 @@ export function layoutMetro(dag, options = {}) {
 
   // ── STEP 3: Order nodes within layers (strategy — no-op by default) ──
   const strategyConfig = options.strategyConfig || {};
-  strats.orderNodes({ nodes, childrenOf, parentsOf, layer, maxLayer, config: strategyConfig });
+  const orderCtx = { nodes, childrenOf, parentsOf, layer, maxLayer, config: strategyConfig };
+  strats.orderNodes(orderCtx);
 
   // ── STEP 4: Reduce crossings (strategy — no-op by default) ──
-  strats.reduceCrossings({ nodes, childrenOf, parentsOf, layer, maxLayer, config: strategyConfig });
+  const crossCtx = { nodes, childrenOf, parentsOf, layer, maxLayer, config: strategyConfig };
+  strats.reduceCrossings(crossCtx);
+
+  // nodeOrder from whichever ran last (crossing reduction overrides ordering)
+  const nodeOrder = crossCtx.nodeOrder || orderCtx.nodeOrder || null;
 
   // ── STEP 5: Assign Y positions (strategy) ──
   const lineGap = (options.lineGap ?? (hasProvidedRoutes && routes.length > 1 ? 5 : 0)) * s;
 
   const laneResult = strats.assignLanes({
-    routes, layer, nodeRoute, nodeMap, hasProvidedRoutes,
+    routes, layer, nodeRoute, nodeMap, hasProvidedRoutes, nodeOrder,
     config: { TRUNK_Y, MAIN_SPACING, SUB_SPACING, maxLanes },
   });
   const { routeY } = laneResult;
@@ -107,10 +114,17 @@ export function layoutMetro(dag, options = {}) {
   // ── STEP 6: Position nodes ──
   const margin = { top: 0, left: 50 * s, bottom: 0, right: 40 * s };
 
+  const nodeYFromLanes = laneResult.nodeY || null;
   const nodeYDirect = new Map();
   nodes.forEach(nd => {
-    const ri = nodeRoute.get(nd.id);
-    nodeYDirect.set(nd.id, (ri !== undefined) ? routeY.get(ri) : TRUNK_Y);
+    // If the lane assignment provided per-node Y, use it (ordered strategy)
+    // Otherwise fall back to per-route Y (default strategy)
+    if (nodeYFromLanes && nodeYFromLanes.has(nd.id)) {
+      nodeYDirect.set(nd.id, nodeYFromLanes.get(nd.id));
+    } else {
+      const ri = nodeRoute.get(nd.id);
+      nodeYDirect.set(nd.id, (ri !== undefined) ? routeY.get(ri) : TRUNK_Y);
+    }
   });
 
   let minY = Infinity, maxY = -Infinity;
@@ -123,19 +137,38 @@ export function layoutMetro(dag, options = {}) {
   const topPad = 50 * s;
   const bottomPad = 80 * s;
 
+  // X positioning via strategy (fixed or compact)
+  const nodeX = strats.positionX({
+    nodes, layer, maxLayer, childrenOf, parentsOf,
+    config: {
+      layerSpacing,
+      marginLeft: margin.left,
+      minNodeSpacing: 30 * s,
+      compactionIterations: Math.round(strategyConfig.compactionIterations ?? 12),
+      nodeX: options.nodeX,             // consumer-provided X positions
+      layerWeights: options.layerWeights, // per-layer width multipliers
+    },
+  });
+
   const positions = new Map();
   nodes.forEach(nd => {
     positions.set(nd.id, {
-      x: margin.left + layer.get(nd.id) * layerSpacing,
+      x: nodeX.get(nd.id),
       y: topPad + (nodeYDirect.get(nd.id) - minY),
     });
   });
 
-  const width = margin.left + (maxLayer + 1) * layerSpacing + margin.right;
+  // Compute width from actual node positions (not rigid formula)
+  let maxX = 0;
+  for (const [, pos] of positions) {
+    if (pos.x > maxX) maxX = pos.x;
+  }
+  const width = maxX + margin.right;
   const height = topPad + (maxY - minY) + bottomPad;
 
   // ── STEP 6b: Refine coordinates (strategy — no-op by default) ──
-  strats.refineCoordinates({ nodes, positions, childrenOf, parentsOf, config: strategyConfig });
+  strats.refineCoordinates({ nodes, positions, childrenOf, parentsOf, config: strategyConfig,
+    nodeRoute, routes, routeY });
 
   // Compute screen Y for each route (after topPad/minY shift)
   const routeYScreen = new Map();
@@ -178,21 +211,33 @@ export function layoutMetro(dag, options = {}) {
       const nr = nodeRoutes.get(id);
       if (nr && nr.size > 1) {
         const allRoutes = [...nr].sort((a, b) => a - b);
-        const idx = allRoutes.indexOf(ri);
-        const n = allRoutes.length;
-        nodeOffsetY.set(id, (idx - (n - 1) / 2) * lineGap);
+        // Trunk (route 0) always passes through station center (offset 0).
+        // Other routes distribute above/below, skipping the trunk's slot.
+        const trunkIdx = allRoutes.indexOf(0);
+        const nonTrunk = allRoutes.filter(r => r !== 0);
+        if (ri === 0) {
+          nodeOffsetY.set(id, 0);
+        } else {
+          const ntIdx = nonTrunk.indexOf(ri);
+          const n = nonTrunk.length;
+          // Spread non-trunk routes symmetrically around center, offset by lineGap
+          nodeOffsetY.set(id, (ntIdx - (n - 1) / 2) * lineGap);
+        }
       } else {
         nodeOffsetY.set(id, 0);
       }
     }
+
+    // Fan distance: how far from the station the bezier fan-out/fan-in bends occur.
+    // Proportional to lineGap so fan is visible when routes are separated.
+    // Trunk (route 0) never fans — it stays straight through all stations.
+    const fanDist = (lineGap > 0 && ri !== 0) ? Math.max(12 * s, layerSpacing * 0.15) : 0;
 
     const segments = [];
     for (let i = 1; i < pts.length; i++) {
       const p = pts[i - 1], q = pts[i];
       const offPy = nodeOffsetY.get(p.id) || 0;
       const offQy = nodeOffsetY.get(q.id) || 0;
-      const px = p.x, py = p.y + offPy;
-      const qx = q.x, qy = q.y + offQy;
 
       const srcNode = nodeMap.get(p.id);
       const segColor = hasProvidedRoutes ? color : (classColor[srcNode?.cls] || color);
@@ -203,9 +248,9 @@ export function layoutMetro(dag, options = {}) {
         const srcIsOwn = nodeRoute.get(p.id) === ri;
         const dstIsOwn = nodeRoute.get(q.id) === ri;
         if (!srcIsOwn && dstIsOwn) {
-          segRefY = py;
+          segRefY = p.y + offPy;
         } else if (srcIsOwn && !dstIsOwn) {
-          segRefY = qy;
+          segRefY = q.y + offQy;
         } else {
           segRefY = trunkYScreen;
         }
@@ -213,7 +258,31 @@ export function layoutMetro(dag, options = {}) {
         segRefY = trunkYScreen;
       }
 
-      const d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
+      let d;
+      if (fanDist > 0 && (offPy !== 0 || offQy !== 0)) {
+        // Fan-out from station: start at station center, bezier to offset position,
+        // main segment at offset, bezier back to next station center.
+        const dx = q.x - p.x;
+        const fanLen = Math.min(fanDist, dx * 0.25); // cap at 25% of segment length
+
+        // Departure: station center → fanned-out position
+        const depX = p.x + fanLen;
+        const depY = p.y + offPy;
+        // Arrival: fanned-in position → station center
+        const arrX = q.x - fanLen;
+        const arrY = q.y + offQy;
+
+        // Build path: M at station → cubic bezier departure fan → main segment → cubic bezier arrival fan
+        d = `M ${p.x} ${p.y} C ${p.x + fanLen * 0.5} ${p.y}, ${depX - fanLen * 0.3} ${depY}, ${depX} ${depY} `;
+        d += pathFn(depX, depY, arrX, arrY, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
+        d += ` C ${arrX + fanLen * 0.3} ${arrY}, ${q.x - fanLen * 0.5} ${q.y}, ${q.x} ${q.y}`;
+      } else {
+        // No offset — straight from station to station (original behavior)
+        const px = p.x, py = p.y + offPy;
+        const qx = q.x, qy = q.y + offQy;
+        d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
+      }
+
       const dstNode = nodeMap.get(q.id);
       const srcDim = srcNode?.dim === true;
       const dstDim = dstNode?.dim === true;

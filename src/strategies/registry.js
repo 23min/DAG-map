@@ -25,6 +25,11 @@ const registry = {
   // Output: { routeY }
   assignLanes: {},
 
+  // Slot: positionX
+  // Input: { nodes, layer, maxLayer, childrenOf, parentsOf, config }
+  // Output: Map<string, number> — node id → x position
+  positionX: {},
+
   // Slot: refineCoordinates
   // Input: { nodes, positions, childrenOf, parentsOf, iterations }
   // Output: { positions } (adjusted)
@@ -57,6 +62,7 @@ export function resolveStrategies(options = {}) {
     orderNodes: getStrategy('orderNodes', strategies.orderNodes || 'none'),
     reduceCrossings: getStrategy('reduceCrossings', strategies.reduceCrossings || 'none'),
     assignLanes: getStrategy('assignLanes', strategies.assignLanes || 'default'),
+    positionX: getStrategy('positionX', strategies.positionX || 'fixed'),
     refineCoordinates: getStrategy('refineCoordinates', strategies.refineCoordinates || 'none'),
   };
 }

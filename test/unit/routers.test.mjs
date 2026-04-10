@@ -41,10 +41,14 @@ describe('bezierPath', () => {
     assert.equal(end.y, 250);
   });
 
-  it('ignores routeIdx, segIdx, refY (API compat params)', () => {
+  it('uses routeIdx and segIdx for deterministic variation', () => {
     const d1 = bezierPath(0, 0, 100, 50, 0, 0, 0);
-    const d2 = bezierPath(0, 0, 100, 50, 5, 3, 999);
-    assert.equal(d1, d2);
+    const d2 = bezierPath(0, 0, 100, 50, 5, 3, 0);
+    // Different route/segment indices produce different curves (anti-overlap)
+    assert.notEqual(d1, d2);
+    // But same indices always produce the same curve (deterministic)
+    const d3 = bezierPath(0, 0, 100, 50, 5, 3, 0);
+    assert.equal(d2, d3);
   });
 });
 

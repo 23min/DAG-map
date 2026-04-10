@@ -1,10 +1,10 @@
-// refine-coordinates-barycenter.js — iterative barycenter Y-coordinate refinement.
-// After initial BFS lane allocation, pulls each node's Y toward the
-// barycenter of its neighbors, then enforces minimum spacing.
-// Adapted from layoutHasse's assignXCoordinates (applied to Y axis).
+// refine-coordinates-barycenter.js — route-level Y-coordinate refinement.
+// Moves entire routes toward the barycenter of their neighbor routes,
+// preserving the constraint that all nodes on the same route share Y.
+// Prevents the zig-zag problem caused by per-node refinement.
 
 /**
- * Refine Y coordinates by pulling toward neighbor barycenters.
+ * Refine Y coordinates at the route level.
  *
  * @param {object} ctx
  * @param {Array} ctx.nodes - node array
@@ -12,65 +12,94 @@
  * @param {Map} ctx.childrenOf
  * @param {Map} ctx.parentsOf
  * @param {object} [ctx.config] - { refinementIterations, minSpacing }
+ * @param {Map} [ctx.nodeRoute] - node id → route index
+ * @param {Array} [ctx.routes] - route objects with .nodes arrays
+ * @param {Map} [ctx.routeY] - route index → Y position
  */
 export function refineCoordinatesBarycenter(ctx) {
-  const { nodes, positions, childrenOf, parentsOf, config } = ctx;
-  const iterations = config?.refinementIterations ?? 12;
-  const minSpacing = config?.minSpacing ?? 20;
+  const { nodes, positions, childrenOf, parentsOf, config,
+          nodeRoute, routes, routeY } = ctx;
+  const iterations = config?.refinementIterations ?? 8;
+  const minSpacing = config?.minSpacing ?? 40;
 
-  // Group nodes by their x-coordinate (layer) for spacing enforcement
-  const layerGroups = new Map();
+  // If we don't have route info, fall back to no-op (don't break things)
+  if (!routes || !routeY || !nodeRoute) return;
+
+  // Build route adjacency: which routes are connected by edges?
+  const routeNeighbors = new Map(); // routeIdx → Set<routeIdx>
+  for (let ri = 0; ri < routes.length; ri++) {
+    routeNeighbors.set(ri, new Set());
+  }
   for (const nd of nodes) {
-    const pos = positions.get(nd.id);
-    if (!pos) continue;
-    const key = pos.x;
-    if (!layerGroups.has(key)) layerGroups.set(key, []);
-    layerGroups.get(key).push(nd.id);
+    const ri = nodeRoute.get(nd.id);
+    if (ri === undefined) continue;
+    for (const child of (childrenOf.get(nd.id) || [])) {
+      const cri = nodeRoute.get(child);
+      if (cri !== undefined && cri !== ri) {
+        routeNeighbors.get(ri).add(cri);
+        routeNeighbors.get(cri).add(ri);
+      }
+    }
   }
 
+  // Current route Y values (copy so we can iterate)
+  const currentY = new Map(routeY);
+
   for (let iter = 0; iter < iterations; iter++) {
-    // Pull each node toward barycenter of its neighbors
-    for (const nd of nodes) {
-      const id = nd.id;
-      const neighbors = [];
-      for (const p of (parentsOf.get(id) || [])) {
-        const pos = positions.get(p);
-        if (pos) neighbors.push(pos.y);
-      }
-      for (const c of (childrenOf.get(id) || [])) {
-        const pos = positions.get(c);
-        if (pos) neighbors.push(pos.y);
-      }
-      if (neighbors.length === 0) continue;
+    // Pull each non-trunk route toward its neighbor routes' Y
+    for (let ri = 1; ri < routes.length; ri++) { // skip trunk (ri=0)
+      const neighbors = routeNeighbors.get(ri);
+      if (!neighbors || neighbors.size === 0) continue;
 
-      const avg = neighbors.reduce((a, b) => a + b, 0) / neighbors.length;
-      const pos = positions.get(id);
-      // Blend: move 30% toward barycenter (conservative to preserve route coherence)
-      pos.y = pos.y * 0.7 + avg * 0.3;
+      let sum = 0, count = 0;
+      for (const nri of neighbors) {
+        sum += currentY.get(nri);
+        count++;
+      }
+      if (count === 0) continue;
+
+      const avg = sum / count;
+      const cur = currentY.get(ri);
+      // Blend conservatively: 20% toward neighbor average
+      currentY.set(ri, cur * 0.8 + avg * 0.2);
     }
 
-    // Enforce minimum spacing within each layer
-    for (const [, group] of layerGroups) {
-      if (group.length < 2) continue;
-      // Sort by current Y
-      group.sort((a, b) => positions.get(a).y - positions.get(b).y);
-
-      // Push apart if too close (top-down)
-      for (let i = 1; i < group.length; i++) {
-        const prev = positions.get(group[i - 1]);
-        const curr = positions.get(group[i]);
-        if (curr.y - prev.y < minSpacing) {
-          curr.y = prev.y + minSpacing;
-        }
-      }
-      // Balance (bottom-up)
-      for (let i = group.length - 2; i >= 0; i--) {
-        const next = positions.get(group[i + 1]);
-        const curr = positions.get(group[i]);
-        if (next.y - curr.y < minSpacing) {
-          curr.y = next.y - minSpacing;
-        }
+    // Enforce minimum spacing between routes
+    const sortedRoutes = [...currentY.entries()].sort((a, b) => a[1] - b[1]);
+    // Push apart (top-down)
+    for (let i = 1; i < sortedRoutes.length; i++) {
+      const prevY = sortedRoutes[i - 1][1];
+      const curY = sortedRoutes[i][1];
+      if (curY - prevY < minSpacing) {
+        sortedRoutes[i][1] = prevY + minSpacing;
+        currentY.set(sortedRoutes[i][0], sortedRoutes[i][1]);
       }
     }
+    // Balance (bottom-up)
+    for (let i = sortedRoutes.length - 2; i >= 0; i--) {
+      const nextY = sortedRoutes[i + 1][1];
+      const curY = sortedRoutes[i][1];
+      if (nextY - curY < minSpacing) {
+        sortedRoutes[i][1] = nextY - minSpacing;
+        currentY.set(sortedRoutes[i][0], sortedRoutes[i][1]);
+      }
+    }
+  }
+
+  // Apply refined route Y to all node positions
+  // All nodes on the same route get the same Y (no zig-zag)
+  const minOldY = Math.min(...[...routeY.values()]);
+  const minNewY = Math.min(...[...currentY.values()]);
+  const topPad = positions.values().next().value?.y ?? 0; // preserve existing top padding
+
+  for (const nd of nodes) {
+    const ri = nodeRoute.get(nd.id);
+    if (ri === undefined) continue;
+    const oldRouteY = routeY.get(ri);
+    const newRouteY = currentY.get(ri);
+    const pos = positions.get(nd.id);
+    if (!pos) continue;
+    // Shift by the route's Y delta
+    pos.y += (newRouteY - oldRouteY);
   }
 }
