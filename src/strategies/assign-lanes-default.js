@@ -84,22 +84,14 @@ export function assignLanesDefault(ctx) {
     for (const ci of children) {
       if (assignedRoutes.has(ci)) continue;
       const [sL, eL] = routeLayerRange[ci];
-      const cls = routeDomClass[ci];
       const depth = routes[ci].depth;
       const ownLength = routeOwnLength[ci];
 
       const spacing = (depth <= 1 && ownLength > 2) ? MAIN_SPACING : SUB_SPACING;
 
-      let preferBelow;
-      if (hasProvidedRoutes) {
-        preferBelow = childBelow <= childAbove;
-      } else if (cls === 'side_effecting') {
-        preferBelow = true;
-      } else if (cls === 'recordable' && depth === 1) {
-        preferBelow = false;
-      } else {
-        preferBelow = childBelow <= childAbove;
-      }
+      // Pure topological alternation — cls does not influence layout.
+      // Styling (color, thickness) is a separate rendering overlay.
+      const preferBelow = childBelow <= childAbove;
 
       const maxDist = maxLanes ? maxLanes : 8;
       let y = null;
