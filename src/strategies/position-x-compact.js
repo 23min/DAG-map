@@ -101,6 +101,18 @@ export function positionXCompact(ctx) {
     }
   }
 
+  // Final topological enforcement: guarantee no edge has dx <= 0
+  for (let r = 0; r < maxLayer; r++) {
+    for (const id of layers[r]) {
+      const myX = x.get(id);
+      for (const child of (childrenOf.get(id) || [])) {
+        if (x.has(child) && x.get(child) <= myX + minSpacing) {
+          x.set(child, myX + minSpacing);
+        }
+      }
+    }
+  }
+
   // Shift everything so minimum X = marginLeft
   let minX = Infinity;
   for (const [, val] of x) {
