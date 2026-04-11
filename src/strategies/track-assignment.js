@@ -78,9 +78,33 @@ export function assignTracks(routes, nodeRoutes, positions) {
       }
     }
 
-    // R2: Sort each group by trunk overlap (most overlap = closest to trunk)
-    above.sort((a, b) => trunkOverlap[b] - trunkOverlap[a]);
-    below.sort((a, b) => trunkOverlap[b] - trunkOverlap[a]);
+    // R8: Terminal routes (starting or ending here) go to outer tracks
+    // R2: Non-terminal routes sorted by trunk overlap (most overlap = closest)
+    const isTerminal = (ri) => {
+      const rNodes = routes[ri]?.nodes;
+      if (!rNodes || rNodes.length === 0) return false;
+      return rNodes[0] === stationId || rNodes[rNodes.length - 1] === stationId;
+    };
+
+    const sortWithTerminals = (arr) => {
+      const terminals = arr.filter(ri => isTerminal(ri));
+      const nonTerminals = arr.filter(ri => !isTerminal(ri));
+      // Non-terminals first (closer to trunk), terminals at edges
+      nonTerminals.sort((a, b) => trunkOverlap[b] - trunkOverlap[a]);
+      return [...nonTerminals, ...terminals];
+    };
+
+    above.length = 0;
+    below.length = 0;
+    for (const ri of routesHere) {
+      if (ri === 0) continue;
+      if (branchSide.get(ri) === -1) above.push(ri);
+      else below.push(ri);
+    }
+    const sortedAbove = sortWithTerminals(above);
+    const sortedBelow = sortWithTerminals(below);
+    above.length = 0; above.push(...sortedAbove);
+    below.length = 0; below.push(...sortedBelow);
 
     // R4: If we have a previous station, try to preserve the order
     // by checking if swapping reduces crossings
@@ -172,6 +196,43 @@ export function assignTracks(routes, nodeRoutes, positions) {
               tB.set(rj, tj);
             }
           }
+        }
+      }
+    }
+  }
+
+  // R9: Smoothing pass — reduce unnecessary track changes per route.
+  // For each route, if it's at the same track at stations i and i+2
+  // but different at station i+1, and swapping at i+1 doesn't create
+  // a new crossing, smooth it out.
+  for (let ri = 0; ri < routes.length; ri++) {
+    const routeStations = stations.filter(s => trackMap.get(s)?.has(ri));
+    if (routeStations.length < 3) continue;
+
+    for (let si = 0; si < routeStations.length - 2; si++) {
+      const sA = routeStations[si], sB = routeStations[si + 1], sC = routeStations[si + 2];
+      const tA = trackMap.get(sA)?.get(ri);
+      const tB = trackMap.get(sB)?.get(ri);
+      const tC = trackMap.get(sC)?.get(ri);
+      if (tA === undefined || tB === undefined || tC === undefined) continue;
+
+      // If track at A and C match but B differs, try smoothing B to match
+      if (tA === tC && tB !== tA) {
+        // Check if smoothing would create a crossing at B
+        const stationBTracks = trackMap.get(sB);
+        const targetTrack = tA;
+
+        // Is the target track free at station B?
+        let trackOccupied = false;
+        for (const [otherRi, otherTrack] of stationBTracks) {
+          if (otherRi !== ri && otherTrack === targetTrack) {
+            trackOccupied = true;
+            break;
+          }
+        }
+
+        if (!trackOccupied) {
+          stationBTracks.set(ri, targetTrack);
         }
       }
     }
