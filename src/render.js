@@ -256,13 +256,27 @@ export function renderSVG(dag, layout, options = {}) {
       const gro = layout.globalRouteOffset;
       const localLineGap = layout.lineGap ?? 5 * s;
 
-      // Station height from LOCAL route count — offsets are locally compact now
+      // Compute local offsets matching layout's nodeOffset() logic
       const isMultiRoute = routeCount > 1;
+      const routeIndices = nRoutes ? [...nRoutes].sort((a, b) => a - b) : [];
+      const trunkIdx = routeIndices.indexOf(0);
+
+      // Compute actual min/max offsets for this station
+      let minOff = 0, maxOff = 0;
+      if (isMultiRoute) {
+        for (let ti = 0; ti < routeIndices.length; ti++) {
+          const off = trunkIdx >= 0
+            ? (ti - trunkIdx) * localLineGap
+            : (ti - (routeIndices.length - 1) / 2) * localLineGap;
+          if (off < minOff) minOff = off;
+          if (off > maxOff) maxOff = off;
+        }
+      }
 
       // r = effective station radius for label positioning
       let r;
       if (isMultiRoute) {
-        r = ((routeCount - 1) * localLineGap) / 2 + 3.5 * s;
+        r = Math.max(Math.abs(minOff), Math.abs(maxOff)) + 3.5 * s;
       } else if (depth <= 1) {
         r = 3.5 * s;
       } else {
@@ -272,21 +286,21 @@ export function renderSVG(dag, layout, options = {}) {
       svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}"${metricAttr}>`;
 
       if (isMultiRoute) {
-        // Elongated station — vertical pill sized for local route count
+        // Elongated station pill — spans from minOff to maxOff
         const pillR = 3.5 * s;
-        const halfHeight = ((routeCount - 1) * localLineGap) / 2 + pillR;
+        const pillTop = pos.y + minOff - pillR;
+        const pillBot = pos.y + maxOff + pillR;
+        const pillHeight = pillBot - pillTop;
         const sw = (isGate ? 2 : 1.6) * s;
         svg += `<rect data-id="${escAttr(nd.id)}" `;
-        svg += `x="${(pos.x - pillR).toFixed(1)}" y="${(pos.y - halfHeight).toFixed(1)}" `;
-        svg += `width="${(pillR * 2).toFixed(1)}" height="${(halfHeight * 2).toFixed(1)}" `;
+        svg += `x="${(pos.x - pillR).toFixed(1)}" y="${pillTop.toFixed(1)}" `;
+        svg += `width="${(pillR * 2).toFixed(1)}" height="${pillHeight.toFixed(1)}" `;
         svg += `rx="${pillR.toFixed(1)}" ry="${pillR.toFixed(1)}" `;
         svg += `fill="${col.paper}" stroke="${color}" stroke-width="${sw}"`;
         if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
         if (isDim) svg += ` opacity="${nodeOpacity}"`;
         svg += `/>`;
-        // Track marks at locally compact positions
-        const routeIndices = nRoutes ? [...nRoutes].sort((a, b) => a - b) : [];
-        const trunkIdx = routeIndices.indexOf(0);
+        // Track marks at actual offset positions
         for (let ti = 0; ti < routeIndices.length; ti++) {
           const trackY = trunkIdx >= 0
             ? pos.y + (ti - trunkIdx) * localLineGap
