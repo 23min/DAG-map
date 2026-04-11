@@ -172,6 +172,63 @@ describe('minimum edge separation at interchanges', () => {
   });
 });
 
+describe('route offsets within station bounds', () => {
+  it('all route offsets at interchange stations fall within pill bounds', () => {
+    // Test on fixtures with provided routes (multi-route stations)
+    const testModels = models.filter(m => m.routes && m.routes.length > 1);
+    for (const model of testModels) {
+      const opts = { ...(model.opts || {}), theme: model.theme, routes: model.routes };
+      const layout = layoutMetro(model.dag, opts);
+      const lineGap = layout.lineGap ?? 0;
+      if (lineGap === 0) continue;
+
+      const ta = layout.trackAssignment;
+      for (const nd of model.dag.nodes) {
+        const nRoutes = layout.nodeRoutes?.get(nd.id);
+        if (!nRoutes || nRoutes.size <= 1) continue;
+
+        const pos = layout.positions.get(nd.id);
+        if (!pos) continue;
+
+        // Compute pill bounds the same way render does
+        const routeIndices = [...nRoutes].sort((a, b) => a - b);
+        const trunkIdx = routeIndices.indexOf(0);
+        const stationTracks = ta?.get(nd.id);
+
+        let minOff = 0, maxOff = 0;
+        for (let ti = 0; ti < routeIndices.length; ti++) {
+          let off;
+          if (stationTracks && stationTracks.has(routeIndices[ti])) {
+            off = stationTracks.get(routeIndices[ti]) * lineGap;
+          } else if (trunkIdx >= 0) {
+            off = (ti - trunkIdx) * lineGap;
+          } else {
+            off = (ti - (routeIndices.length - 1) / 2) * lineGap;
+          }
+          if (off < minOff) minOff = off;
+          if (off > maxOff) maxOff = off;
+        }
+
+        // Now check that the path builder's offsets match
+        for (const ri of routeIndices) {
+          let pathOff;
+          if (stationTracks && stationTracks.has(ri)) {
+            pathOff = stationTracks.get(ri) * lineGap;
+          } else {
+            const myIdx = routeIndices.indexOf(ri);
+            pathOff = trunkIdx >= 0
+              ? (myIdx - trunkIdx) * lineGap
+              : (myIdx - (routeIndices.length - 1) / 2) * lineGap;
+          }
+
+          assert.ok(pathOff >= minOff - 0.01 && pathOff <= maxOff + 0.01,
+            `"${model.id}" station ${nd.id}: route ${ri} offset ${pathOff.toFixed(1)} outside pill [${minOff.toFixed(1)}, ${maxOff.toFixed(1)}]`);
+        }
+      }
+    }
+  });
+});
+
 describe('topological X ordering', () => {
   it('parent X is always strictly less than child X', () => {
     for (const model of models.slice(0, 10)) {

@@ -360,7 +360,7 @@ export function layoutMetro(dag, options = {}) {
       maxLayer, routes, nodeLane, nodeRoute, nodeRoutes, segmentRoutes,
       laneSpacing: MAIN_SPACING, layerSpacing, lineGap, minY, maxY,
       routeYScreen, trunkYScreen, scale: s, theme, orientation: 'ttb',
-      globalRouteOffset,
+      globalRouteOffset, trackAssignment,
     };
   }
 
@@ -369,6 +369,6 @@ export function layoutMetro(dag, options = {}) {
     maxLayer, routes, nodeLane, nodeRoute, nodeRoutes, segmentRoutes,
     laneSpacing: MAIN_SPACING, layerSpacing, lineGap, minY, maxY,
     routeYScreen, trunkYScreen, scale: s, theme,
-    globalRouteOffset,
+    globalRouteOffset, trackAssignment,
   };
 }

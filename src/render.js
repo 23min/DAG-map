@@ -253,21 +253,28 @@ export function renderSVG(dag, layout, options = {}) {
       const isDim = nd.dim === true;
       const dO = dimOpacity;
       const nodeOpacity = isDim ? dO : 1;
-      const gro = layout.globalRouteOffset;
       const localLineGap = layout.lineGap ?? 5 * s;
+      const ta = layout.trackAssignment;
 
-      // Compute local offsets matching layout's nodeOffset() logic
       const isMultiRoute = routeCount > 1;
       const routeIndices = nRoutes ? [...nRoutes].sort((a, b) => a - b) : [];
       const trunkIdx = routeIndices.indexOf(0);
 
-      // Compute actual min/max offsets for this station
+      // Compute actual min/max offsets using the SAME logic as the path builder:
+      // 1. MLCM trackAssignment if available for this station
+      // 2. Fallback: locally compact by route index
       let minOff = 0, maxOff = 0;
       if (isMultiRoute) {
+        const stationTracks = ta?.get(nd.id);
         for (let ti = 0; ti < routeIndices.length; ti++) {
-          const off = trunkIdx >= 0
-            ? (ti - trunkIdx) * localLineGap
-            : (ti - (routeIndices.length - 1) / 2) * localLineGap;
+          let off;
+          if (stationTracks && stationTracks.has(routeIndices[ti])) {
+            off = stationTracks.get(routeIndices[ti]) * localLineGap;
+          } else if (trunkIdx >= 0) {
+            off = (ti - trunkIdx) * localLineGap;
+          } else {
+            off = (ti - (routeIndices.length - 1) / 2) * localLineGap;
+          }
           if (off < minOff) minOff = off;
           if (off > maxOff) maxOff = off;
         }
@@ -300,11 +307,18 @@ export function renderSVG(dag, layout, options = {}) {
         if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
         if (isDim) svg += ` opacity="${nodeOpacity}"`;
         svg += `/>`;
-        // Track marks at actual offset positions
+        // Track marks — same offset source as pill bounds
+        const stationTracks = ta?.get(nd.id);
         for (let ti = 0; ti < routeIndices.length; ti++) {
-          const trackY = trunkIdx >= 0
-            ? pos.y + (ti - trunkIdx) * localLineGap
-            : pos.y + (ti - (routeIndices.length - 1) / 2) * localLineGap;
+          let trackOff;
+          if (stationTracks && stationTracks.has(routeIndices[ti])) {
+            trackOff = stationTracks.get(routeIndices[ti]) * localLineGap;
+          } else if (trunkIdx >= 0) {
+            trackOff = (ti - trunkIdx) * localLineGap;
+          } else {
+            trackOff = (ti - (routeIndices.length - 1) / 2) * localLineGap;
+          }
+          const trackY = pos.y + trackOff;
           svg += `<line x1="${(pos.x - pillR * 0.6).toFixed(1)}" y1="${trackY.toFixed(1)}" `;
           svg += `x2="${(pos.x + pillR * 0.6).toFixed(1)}" y2="${trackY.toFixed(1)}" `;
           svg += `stroke="${color}" stroke-width="${0.8 * s}" opacity="${isDim ? dO * 0.3 : 0.2}"/>`;
