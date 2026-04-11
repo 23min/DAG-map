@@ -23,6 +23,7 @@ import { resolveTheme } from './themes.js';
 import { assertValidDag, buildGraph, topoSortAndRank, swapPathXY } from './graph-utils.js';
 import { resolveStrategies } from './strategies/index.js';
 import { buildLayers } from './strategies/crossing-utils.js';
+import { assignTracks } from './strategies/track-assignment.js';
 
 /**
  * Determine the dominant node class among a set of node IDs.
@@ -220,9 +221,13 @@ export function layoutMetro(dag, options = {}) {
   const routeYScreen = new Map(routeY);
   const trunkYScreen = routeY.get(0) ?? topPad;
 
-  // ── STEP 8: Build route paths ──
-  // Compute GLOBAL Y offset per route — consistent across all stations.
-  // Route 0 (trunk) = 0, others distribute symmetrically.
+  // ── STEP 7b: MLCM Track Assignment ──
+  // Assign tracks at each interchange station to minimize crossings.
+  // Rules R1-R5: trunk at 0, proximity ordering, fork consistency,
+  // monotonic tracks, symmetric branching.
+  const trackAssignment = assignTracks(routes, nodeRoutes, positions);
+
+  // Legacy: globalRouteOffset for non-interchange stations
   const globalRouteOffset = new Map();
   globalRouteOffset.set(0, 0);
   const nonTrunkRoutes = routes.map((_, i) => i).filter(i => i !== 0);
@@ -258,18 +263,24 @@ export function layoutMetro(dag, options = {}) {
       opacity = Math.min(0.28 * opBoost, 1);
     }
 
-    // Route Y offset: locally compact at each station.
-    // At a station with routes [0, 5, 12], assign tracks [-1, 0, +1] × lineGap
-    // (not global offsets which would be huge). Trunk always at 0.
+    // Route Y offset: use MLCM track assignment at interchange stations,
+    // center at single-route stations.
     function nodeOffset(nodeId) {
       const nr = nodeRoutes.get(nodeId);
       if (!nr || nr.size <= 1) return 0; // single-route: center
+
+      // Use MLCM track assignment if available for this station
+      const stationTracks = trackAssignment.get(nodeId);
+      if (stationTracks && stationTracks.has(ri)) {
+        return stationTracks.get(ri) * lineGap;
+      }
+
+      // Fallback: locally compact by route index
       const sorted = [...nr].sort((a, b) => a - b);
       const trunkIdx = sorted.indexOf(0);
       const myIdx = sorted.indexOf(ri);
       if (myIdx === -1) return 0;
       if (trunkIdx >= 0) {
-        // Pin trunk at 0, others relative
         return (myIdx - trunkIdx) * lineGap;
       }
       // No trunk at this station — center the group
