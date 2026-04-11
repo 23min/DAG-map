@@ -258,15 +258,22 @@ export function layoutMetro(dag, options = {}) {
       opacity = Math.min(0.28 * opBoost, 1);
     }
 
-    // Route Y offset: use global offset at multi-route stations (parallel tracks),
-    // but center (0) at single-route stations (no need for offset).
-    // This creates smooth bezier transitions when entering/exiting interchanges.
-    const routeOff = globalRouteOffset.get(ri) || 0;
-
+    // Route Y offset: locally compact at each station.
+    // At a station with routes [0, 5, 12], assign tracks [-1, 0, +1] × lineGap
+    // (not global offsets which would be huge). Trunk always at 0.
     function nodeOffset(nodeId) {
       const nr = nodeRoutes.get(nodeId);
-      if (nr && nr.size > 1) return routeOff; // multi-route: use global offset
-      return 0; // single-route: center
+      if (!nr || nr.size <= 1) return 0; // single-route: center
+      const sorted = [...nr].sort((a, b) => a - b);
+      const trunkIdx = sorted.indexOf(0);
+      const myIdx = sorted.indexOf(ri);
+      if (myIdx === -1) return 0;
+      if (trunkIdx >= 0) {
+        // Pin trunk at 0, others relative
+        return (myIdx - trunkIdx) * lineGap;
+      }
+      // No trunk at this station — center the group
+      return (myIdx - (sorted.length - 1) / 2) * lineGap;
     }
 
     const segments = [];
