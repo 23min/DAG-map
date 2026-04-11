@@ -258,17 +258,23 @@ export function layoutMetro(dag, options = {}) {
       opacity = Math.min(0.28 * opBoost, 1);
     }
 
-    // Global Y offset for this route — same at every station.
-    // Routes run in parallel through all shared stations.
+    // Route Y offset: use global offset at multi-route stations (parallel tracks),
+    // but center (0) at single-route stations (no need for offset).
+    // This creates smooth bezier transitions when entering/exiting interchanges.
     const routeOff = globalRouteOffset.get(ri) || 0;
 
-    // Routes run at their global offset Y — parallel tracks through all stations.
+    function nodeOffset(nodeId) {
+      const nr = nodeRoutes.get(nodeId);
+      if (nr && nr.size > 1) return routeOff; // multi-route: use global offset
+      return 0; // single-route: center
+    }
+
     const segments = [];
     for (let i = 1; i < pts.length; i++) {
       const p = pts[i - 1], q = pts[i];
 
-      const px = p.x, py = p.y + routeOff;
-      const qx = q.x, qy = q.y + routeOff;
+      const px = p.x, py = p.y + nodeOffset(p.id);
+      const qx = q.x, qy = q.y + nodeOffset(q.id);
 
       const srcNode = nodeMap.get(p.id);
       const segColor = hasProvidedRoutes ? color : (classColor[srcNode?.cls] || color);
