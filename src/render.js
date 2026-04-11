@@ -254,7 +254,7 @@ export function renderSVG(dag, layout, options = {}) {
       const dO = dimOpacity;
       const nodeOpacity = isDim ? dO : 1;
       const gro = layout.globalRouteOffset;
-      const localLineGap = layout.laneSpacing ? Math.min(layout.laneSpacing * 0.12, 7.5 * s) : 5 * s;
+      const localLineGap = layout.lineGap ?? 5 * s;
 
       // Station height from LOCAL route count — offsets are locally compact now
       const isMultiRoute = routeCount > 1;

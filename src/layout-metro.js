@@ -347,7 +347,7 @@ export function layoutMetro(dag, options = {}) {
     return {
       positions, routePaths, extraEdges, width: height, height: width,
       maxLayer, routes, nodeLane, nodeRoute, nodeRoutes, segmentRoutes,
-      laneSpacing: MAIN_SPACING, layerSpacing, minY, maxY,
+      laneSpacing: MAIN_SPACING, layerSpacing, lineGap, minY, maxY,
       routeYScreen, trunkYScreen, scale: s, theme, orientation: 'ttb',
       globalRouteOffset,
     };
@@ -356,7 +356,7 @@ export function layoutMetro(dag, options = {}) {
   return {
     positions, routePaths, extraEdges, width, height,
     maxLayer, routes, nodeLane, nodeRoute, nodeRoutes, segmentRoutes,
-    laneSpacing: MAIN_SPACING, layerSpacing, minY, maxY,
+    laneSpacing: MAIN_SPACING, layerSpacing, lineGap, minY, maxY,
     routeYScreen, trunkYScreen, scale: s, theme,
     globalRouteOffset,
   };
