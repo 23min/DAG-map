@@ -250,30 +250,59 @@ export function renderSVG(dag, layout, options = {}) {
       svg += renderNode(nd, pos, ctx);
       svg += `</g>\n`;
     } else {
+      const isDim = nd.dim === true;
+      const dO = dimOpacity;
+      const nodeOpacity = isDim ? dO : 1;
+      const stationLineGap = layout.laneSpacing ? Math.min(layout.laneSpacing * 0.15, 8 * s) : 5 * s;
+
+      // r = effective station radius for label positioning
+      const isMultiRoute = routeCount > 1;
       let r;
-      if (isInterchange) {
-        r = 5.5 * s;
+      if (isMultiRoute) {
+        r = ((routeCount - 1) * stationLineGap) / 2 + 3.5 * s;
       } else if (depth <= 1) {
         r = 3.5 * s;
       } else {
         r = 3 * s;
       }
 
-      const isDim = nd.dim === true;
-      const dO = dimOpacity;
-      const nodeOpacity = isDim ? dO : 1;
-
       svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}"${metricAttr}>`;
 
-      svg += `<circle data-id="${escAttr(nd.id)}" cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
-      svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
-      if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
-      if (isDim) svg += ` opacity="${nodeOpacity}"`;
-      svg += `/>`;
-
-      if (isInterchange && !isGate) {
-        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2 * s}" fill="${color}" opacity="${isDim ? dO * 0.4 : 0.3}"/>`;
+      if (isMultiRoute) {
+        // Elongated station — vertical pill sized for all routes
+        const pillR = 3.5 * s;  // horizontal radius
+        const halfHeight = ((routeCount - 1) * stationLineGap) / 2 + pillR;
+        const sw = (isGate ? 2 : 1.6) * s;
+        svg += `<rect data-id="${escAttr(nd.id)}" `;
+        svg += `x="${(pos.x - pillR).toFixed(1)}" y="${(pos.y - halfHeight).toFixed(1)}" `;
+        svg += `width="${(pillR * 2).toFixed(1)}" height="${(halfHeight * 2).toFixed(1)}" `;
+        svg += `rx="${pillR.toFixed(1)}" ry="${pillR.toFixed(1)}" `;
+        svg += `fill="${col.paper}" stroke="${color}" stroke-width="${sw}"`;
+        if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+        if (isDim) svg += ` opacity="${nodeOpacity}"`;
+        svg += `/>`;
+        // Track marks inside the station (small horizontal lines at each route Y)
+        for (let ti = 0; ti < routeCount; ti++) {
+          const trackY = pos.y + (ti - (routeCount - 1) / 2) * stationLineGap;
+          svg += `<line x1="${(pos.x - pillR * 0.6).toFixed(1)}" y1="${trackY.toFixed(1)}" `;
+          svg += `x2="${(pos.x + pillR * 0.6).toFixed(1)}" y2="${trackY.toFixed(1)}" `;
+          svg += `stroke="${color}" stroke-width="${0.8 * s}" opacity="${isDim ? dO * 0.3 : 0.2}"/>`;
+        }
+      } else {
+        // Simple station — small circle
+        let r;
+        if (depth <= 1) {
+          r = 3.5 * s;
+        } else {
+          r = 3 * s;
+        }
+        svg += `<circle data-id="${escAttr(nd.id)}" cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${r}" `;
+        svg += `fill="${col.paper}" stroke="${color}" stroke-width="${(isGate ? 2 : 1.6) * s}"`;
+        if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
+        if (isDim) svg += ` opacity="${nodeOpacity}"`;
+        svg += `/>`;
       }
+
       if (isGate) {
         svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="${isDim ? dO * 0.6 : 0.4}"/>`;
       }

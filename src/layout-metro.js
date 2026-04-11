@@ -89,7 +89,7 @@ export function layoutMetro(dag, options = {}) {
 
   const nodeOrder = crossCtx.nodeOrder || orderCtx.nodeOrder || null;
 
-  // ── STEP 4: Assign Y positions (from ordering, NO routes) ──
+  // ── STEP 4: Assign Y positions (from ordering, trunk pinned) ──
   // Build layers sorted by nodeOrder for Y assignment
   const layers = buildLayers(nodes.map(n => n.id), layer, maxLayer);
   if (nodeOrder && nodeOrder.size > 0) {
@@ -98,13 +98,42 @@ export function layoutMetro(dag, options = {}) {
     }
   }
 
+  // Find trunk (longest path) to pin at TRUNK_Y
+  const trunkNodes = new Set();
+  {
+    const dist = new Map(), prev = new Map();
+    for (const u of topo) { dist.set(u, 0); prev.set(u, null); }
+    for (const u of topo) {
+      for (const v of childrenOf.get(u)) {
+        if (dist.get(u) + 1 > dist.get(v)) { dist.set(v, dist.get(u) + 1); prev.set(v, u); }
+      }
+    }
+    let best = -1, end = null;
+    for (const [id, d] of dist) { if (d > best) { best = d; end = id; } }
+    for (let c = end; c !== null; c = prev.get(c)) trunkNodes.add(c);
+  }
+
   const nodeYDirect = new Map();
   for (const layerNodes of layers) {
-    const n = layerNodes.length;
-    const totalHeight = (n - 1) * MAIN_SPACING;
-    const startY = TRUNK_Y - totalHeight / 2;
-    for (let i = 0; i < n; i++) {
-      nodeYDirect.set(layerNodes[i], startY + i * MAIN_SPACING);
+    // Find trunk node in this layer
+    let trunkIdx = -1;
+    for (let i = 0; i < layerNodes.length; i++) {
+      if (trunkNodes.has(layerNodes[i])) { trunkIdx = i; break; }
+    }
+
+    if (trunkIdx >= 0) {
+      // Pin trunk at TRUNK_Y, space others relative
+      for (let i = 0; i < layerNodes.length; i++) {
+        nodeYDirect.set(layerNodes[i], TRUNK_Y + (i - trunkIdx) * MAIN_SPACING);
+      }
+    } else {
+      // No trunk node — center around TRUNK_Y
+      const n = layerNodes.length;
+      const totalHeight = (n - 1) * MAIN_SPACING;
+      const startY = TRUNK_Y - totalHeight / 2;
+      for (let i = 0; i < n; i++) {
+        nodeYDirect.set(layerNodes[i], startY + i * MAIN_SPACING);
+      }
     }
   }
 
@@ -174,7 +203,9 @@ export function layoutMetro(dag, options = {}) {
   });
   const { routes, nodeRoute, nodeRoutes, segmentRoutes } = routeResult;
 
-  const lineGap = (options.lineGap ?? (hasProvidedRoutes && routes.length > 1 ? 5 : 0)) * s;
+  // lineGap: always separate parallel routes at shared nodes.
+  // Sized to match the elongated station rendering.
+  const lineGap = (options.lineGap ?? (routes.length > 1 ? 5 : 0)) * s;
 
   // Compute route Y as median of member node positioned Y
   const routeY = new Map();
@@ -190,6 +221,15 @@ export function layoutMetro(dag, options = {}) {
   const trunkYScreen = routeY.get(0) ?? topPad;
 
   // ── STEP 8: Build route paths ──
+  // Compute GLOBAL Y offset per route — consistent across all stations.
+  // Route 0 (trunk) = 0, others distribute symmetrically.
+  const globalRouteOffset = new Map();
+  globalRouteOffset.set(0, 0);
+  const nonTrunkRoutes = routes.map((_, i) => i).filter(i => i !== 0);
+  for (let i = 0; i < nonTrunkRoutes.length; i++) {
+    globalRouteOffset.set(nonTrunkRoutes[i], (i - (nonTrunkRoutes.length - 1) / 2) * lineGap);
+  }
+
   const pathFn = routing === 'metro' ? metroPath : routing === 'bezier' ? bezierPath : angularPath;
   const opBoost = theme.lineOpacity ?? 1.0;
 
@@ -218,34 +258,17 @@ export function layoutMetro(dag, options = {}) {
       opacity = Math.min(0.28 * opBoost, 1);
     }
 
-    // Trunk (route 0) always passes through station center (offset 0).
-    // Other routes distribute above/below at shared nodes.
-    const nodeOffsetY = new Map();
-    for (const id of route.nodes) {
-      const nr = nodeRoutes.get(id);
-      if (nr && nr.size > 1) {
-        const allRoutes = [...nr].sort((a, b) => a - b);
-        const nonTrunk = allRoutes.filter(r => r !== 0);
-        if (ri === 0) {
-          nodeOffsetY.set(id, 0);
-        } else {
-          const ntIdx = nonTrunk.indexOf(ri);
-          const n = nonTrunk.length;
-          nodeOffsetY.set(id, (ntIdx - (n - 1) / 2) * lineGap);
-        }
-      } else {
-        nodeOffsetY.set(id, 0);
-      }
-    }
+    // Global Y offset for this route — same at every station.
+    // Routes run in parallel through all shared stations.
+    const routeOff = globalRouteOffset.get(ri) || 0;
 
-    // Fan distance for non-trunk routes at shared stations
-    const fanDist = (lineGap > 0 && ri !== 0) ? Math.max(12 * s, layerSpacing * 0.15) : 0;
-
+    // Routes run at their global offset Y — parallel tracks through all stations.
     const segments = [];
     for (let i = 1; i < pts.length; i++) {
       const p = pts[i - 1], q = pts[i];
-      const offPy = nodeOffsetY.get(p.id) || 0;
-      const offQy = nodeOffsetY.get(q.id) || 0;
+
+      const px = p.x, py = p.y + routeOff;
+      const qx = q.x, qy = q.y + routeOff;
 
       const srcNode = nodeMap.get(p.id);
       const segColor = hasProvidedRoutes ? color : (classColor[srcNode?.cls] || color);
@@ -255,24 +278,11 @@ export function layoutMetro(dag, options = {}) {
       if (routing === 'angular') {
         const srcIsOwn = nodeRoute.get(p.id) === ri;
         const dstIsOwn = nodeRoute.get(q.id) === ri;
-        if (!srcIsOwn && dstIsOwn) segRefY = p.y + offPy;
-        else if (srcIsOwn && !dstIsOwn) segRefY = q.y + offQy;
+        if (!srcIsOwn && dstIsOwn) segRefY = py;
+        else if (srcIsOwn && !dstIsOwn) segRefY = qy;
       }
 
-      let d;
-      if (fanDist > 0 && (offPy !== 0 || offQy !== 0)) {
-        const dx = q.x - p.x;
-        const fanLen = Math.min(fanDist, dx * 0.25);
-        const depX = p.x + fanLen, depY = p.y + offPy;
-        const arrX = q.x - fanLen, arrY = q.y + offQy;
-        d = `M ${p.x} ${p.y} C ${p.x + fanLen * 0.5} ${p.y}, ${depX - fanLen * 0.3} ${depY}, ${depX} ${depY} `;
-        d += pathFn(depX, depY, arrX, arrY, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
-        d += ` C ${arrX + fanLen * 0.3} ${arrY}, ${q.x - fanLen * 0.5} ${q.y}, ${q.x} ${q.y}`;
-      } else {
-        const px = p.x, py = p.y + offPy;
-        const qx = q.x, qy = q.y + offQy;
-        d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
-      }
+      const d = `M ${px} ${py} ` + pathFn(px, py, qx, qy, ri, i, segRefY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
 
       const dstNode = nodeMap.get(q.id);
       const srcDim = srcNode?.dim === true;
