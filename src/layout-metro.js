@@ -124,7 +124,17 @@ export function layoutMetro(dag, options = {}) {
     }
 
     if (trunkIdx >= 0) {
-      // Pin trunk at TRUNK_Y, space others relative
+      // Move trunk to center of the layer, keeping relative order of others.
+      // This ensures nodes spread equally above and below the trunk.
+      const n = layerNodes.length;
+      const centerIdx = Math.floor(n / 2);
+      if (trunkIdx !== centerIdx) {
+        const trunkId = layerNodes[trunkIdx];
+        layerNodes.splice(trunkIdx, 1);
+        layerNodes.splice(centerIdx, 0, trunkId);
+        trunkIdx = centerIdx;
+      }
+
       for (let i = 0; i < layerNodes.length; i++) {
         nodeYDirect.set(layerNodes[i], TRUNK_Y + (i - trunkIdx) * MAIN_SPACING);
       }
