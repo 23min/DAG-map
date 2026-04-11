@@ -124,19 +124,14 @@ export function layoutMetro(dag, options = {}) {
     }
 
     if (trunkIdx >= 0) {
-      // Move trunk to center of the layer, keeping relative order of others.
-      // This ensures nodes spread equally above and below the trunk.
+      // Adaptive spacing: reduce for large layers to prevent excessive spread.
+      // Cap total layer height at ~300px (reasonable viewport fit).
       const n = layerNodes.length;
-      const centerIdx = Math.floor(n / 2);
-      if (trunkIdx !== centerIdx) {
-        const trunkId = layerNodes[trunkIdx];
-        layerNodes.splice(trunkIdx, 1);
-        layerNodes.splice(centerIdx, 0, trunkId);
-        trunkIdx = centerIdx;
-      }
+      const maxLayerHeight = 300 * s;
+      const adaptiveSpacing = n > 1 ? Math.min(MAIN_SPACING, maxLayerHeight / (n - 1)) : MAIN_SPACING;
 
       for (let i = 0; i < layerNodes.length; i++) {
-        nodeYDirect.set(layerNodes[i], TRUNK_Y + (i - trunkIdx) * MAIN_SPACING);
+        nodeYDirect.set(layerNodes[i], TRUNK_Y + (i - trunkIdx) * adaptiveSpacing);
       }
     } else {
       // No trunk node — center around TRUNK_Y
