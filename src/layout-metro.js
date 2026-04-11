@@ -144,6 +144,57 @@ export function layoutMetro(dag, options = {}) {
     }
   }
 
+  // Y compression: only when the layout is too tall.
+  // Pulls nodes toward barycenter of neighbors, preserving ordering.
+  const maxComfortableHeight = 400 * s;
+  let currentSpread = 0;
+  for (const y of nodeYDirect.values()) {
+    const dist = Math.abs(y - TRUNK_Y);
+    if (dist > currentSpread) currentSpread = dist;
+  }
+  const needsCompression = currentSpread * 2 > maxComfortableHeight;
+
+  const minNodeGap = 12 * s;
+  for (let iter = 0; iter < (needsCompression ? 8 : 0); iter++) {
+    for (const layerNodes of layers) {
+      if (layerNodes.length < 2) continue;
+      for (let i = 0; i < layerNodes.length; i++) {
+        const id = layerNodes[i];
+        if (trunkNodes.has(id)) continue; // don't move trunk
+
+        // Compute barycenter of neighbors
+        const neighbors = [];
+        for (const p of (parentsOf.get(id) || [])) {
+          const y = nodeYDirect.get(p);
+          if (y !== undefined) neighbors.push(y);
+        }
+        for (const c of (childrenOf.get(id) || [])) {
+          const y = nodeYDirect.get(c);
+          if (y !== undefined) neighbors.push(y);
+        }
+        if (neighbors.length === 0) continue;
+
+        const avg = neighbors.reduce((a, b) => a + b, 0) / neighbors.length;
+        const cur = nodeYDirect.get(id);
+
+        // Move 50% toward barycenter
+        let newY = cur * 0.5 + avg * 0.5;
+
+        // Enforce ordering: must stay between neighbors in same layer
+        if (i > 0) {
+          const aboveY = nodeYDirect.get(layerNodes[i - 1]);
+          if (newY < aboveY + minNodeGap) newY = aboveY + minNodeGap;
+        }
+        if (i < layerNodes.length - 1) {
+          const belowY = nodeYDirect.get(layerNodes[i + 1]);
+          if (newY > belowY - minNodeGap) newY = belowY - minNodeGap;
+        }
+
+        nodeYDirect.set(id, newY);
+      }
+    }
+  }
+
   // ── STEP 5: Position nodes (X + final Y) ──
   const margin = { top: 0, left: 50 * s, bottom: 0, right: 40 * s };
 
