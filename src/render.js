@@ -253,13 +253,25 @@ export function renderSVG(dag, layout, options = {}) {
       const isDim = nd.dim === true;
       const dO = dimOpacity;
       const nodeOpacity = isDim ? dO : 1;
-      const stationLineGap = layout.laneSpacing ? Math.min(layout.laneSpacing * 0.15, 8 * s) : 5 * s;
+      const gro = layout.globalRouteOffset;
+
+      // Compute station height from actual global offsets of routes through this node
+      const isMultiRoute = routeCount > 1;
+      let stationHalfHeight = 0;
+      if (isMultiRoute && gro && nRoutes) {
+        let minOff = 0, maxOff = 0;
+        for (const ri of nRoutes) {
+          const off = gro.get(ri) ?? 0;
+          if (off < minOff) minOff = off;
+          if (off > maxOff) maxOff = off;
+        }
+        stationHalfHeight = Math.max(Math.abs(minOff), Math.abs(maxOff));
+      }
 
       // r = effective station radius for label positioning
-      const isMultiRoute = routeCount > 1;
       let r;
       if (isMultiRoute) {
-        r = ((routeCount - 1) * stationLineGap) / 2 + 3.5 * s;
+        r = stationHalfHeight + 3.5 * s;
       } else if (depth <= 1) {
         r = 3.5 * s;
       } else {
@@ -269,9 +281,9 @@ export function renderSVG(dag, layout, options = {}) {
       svg += `<g data-node-id="${escAttr(nd.id)}" data-node-cls="${escAttr(nd.cls || 'pure')}"${metricAttr}>`;
 
       if (isMultiRoute) {
-        // Elongated station — vertical pill sized for all routes
+        // Elongated station — vertical pill sized to span actual route offsets
         const pillR = 3.5 * s;  // horizontal radius
-        const halfHeight = ((routeCount - 1) * stationLineGap) / 2 + pillR;
+        const halfHeight = stationHalfHeight + pillR;
         const sw = (isGate ? 2 : 1.6) * s;
         svg += `<rect data-id="${escAttr(nd.id)}" `;
         svg += `x="${(pos.x - pillR).toFixed(1)}" y="${(pos.y - halfHeight).toFixed(1)}" `;
@@ -281,9 +293,10 @@ export function renderSVG(dag, layout, options = {}) {
         if (isGate) svg += ` stroke-dasharray="${2 * s},${1.5 * s}"`;
         if (isDim) svg += ` opacity="${nodeOpacity}"`;
         svg += `/>`;
-        // Track marks inside the station (small horizontal lines at each route Y)
-        for (let ti = 0; ti < routeCount; ti++) {
-          const trackY = pos.y + (ti - (routeCount - 1) / 2) * stationLineGap;
+        // Track marks at actual route offset positions
+        const routeIndices = nRoutes ? [...nRoutes].sort((a, b) => a - b) : [];
+        for (const ri of routeIndices) {
+          const trackY = pos.y + (gro?.get(ri) ?? 0);
           svg += `<line x1="${(pos.x - pillR * 0.6).toFixed(1)}" y1="${trackY.toFixed(1)}" `;
           svg += `x2="${(pos.x + pillR * 0.6).toFixed(1)}" y2="${trackY.toFixed(1)}" `;
           svg += `stroke="${color}" stroke-width="${0.8 * s}" opacity="${isDim ? dO * 0.3 : 0.2}"/>`;

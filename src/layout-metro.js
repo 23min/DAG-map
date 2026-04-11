@@ -336,6 +336,7 @@ export function layoutMetro(dag, options = {}) {
       maxLayer, routes, nodeLane, nodeRoute, nodeRoutes, segmentRoutes,
       laneSpacing: MAIN_SPACING, layerSpacing, minY, maxY,
       routeYScreen, trunkYScreen, scale: s, theme, orientation: 'ttb',
+      globalRouteOffset,
     };
   }
 
@@ -344,5 +345,6 @@ export function layoutMetro(dag, options = {}) {
     maxLayer, routes, nodeLane, nodeRoute, nodeRoutes, segmentRoutes,
     laneSpacing: MAIN_SPACING, layerSpacing, minY, maxY,
     routeYScreen, trunkYScreen, scale: s, theme,
+    globalRouteOffset,
   };
 }
