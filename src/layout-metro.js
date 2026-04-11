@@ -62,8 +62,9 @@ export function layoutMetro(dag, options = {}) {
   const classColor = { ...theme.classes };
   const s = options.scale ?? 1.5;
   const TRUNK_Y = (options.trunkY ?? 160) * s;
-  const MAIN_SPACING = (options.mainSpacing ?? 40) * s;
-  const SUB_SPACING = (options.subSpacing ?? 25) * s;
+  // GA-validated defaults: tight trunk lanes, wide branch spacing
+  const MAIN_SPACING = (options.mainSpacing ?? 26) * s;
+  const SUB_SPACING = (options.subSpacing ?? 40) * s;
   const layerSpacing = (options.layerSpacing ?? 38) * s;
   const progressivePower = options.progressivePower ?? 2.2;
   const cornerRadius = (options.cornerRadius ?? 8) * s;
