@@ -43,14 +43,39 @@ export function assignTracks(routes, nodeRoutes, positions) {
   });
 
   // R5: Classify branches as "above" or "below" trunk
-  // Use route index parity for initial assignment, then refine
+  // Based on WHERE the branch goes: if the branch's non-shared nodes
+  // are above the trunk Y, the branch gets above tracks; if below, below.
+  // Falls back to alternating for routes with no position info.
   const branchSide = new Map(); // routeIdx → +1 (below) or -1 (above)
   const nonTrunk = routes.map((_, i) => i).filter(i => i !== 0);
-  // Sort by trunk overlap (most overlap = closest to trunk)
   nonTrunk.sort((a, b) => trunkOverlap[b] - trunkOverlap[a]);
-  // Alternate above/below for symmetric branching
-  for (let i = 0; i < nonTrunk.length; i++) {
-    branchSide.set(nonTrunk[i], i % 2 === 0 ? 1 : -1);
+
+  let aboveCount = 0, belowCount = 0;
+  for (const ri of nonTrunk) {
+    // Find the first node in this route that's NOT shared with the trunk
+    const branchNodes = routes[ri].nodes.filter(id => !trunkNodes.has(id));
+    if (branchNodes.length > 0 && positions) {
+      const branchY = positions.get(branchNodes[0])?.y;
+      const trunkY = positions.get(routes[ri].nodes.find(id => trunkNodes.has(id)))?.y;
+      if (branchY !== undefined && trunkY !== undefined) {
+        if (branchY < trunkY) {
+          branchSide.set(ri, -1); // above
+          aboveCount++;
+        } else {
+          branchSide.set(ri, 1); // below
+          belowCount++;
+        }
+        continue;
+      }
+    }
+    // Fallback: alternate for balance
+    if (belowCount <= aboveCount) {
+      branchSide.set(ri, 1);
+      belowCount++;
+    } else {
+      branchSide.set(ri, -1);
+      aboveCount++;
+    }
   }
 
   // Assign tracks at each station, left to right
