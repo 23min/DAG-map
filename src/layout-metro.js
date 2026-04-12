@@ -403,7 +403,8 @@ export function layoutMetro(dag, options = {}) {
     const dstNode = nodeMap.get(t);
     const extraDim = srcNode?.dim === true || dstNode?.dim === true;
     const extraOpacity = extraDim ? Math.min(dimOpacity * 0.32, Math.min(0.22 * opBoost, 1)) : Math.min(0.22 * opBoost, 1);
-    extraEdges.push({ d, color, thickness: 1.8 * s, opacity: extraOpacity, dashed: srcNode?.cls === 'gate' });
+    // Extra edges are always dashed — visually distinct from route segments
+    extraEdges.push({ d, color, thickness: 1.2 * s, opacity: extraOpacity, dashed: true });
   });
 
   const nodeLane = new Map();
