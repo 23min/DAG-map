@@ -101,10 +101,11 @@ export function layoutFlowV2(dag, options = {}) {
     const sorted = nRoutes ? [...nRoutes].sort((a, b) => (routeSortKey.get(a) ?? 0) - (routeSortKey.get(b) ?? 0)) : [];
 
     if (sorted.length <= 1) {
-      // Single route — place at spine or offset by route side
+      // Single route — stay close to spine. Offset just enough to
+      // distinguish from trunk, proportional to route's sort position.
       const ri = nodeRoute.get(nd.id);
       const side = routeSortKey.get(ri) ?? 0;
-      dotPositions.set(`${nd.id}:${ri}`, { x, y: SPINE_Y + side * dotSpacing * 2 });
+      dotPositions.set(`${nd.id}:${ri}`, { x, y: SPINE_Y + side * dotSpacing });
     } else {
       // Multiple routes — spread by dotSpacing, trunk at center
       const trunkIdx = sorted.indexOf(trunkRi);
@@ -138,11 +139,31 @@ export function layoutFlowV2(dag, options = {}) {
   const height = (maxY - minY) + margin.top + margin.bottom + 40 * s;
 
   // ── Phase 6: Edge routing (H-V-H) using dot positions ──
-  const classColor = { ...theme.classes };
+  // Per-route distinct colors
+  const PALETTE = ['#268bd2','#dc322f','#859900','#d33682','#b58900','#2aa198','#6c71c4','#cb4b16','#586e75','#073642'];
+  const routeColors = new Map();
+  const usedColors = new Set();
+  for (let ri = 0; ri < routes.length; ri++) {
+    const cls = routes[ri].cls;
+    const themeColor = cls ? theme.classes?.[cls] : null;
+    if (themeColor && !usedColors.has(themeColor)) {
+      routeColors.set(ri, themeColor);
+      usedColors.add(themeColor);
+    } else {
+      let color = PALETTE[ri % PALETTE.length];
+      for (let j = 0; j < PALETTE.length; j++) {
+        const c = PALETTE[(ri + j) % PALETTE.length];
+        if (!usedColors.has(c)) { color = c; break; }
+      }
+      routeColors.set(ri, color);
+      usedColors.add(color);
+    }
+  }
+
   const opBoost = theme.lineOpacity ?? 1.0;
 
   const routePaths = routes.map((route, ri) => {
-    const color = classColor[route.cls] || classColor.pure || Object.values(classColor)[0] || '#268bd2';
+    const color = routeColors.get(ri);
     const thickness = ri === trunkRi ? 3.5 * s : 2.5 * s;
     const opacity = Math.min((ri === trunkRi ? 0.6 : 0.45) * opBoost, 1);
 

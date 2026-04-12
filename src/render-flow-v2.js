@@ -7,6 +7,21 @@
 
 import { resolveTheme } from './themes.js';
 
+// Distinct color palette for routes when theme colors are insufficient.
+// Chosen for visual distinction on both light and dark backgrounds.
+const ROUTE_PALETTE = [
+  '#268bd2', // blue
+  '#dc322f', // red
+  '#859900', // green
+  '#d33682', // magenta
+  '#b58900', // yellow
+  '#2aa198', // cyan
+  '#6c71c4', // violet
+  '#cb4b16', // orange
+  '#586e75', // gray
+  '#073642', // dark
+];
+
 function esc(s) {
   if (typeof s !== 'string') return s;
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -28,6 +43,28 @@ export function renderFlowV2(dag, layout, options = {}) {
   const showCards = options.showCards ?? false;
   const dotR = 3.5 * s;
   const fontSize = (options.labelSize ?? 3.2) * s;
+
+  // Build per-route color map. Use theme class colors when available,
+  // fall back to cycling through the palette for distinct colors.
+  const routeColor = new Map();
+  const usedColors = new Set();
+  for (let ri = 0; ri < routes.length; ri++) {
+    const cls = routes[ri].cls;
+    const themeColor = cls ? theme.classes?.[cls] : null;
+    if (themeColor && !usedColors.has(themeColor)) {
+      routeColor.set(ri, themeColor);
+      usedColors.add(themeColor);
+    } else {
+      // Cycle through palette, skipping already-used colors
+      let color = ROUTE_PALETTE[ri % ROUTE_PALETTE.length];
+      for (let j = 0; j < ROUTE_PALETTE.length; j++) {
+        const candidate = ROUTE_PALETTE[(ri + j) % ROUTE_PALETTE.length];
+        if (!usedColors.has(candidate)) { color = candidate; break; }
+      }
+      routeColor.set(ri, color);
+      usedColors.add(color);
+    }
+  }
 
   const lines = [];
   lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="'IBM Plex Mono', 'Courier New', monospace">`);
@@ -76,8 +113,7 @@ export function renderFlowV2(dag, layout, options = {}) {
     if (!pos) continue;
 
     const ri = nodeRoute?.get(nd.id) ?? 0;
-    const route = routes[ri];
-    const color = theme.classes?.[route?.cls] || theme.classes?.pure || '#268bd2';
+    const color = routeColor.get(ri) || '#268bd2';
     const nRoutes = nodeRoutes?.get(nd.id);
     const routeCount = nRoutes ? nRoutes.size : 1;
 
@@ -94,8 +130,7 @@ export function renderFlowV2(dag, layout, options = {}) {
       let dotIdx = 0;
       for (const otherRi of nRoutes) {
         if (otherRi === ri) continue;
-        const otherRoute = routes[otherRi];
-        const otherColor = theme.classes?.[otherRoute?.cls] || '#268bd2';
+        const otherColor = routeColor.get(otherRi) || '#268bd2';
         const offsetX = (dotIdx + 1) * dotR * 2.5;
         lines.push(`<circle cx="${(pos.x + offsetX).toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${dotR * 0.7}" fill="${otherColor}" opacity="0.6"/>`);
         dotIdx++;
@@ -114,7 +149,7 @@ export function renderFlowV2(dag, layout, options = {}) {
   let legendX = 10 * s;
   for (let ri = 0; ri < Math.min(routes.length, 8); ri++) {
     const route = routes[ri];
-    const color = theme.classes?.[route.cls] || '#268bd2';
+    const color = routeColor.get(ri) || '#268bd2';
     const label = route.id || route.cls || `R${ri}`;
     lines.push(`<rect x="${legendX}" y="${legendY}" width="${8 * s}" height="${3 * s}" rx="${1 * s}" fill="${color}" opacity="0.7"/>`);
     lines.push(`<text x="${legendX + 10 * s}" y="${legendY + 2.5 * s}" font-size="${fontSize * 0.8}" fill="${theme.ink}" opacity="0.5">${esc(label)}</text>`);
