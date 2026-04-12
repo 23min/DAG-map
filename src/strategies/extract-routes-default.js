@@ -132,6 +132,40 @@ export function extractRoutesDefault(ctx) {
     }
   }
 
+  // Cover any remaining uncovered edges as short 2-node routes.
+  // This ensures ALL DAG edges are route segments — no "extra" edges.
+  const coveredEdges = new Set();
+  routes.forEach(route => {
+    for (let i = 1; i < route.nodes.length; i++) {
+      coveredEdges.add(`${route.nodes[i - 1]}\u2192${route.nodes[i]}`);
+    }
+  });
+
+  const { edges } = ctx.options?.dag ?? { edges: [] };
+  const allEdges = edges ?? [];
+  // Also check the original DAG edges from the context
+  const dagEdges = ctx.nodes && ctx.childrenOf ? [] : allEdges;
+  if (ctx.childrenOf) {
+    for (const nd of ctx.nodes) {
+      for (const child of (ctx.childrenOf.get(nd.id) || [])) {
+        dagEdges.push([nd.id, child]);
+      }
+    }
+  }
+
+  for (const [from, to] of dagEdges) {
+    if (coveredEdges.has(`${from}\u2192${to}`)) continue;
+    const ri = routes.length;
+    const parentRouteIdx = nodeRoute.get(from) ?? 0;
+    const parentDepth = routes[parentRouteIdx]?.depth ?? 0;
+    routes.push({ nodes: [from, to], lane: 0, parentRoute: parentRouteIdx, depth: parentDepth + 1 });
+    if (!assigned.has(from)) { assigned.add(from); nodeRoute.set(from, ri); }
+    if (!assigned.has(to)) { assigned.add(to); nodeRoute.set(to, ri); }
+    nodeRoutes.get(from)?.add(ri);
+    nodeRoutes.get(to)?.add(ri);
+    coveredEdges.add(`${from}\u2192${to}`);
+  }
+
   // Build shared segment map for parallel offset rendering
   const segmentRoutes = new Map();
   routes.forEach((route, ri) => {
