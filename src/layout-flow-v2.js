@@ -38,6 +38,7 @@ export function layoutFlowV2(dag, options = {}) {
   const layerSpacing = (options.layerSpacing ?? 55) * s;
   const dotSpacing = (options.dotSpacing ?? 12) * s;
   const cornerRadius = (options.cornerRadius ?? 6) * s;
+  const trackSpread = (options.trackSpread ?? 2) * s; // per-segment parallel offset
   const margin = { left: 40 * s, right: 40 * s, top: 30 * s, bottom: 30 * s };
 
   assertValidDag(nodes, edges, 'layoutFlowV2');
@@ -162,10 +163,20 @@ export function layoutFlowV2(dag, options = {}) {
 
   const opBoost = theme.lineOpacity ?? 1.0;
 
+  // Build segment → routes map for track spreading
+  const segmentMembers = new Map(); // "from→to" → [routeIdx, ...]
+  for (let ri = 0; ri < routes.length; ri++) {
+    for (let i = 1; i < routes[ri].nodes.length; i++) {
+      const key = `${routes[ri].nodes[i - 1]}\u2192${routes[ri].nodes[i]}`;
+      if (!segmentMembers.has(key)) segmentMembers.set(key, []);
+      segmentMembers.get(key).push(ri);
+    }
+  }
+
   const routePaths = routes.map((route, ri) => {
     const color = routeColors.get(ri);
-    const thickness = ri === trunkRi ? 3.5 * s : 2.5 * s;
-    const opacity = Math.min((ri === trunkRi ? 0.6 : 0.45) * opBoost, 1);
+    const thickness = ri === trunkRi ? 3 * s : 2 * s;
+    const opacity = Math.min((ri === trunkRi ? 0.65 : 0.5) * opBoost, 1);
 
     const segments = [];
     for (let i = 1; i < route.nodes.length; i++) {
@@ -174,15 +185,27 @@ export function layoutFlowV2(dag, options = {}) {
       const q = dotPositions.get(`${toId}:${ri}`) || positions.get(toId);
       if (!p || !q) continue;
 
-      const dx = q.x - p.x, dy = q.y - p.y;
+      // Track spread: when multiple routes share this segment,
+      // offset each route's path slightly to prevent overlay.
+      const segKey = `${fromId}\u2192${toId}`;
+      const members = segmentMembers.get(segKey) || [ri];
+      const myIdx = members.indexOf(ri);
+      const spreadOffset = members.length > 1
+        ? (myIdx - (members.length - 1) / 2) * trackSpread
+        : 0;
+
+      const px = p.x, py = p.y + spreadOffset;
+      const qx = q.x, qy = q.y + spreadOffset;
+      const dx = qx - px, dy = qy - py;
+
       let d;
       if (Math.abs(dy) < 0.5) {
-        d = `M ${p.x} ${p.y} L ${q.x} ${q.y}`;
+        d = `M ${px} ${py} L ${qx} ${qy}`;
       } else {
-        const midX = p.x + dx / 2;
+        const midX = px + dx / 2;
         const r = Math.min(cornerRadius, Math.abs(dx) / 4, Math.abs(dy) / 2);
-        const sy = dy > 0 ? 1 : -1;
-        d = `M ${p.x} ${p.y} L ${midX - r} ${p.y} Q ${midX} ${p.y}, ${midX} ${p.y + sy * r} L ${midX} ${q.y - sy * r} Q ${midX} ${q.y}, ${midX + r} ${q.y} L ${q.x} ${q.y}`;
+        const syDir = dy > 0 ? 1 : -1;
+        d = `M ${px} ${py} L ${midX - r} ${py} Q ${midX} ${py}, ${midX} ${py + syDir * r} L ${midX} ${qy - syDir * r} Q ${midX} ${qy}, ${midX + r} ${qy} L ${qx} ${qy}`;
       }
       segments.push({ d, color, thickness, opacity, dashed: false });
     }
