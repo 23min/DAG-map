@@ -86,7 +86,9 @@ export function layoutMetro(dag, options = {}) {
   strats.orderNodes(orderCtx);
 
   // ── STEP 3: Reduce crossings ──
-  const crossCtx = { nodes, childrenOf, parentsOf, layer, maxLayer, config: strategyConfig };
+  // Pass provided routes so route-aware strategies can use them
+  const crossCtx = { nodes, childrenOf, parentsOf, layer, maxLayer, config: strategyConfig,
+    providedRoutes: options.routes || null };
   strats.reduceCrossings(crossCtx);
 
   const nodeOrder = crossCtx.nodeOrder || orderCtx.nodeOrder || null;

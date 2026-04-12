@@ -23,6 +23,7 @@ import { orderNodesShuffle } from './order-nodes-shuffle.js';
 import { reduceCrossingsNone } from './reduce-crossings-none.js';
 import { reduceCrossingsBarycenter } from './reduce-crossings-barycenter.js';
 import { reduceCrossingsGreedy } from './reduce-crossings-greedy.js';
+import { reduceCrossingsRouteAware } from './reduce-crossings-route-aware.js';
 
 // X positioning
 import { positionXFixed } from './position-x-fixed.js';
@@ -53,6 +54,7 @@ registerStrategy('orderNodes', 'shuffle', orderNodesShuffle);
 registerStrategy('reduceCrossings', 'none', reduceCrossingsNone);
 registerStrategy('reduceCrossings', 'barycenter', reduceCrossingsBarycenter);
 registerStrategy('reduceCrossings', 'greedy', reduceCrossingsGreedy);
+registerStrategy('reduceCrossings', 'route-aware', reduceCrossingsRouteAware);
 
 registerStrategy('positionX', 'fixed', positionXFixed);
 registerStrategy('positionX', 'compact', positionXCompact);
