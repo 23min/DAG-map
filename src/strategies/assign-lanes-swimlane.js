@@ -1,20 +1,23 @@
 // assign-lanes-swimlane.js — swimlane lane assignment (Mode 2).
 //
-// Each route gets its own horizontal lane. The trunk is at Y=0,
-// other routes are spaced below in route order. Shared nodes
-// appear at their primary route's lane.
+// Each route gets its own horizontal lane. Routes stay FLAT in their
+// lane — no dipping to other lanes at shared nodes. Instead, the
+// path builder uses per-route Y values so each route always renders
+// at its own lane height.
 //
-// This creates a process-mining / swimlane view using Mode 1's
-// rendering infrastructure (bezier curves, pills, parallel tracks).
+// Shared nodes: the physical node is positioned at its primary route's
+// lane, but when a secondary route passes through it, the route's
+// path stays at ITS lane height. The MLCM track assignment handles
+// the visual interchange.
 
 /**
  * @param {object} ctx
  * @param {Array} ctx.routes
  * @param {Map} ctx.layer - node → rank
  * @param {Map} ctx.nodeRoute - node → primary route index
+ * @param {Map} ctx.nodeRoutes - node → Set of route indices
  * @param {Map} ctx.nodeMap
  * @param {boolean} ctx.hasProvidedRoutes
- * @param {Map} [ctx.nodeOrder]
  * @param {number} ctx.maxLayer
  * @param {object} ctx.config
  */
@@ -29,7 +32,7 @@ export function assignLanesSwimlane(ctx) {
     routeY.set(ri, TRUNK_Y + ri * laneHeight);
   }
 
-  // Each node gets Y from its primary route's lane
+  // Node Y = primary route's lane
   const nodeY = new Map();
   const allNodes = [...(ctx.layer?.keys() || [])];
   for (const id of allNodes) {
@@ -37,5 +40,17 @@ export function assignLanesSwimlane(ctx) {
     nodeY.set(id, routeY.get(ri) ?? TRUNK_Y);
   }
 
-  return { routeY, nodeY };
+  // Per-route node Y: when route R draws through node N, it uses
+  // route R's lane Y — not node N's primary Y. This keeps routes flat.
+  const routeNodeY = new Map();
+  for (let ri = 0; ri < routes.length; ri++) {
+    const rny = new Map();
+    const ry = routeY.get(ri);
+    for (const nodeId of routes[ri].nodes) {
+      rny.set(nodeId, ry);
+    }
+    routeNodeY.set(ri, rny);
+  }
+
+  return { routeY, nodeY, routeNodeY };
 }
