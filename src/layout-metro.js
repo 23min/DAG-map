@@ -93,10 +93,7 @@ export function layoutMetro(dag, options = {}) {
 
   const nodeOrder = crossCtx.nodeOrder || orderCtx.nodeOrder || null;
 
-  // ── STEP 4: Assign Y positions ──
-  // If a lane assignment strategy is configured (e.g., 'swimlane'),
-  // delegate to it. Otherwise use the inline trunk-pinned ordering.
-
+  // ── STEP 4: Assign Y positions (from ordering, trunk pinned) ──
   const layers = buildLayers(nodes.map(n => n.id), layer, maxLayer);
   if (nodeOrder && nodeOrder.size > 0) {
     for (const layerNodes of layers) {
@@ -120,49 +117,27 @@ export function layoutMetro(dag, options = {}) {
   }
 
   const nodeYDirect = new Map();
-  let routeNodeY = null; // per-route per-node Y (swimlane mode)
+  const routeNodeY = null; // reserved for future swimlane mode (separate engine)
 
-  const assignLanesName = options.strategies?.assignLanes || 'default';
-  if (assignLanesName === 'swimlane') {
-    // Delegate to swimlane strategy — needs routes extracted first
-    const earlyRouteResult = strats.extractRoutes({
-      nodes, topo, childrenOf, parentsOf, nodeMap, options,
-    });
-    const laneCtx = {
-      routes: earlyRouteResult.routes, layer, nodeRoute: earlyRouteResult.nodeRoute,
-      nodeRoutes: earlyRouteResult.nodeRoutes, nodeMap, maxLayer,
-      config: { TRUNK_Y, MAIN_SPACING, SUB_SPACING, maxLanes },
-    };
-    const laneResult = strats.assignLanes(laneCtx);
-
-    // Use the strategy's nodeY
-    if (laneResult.nodeY) {
-      for (const [id, y] of laneResult.nodeY) nodeYDirect.set(id, y);
+  for (const layerNodes of layers) {
+    let trunkIdx = -1;
+    for (let i = 0; i < layerNodes.length; i++) {
+      if (trunkNodes.has(layerNodes[i])) { trunkIdx = i; break; }
     }
-    // Store routeNodeY for path builder
-    routeNodeY = laneResult.routeNodeY || null;
-  } else {
-    // Default: inline trunk-pinned ordering
-    for (const layerNodes of layers) {
-      let trunkIdx = -1;
-      for (let i = 0; i < layerNodes.length; i++) {
-        if (trunkNodes.has(layerNodes[i])) { trunkIdx = i; break; }
-      }
 
-      if (trunkIdx >= 0) {
-        const n = layerNodes.length;
-        const maxLayerHeight = 300 * s;
-        const adaptiveSpacing = n > 1 ? Math.min(MAIN_SPACING, maxLayerHeight / (n - 1)) : MAIN_SPACING;
-        for (let i = 0; i < layerNodes.length; i++) {
-          nodeYDirect.set(layerNodes[i], TRUNK_Y + (i - trunkIdx) * adaptiveSpacing);
-        }
-      } else {
-        const n = layerNodes.length;
-        const totalHeight = (n - 1) * MAIN_SPACING;
-        const startY = TRUNK_Y - totalHeight / 2;
-        for (let i = 0; i < n; i++) {
-          nodeYDirect.set(layerNodes[i], startY + i * MAIN_SPACING);
-        }
+    if (trunkIdx >= 0) {
+      const n = layerNodes.length;
+      const maxLayerHeight = 300 * s;
+      const adaptiveSpacing = n > 1 ? Math.min(MAIN_SPACING, maxLayerHeight / (n - 1)) : MAIN_SPACING;
+      for (let i = 0; i < layerNodes.length; i++) {
+        nodeYDirect.set(layerNodes[i], TRUNK_Y + (i - trunkIdx) * adaptiveSpacing);
+      }
+    } else {
+      const n = layerNodes.length;
+      const totalHeight = (n - 1) * MAIN_SPACING;
+      const startY = TRUNK_Y - totalHeight / 2;
+      for (let i = 0; i < n; i++) {
+        nodeYDirect.set(layerNodes[i], startY + i * MAIN_SPACING);
       }
     }
   }
@@ -378,13 +353,8 @@ export function layoutMetro(dag, options = {}) {
     for (let i = 1; i < pts.length; i++) {
       const p = pts[i - 1], q = pts[i];
 
-      // In swimlane mode, use per-route Y (route stays flat in its lane).
-      // Otherwise use node position + track offset.
-      const rny = routeNodeY?.get(ri);
-      const px = p.x;
-      const py = rny ? (rny.get(p.id) ?? p.y) : (p.y + nodeOffset(p.id));
-      const qx = q.x;
-      const qy = rny ? (rny.get(q.id) ?? q.y) : (q.y + nodeOffset(q.id));
+      const px = p.x, py = p.y + nodeOffset(p.id);
+      const qx = q.x, qy = q.y + nodeOffset(q.id);
 
       const srcNode = nodeMap.get(p.id);
       const segColor = hasProvidedRoutes ? color : (classColor[srcNode?.cls] || color);
