@@ -18,6 +18,8 @@ import { colorScales } from './color-scales.js';
 export { layoutMetro, dominantClass };
 export { layoutHasse };
 export { layoutFlow };
+import { layoutFlowV2 } from './layout-flow-v2.js';
+export { layoutFlowV2 };
 export { renderSVG };
 export { bezierPath };
 export { angularPath, progressiveCurve };
