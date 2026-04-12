@@ -125,15 +125,17 @@ export function renderFlowV2(dag, layout, options = {}) {
     // Label below the dot
     lines.push(`<text class="dm-label" x="${pos.x.toFixed(1)}" y="${(pos.y + dotR + fontSize + 2 * s).toFixed(1)}" font-size="${fontSize}" fill="${theme.ink}" text-anchor="middle" opacity="0.6">${esc(nd.label)}</text>`);
 
-    // Multi-route indicator: additional dots for other routes through this node
-    if (routeCount > 1 && nRoutes) {
-      let dotIdx = 0;
+    // At shared nodes, each route's dot is drawn at its own Y via dotPositions.
+    // Draw additional dots for OTHER routes through this node at their dot positions.
+    if (routeCount > 1 && nRoutes && layout.dotPositions) {
       for (const otherRi of nRoutes) {
         if (otherRi === ri) continue;
         const otherColor = routeColor.get(otherRi) || '#268bd2';
-        const offsetX = (dotIdx + 1) * dotR * 2.5;
-        lines.push(`<circle cx="${(pos.x + offsetX).toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${dotR * 0.7}" fill="${otherColor}" opacity="0.6"/>`);
-        dotIdx++;
+        const dp = layout.dotPositions.get(`${nd.id}:${otherRi}`);
+        if (dp) {
+          lines.push(`<circle cx="${dp.x.toFixed(1)}" cy="${dp.y.toFixed(1)}" r="${dotR * 0.8}" fill="${otherColor}" opacity="0.7"/>`);
+          lines.push(`<circle cx="${dp.x.toFixed(1)}" cy="${dp.y.toFixed(1)}" r="${dotR * 0.3}" fill="${theme.paper}"/>`);
+        }
       }
     }
 
