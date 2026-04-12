@@ -402,9 +402,9 @@ export function layoutMetro(dag, options = {}) {
     const d = `M ${p.x} ${p.y} ` + pathFn(p.x, p.y, q.x, q.y, extraIdx, 0, refY, { progressivePower, cornerRadius, bendStyle: isTTB ? 'v-first' : 'h-first' });
     const dstNode = nodeMap.get(t);
     const extraDim = srcNode?.dim === true || dstNode?.dim === true;
-    const extraOpacity = extraDim ? Math.min(dimOpacity * 0.32, Math.min(0.22 * opBoost, 1)) : Math.min(0.22 * opBoost, 1);
-    // Extra edges are always dashed — visually distinct from route segments
-    extraEdges.push({ d, color, thickness: 1.2 * s, opacity: extraOpacity, dashed: true });
+    const extraOpacity = extraDim ? Math.min(dimOpacity * 0.2, 0.12) : Math.min(0.12 * opBoost, 0.15);
+    // Extra edges: thin, low opacity, dotted — background connections
+    extraEdges.push({ d, color, thickness: 0.8 * s, opacity: extraOpacity, dashed: true });
   });
 
   const nodeLane = new Map();
