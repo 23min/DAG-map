@@ -91,29 +91,35 @@ export function layoutFlowV2(dag, options = {}) {
   routeSortKey.set(trunkRi, 0);
   right.forEach((ri, i) => routeSortKey.set(ri, i + 1));
 
-  // ── Phase 4: Dot positions at shared nodes ──
-  // At each node, compute per-route Y position.
-  // Trunk at center, others offset by routeSortKey × dotSpacing.
-  const dotPositions = new Map(); // "nodeId:routeIdx" → {x, y}
+  // ── Phase 4: Dot positions — each route has ONE fixed Y ──
+  // Every route maintains a consistent Y for its entire length.
+  // No local reindexing at shared nodes — the route's Y is determined
+  // by its global sort position. This guarantees zero overlap:
+  // every route is on its own horizontal track.
+  const dotPositions = new Map();
+
+  // Route Y = SPINE_Y + sortKey × dotSpacing
+  // This gives each route a unique Y, evenly spaced, trunk at center.
+  const routeFixedY = new Map();
+  for (let ri = 0; ri < routes.length; ri++) {
+    const sortKey = routeSortKey.get(ri) ?? 0;
+    routeFixedY.set(ri, SPINE_Y + sortKey * dotSpacing);
+  }
 
   for (const nd of nodes) {
     const x = margin.left + layer.get(nd.id) * layerSpacing;
     const nRoutes = nodeRoutes.get(nd.id);
-    const sorted = nRoutes ? [...nRoutes].sort((a, b) => (routeSortKey.get(a) ?? 0) - (routeSortKey.get(b) ?? 0)) : [];
 
-    if (sorted.length <= 1) {
-      // Single route — stay close to spine. Offset just enough to
-      // distinguish from trunk, proportional to route's sort position.
-      const ri = nodeRoute.get(nd.id);
-      const side = routeSortKey.get(ri) ?? 0;
-      dotPositions.set(`${nd.id}:${ri}`, { x, y: SPINE_Y + side * dotSpacing });
-    } else {
-      // Multiple routes — spread by dotSpacing, trunk at center
-      const trunkIdx = sorted.indexOf(trunkRi);
-      const anchor = trunkIdx >= 0 ? trunkIdx : Math.floor(sorted.length / 2);
-      for (let i = 0; i < sorted.length; i++) {
-        dotPositions.set(`${nd.id}:${sorted[i]}`, { x, y: SPINE_Y + (i - anchor) * dotSpacing });
+    if (nRoutes) {
+      for (const ri of nRoutes) {
+        dotPositions.set(`${nd.id}:${ri}`, { x, y: routeFixedY.get(ri) });
       }
+    }
+
+    // Nodes not on any route
+    if (!nRoutes || nRoutes.size === 0) {
+      const ri = nodeRoute.get(nd.id) ?? 0;
+      dotPositions.set(`${nd.id}:${ri}`, { x, y: routeFixedY.get(ri) ?? SPINE_Y });
     }
   }
 
@@ -185,17 +191,10 @@ export function layoutFlowV2(dag, options = {}) {
       const q = dotPositions.get(`${toId}:${ri}`) || positions.get(toId);
       if (!p || !q) continue;
 
-      // Track spread: when multiple routes share this segment,
-      // offset each route's path slightly to prevent overlay.
-      const segKey = `${fromId}\u2192${toId}`;
-      const members = segmentMembers.get(segKey) || [ri];
-      const myIdx = members.indexOf(ri);
-      const spreadOffset = members.length > 1
-        ? (myIdx - (members.length - 1) / 2) * trackSpread
-        : 0;
-
-      const px = p.x, py = p.y + spreadOffset;
-      const qx = q.x, qy = q.y + spreadOffset;
+      // Each route has its own fixed Y — no track spread needed.
+      // The dot positions already guarantee separation.
+      const px = p.x, py = p.y;
+      const qx = q.x, qy = q.y;
       const dx = qx - px, dy = qy - py;
 
       let d;
