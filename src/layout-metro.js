@@ -195,44 +195,12 @@ export function layoutMetro(dag, options = {}) {
     }
   }
 
-  // Path straightening: reduce Y wiggles by pulling each non-trunk node
-  // toward the average Y of its parent(s) and child(ren). Nodes with a
-  // single parent and single child get pulled strongly toward the line
-  // between them — this straightens pass-through nodes on routes.
-  const straightenGap = 10 * s;
-  for (let iter = 0; iter < 6; iter++) {
-    for (const layerNodes of layers) {
-      if (layerNodes.length < 2) continue;
-      for (let i = 0; i < layerNodes.length; i++) {
-        const id = layerNodes[i];
-        if (trunkNodes.has(id)) continue;
-
-        const parents = (parentsOf.get(id) || []).map(p => nodeYDirect.get(p)).filter(y => y !== undefined);
-        const children = (childrenOf.get(id) || []).map(c => nodeYDirect.get(c)).filter(y => y !== undefined);
-        const all = [...parents, ...children];
-        if (all.length === 0) continue;
-
-        const avg = all.reduce((a, b) => a + b, 0) / all.length;
-        const cur = nodeYDirect.get(id);
-
-        // Stronger pull for pass-through nodes (1 parent, 1 child)
-        const strength = (parents.length === 1 && children.length === 1) ? 0.5 : 0.3;
-        let newY = cur * (1 - strength) + avg * strength;
-
-        // Enforce layer ordering
-        if (i > 0) {
-          const aboveY = nodeYDirect.get(layerNodes[i - 1]);
-          if (aboveY !== undefined && newY < aboveY + straightenGap) newY = aboveY + straightenGap;
-        }
-        if (i < layerNodes.length - 1) {
-          const belowY = nodeYDirect.get(layerNodes[i + 1]);
-          if (belowY !== undefined && newY > belowY - straightenGap) newY = belowY - straightenGap;
-        }
-
-        nodeYDirect.set(id, newY);
-      }
-    }
-  }
+  // Note: path straightening was attempted here but reverted — pulling
+  // nodes toward parent/child barycenters collapses nodes into horizontal
+  // bands, destroying vertical separation and creating more visual
+  // crossings. The wiggly route problem needs a different approach:
+  // route-aware ordering that keeps same-route nodes at consistent
+  // Y positions across layers.
 
   // ── STEP 5: Position nodes (X + final Y) ──
   const margin = { top: 0, left: 50 * s, bottom: 0, right: 40 * s };
