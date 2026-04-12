@@ -44,6 +44,9 @@ registerStrategy('assignLanes', 'composed', assignLanesComposed);
 import { assignLanesDirect } from './assign-lanes-direct.js';
 registerStrategy('assignLanes', 'direct', assignLanesDirect);
 
+import { assignLanesSwimlane } from './assign-lanes-swimlane.js';
+registerStrategy('assignLanes', 'swimlane', assignLanesSwimlane);
+
 registerStrategy('orderNodes', 'none', orderNodesNone);
 registerStrategy('orderNodes', 'barycenter', orderNodesBarycenter);
 registerStrategy('orderNodes', 'median', orderNodesMedian);
