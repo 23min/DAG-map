@@ -144,15 +144,18 @@ export function renderFlowV2(dag, layout, options = {}) {
   const title = options.title || `DAG (${dag.nodes.length} OPS)`;
   lines.push(`<text x="${10 * s}" y="${16 * s}" font-size="${(options.titleSize ?? 4) * s}" fill="${theme.ink}" opacity="0.4">${esc(title)}</text>`);
 
-  // Legend
+  // Legend — each swatch is a <g> with data-route-id for tooltip
   const legendY = height - 12 * s;
   let legendX = 10 * s;
-  for (let ri = 0; ri < Math.min(routes.length, 8); ri++) {
+  for (let ri = 0; ri < Math.min(routes.length, 10); ri++) {
     const route = routes[ri];
     const color = routeColor.get(ri) || '#268bd2';
     const label = route.id || route.cls || `R${ri}`;
+    const nodes = route.nodes.join(' → ');
+    lines.push(`<g data-route-id="${esc(label)}" data-route-nodes="${esc(nodes)}">`);
     lines.push(`<rect x="${legendX}" y="${legendY}" width="${8 * s}" height="${3 * s}" rx="${1 * s}" fill="${color}" opacity="0.7"/>`);
     lines.push(`<text x="${legendX + 10 * s}" y="${legendY + 2.5 * s}" font-size="${fontSize * 0.8}" fill="${theme.ink}" opacity="0.5">${esc(label)}</text>`);
+    lines.push(`</g>`);
     legendX += (label.length * fontSize * 0.5 + 16 * s);
   }
 
