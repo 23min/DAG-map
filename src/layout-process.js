@@ -31,19 +31,19 @@ export function layoutProcess(dag, options = {}) {
   const theme = resolveTheme(options.theme);
   const isLTR = (options.direction ?? 'ltr') === 'ltr';
 
-  const layerGap = (options.layerGap ?? 80) * s;
-  const stationGap = (options.stationGap ?? 60) * s;
+  const layerGap = (options.layerGap ?? 90) * s;
+  const stationGap = (options.stationGap ?? 70) * s;
   const bundling = options.bundling ?? false;
   const trackSpread = (options.trackSpread ?? (bundling ? 5 : 12)) * s;
   const cornerRadius = (options.cornerRadius ?? 6) * s;
-  const fontSize = (options.labelSize ?? 4) * s;
+  const fontSize = (options.labelSize ?? 4.5) * s;
   const fsMetric = fontSize * 0.75;
   const dotR = 4 * s;
-  const lineThickness = 3.5 * s;
-  const cardPadX = 6 * s;
-  const cardPadY = 4 * s;
-  const cardRadius = 2.5 * s;
-  const margin = { left: 40 * s, top: 30 * s, right: 40 * s, bottom: 30 * s };
+  const lineThickness = 3 * s;
+  const cardPadX = 7 * s;
+  const cardPadY = 5 * s;
+  const cardRadius = 3 * s;
+  const margin = { left: 40 * s, top: 35 * s, right: 40 * s, bottom: 35 * s };
 
   assertValidDag(nodes, edges, 'layoutProcess');
   const { nodeMap, childrenOf, parentsOf } = buildGraph(nodes, edges);
@@ -393,12 +393,17 @@ export function layoutProcess(dag, options = {}) {
     routeGrid.place({ x: pos.x - dotR * 1.5, y: pos.y - dotR * 1.5, w: dotR * 3, h: dotR * 3, type: 'dot', owner: `sta_${id}` });
   }
 
+  // Global route offset: each route gets a FIXED cross-axis offset
+  // regardless of which station it's at. This prevents zig-zags —
+  // a route between two shared stations runs perfectly straight.
+  // Rule: "route offset = global position, not per-station position"
+  const globalRouteOffset = new Map();
+  for (let ri = 0; ri < routes.length; ri++) {
+    globalRouteOffset.set(ri, (ri - (routes.length - 1) / 2) * trackSpread);
+  }
+
   function routeDotOffset(nodeId, ri) {
-    const members = nodeRoutes.get(nodeId);
-    const sorted = members ? [...members].sort((a, b) => a - b) : [ri];
-    const idx = sorted.indexOf(ri);
-    const n = sorted.length;
-    return (idx - (n - 1) / 2) * trackSpread;
+    return globalRouteOffset.get(ri) ?? 0;
   }
 
   function buildPath(px, py, qx, qy, midFrac) {
