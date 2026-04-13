@@ -604,15 +604,19 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
-  // Sort: process by layer order, then longest route first.
-  // Trunk (longest) routes get placed first and establish main paths.
-  // Shorter branch routes then route around them.
-  // Rule: "trunk first, branches adapt"
+  // Sort: process by layer order, then SHORTEST route first.
+  // GA discovery: branches first, trunk last. When branch routes are
+  // placed first, they establish paths in clear space. The trunk,
+  // placed last, has the most connectivity and benefits most from
+  // seeing all other routes — it can route around them using the
+  // occupancy grid.
+  // Rule: "branches first, trunk adapts" (GA-validated, reverses
+  // the intuitive trunk-first approach)
   const routeLength = new Map();
   for (let ri = 0; ri < routes.length; ri++) routeLength.set(ri, routes[ri].nodes.length);
   allSegments.sort((a, b) =>
     a.fromLayer - b.fromLayer ||
-    (routeLength.get(b.ri) || 0) - (routeLength.get(a.ri) || 0) ||
+    (routeLength.get(a.ri) || 0) - (routeLength.get(b.ri) || 0) ||
     a.ri - b.ri
   );
 
