@@ -196,28 +196,66 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
-  // Assemble final station positions
+  // Assemble station positions — break the grid!
+  // Each station gets a unique primary-axis position based on:
+  // 1. Base layer position (from adaptive gaps)
+  // 2. Junction offset (fan-out/fan-in stagger)
+  // 3. Neighbor attraction: pulled toward connected neighbors' average
+  //    position, breaking the rigid layer alignment.
+  // Rule: "stations gravitate toward their neighbors"
+
   const stationPos = new Map();
 
+  // First pass: assign base positions on the grid
   if (isLTR) {
     let curX = margin.left;
     for (let li = 0; li <= maxRank; li++) {
-      const layer = layers[li];
-      for (const id of layer) {
-        const xOffset = junctionOffset.get(id) || 0;
-        stationPos.set(id, { x: curX + xOffset, y: stationCrossPos.get(id) });
+      for (const id of layers[li]) {
+        stationPos.set(id, { x: curX + (junctionOffset.get(id) || 0), y: stationCrossPos.get(id) });
       }
       curX += adaptiveGaps[li] || layerGap;
     }
   } else {
     let curY = margin.top;
     for (let li = 0; li <= maxRank; li++) {
-      const layer = layers[li];
-      for (const id of layer) {
-        const yOffset = junctionOffset.get(id) || 0;
-        stationPos.set(id, { x: stationCrossPos.get(id), y: curY + yOffset });
+      for (const id of layers[li]) {
+        stationPos.set(id, { x: stationCrossPos.get(id), y: curY + (junctionOffset.get(id) || 0) });
       }
       curY += adaptiveGaps[li] || layerGap;
+    }
+  }
+
+  // Second pass: primary-axis neighbor attraction only.
+  // Cross-axis stays on route lanes (prevents crossings).
+  // Primary-axis nudges toward parent/child midpoint, breaking the
+  // rigid grid and creating variable spacing (time/distance effect).
+  // Rule: "stations gravitate toward their neighbors on the flow axis"
+  for (let iter = 0; iter < 3; iter++) {
+    for (const nd of nodes) {
+      const pos = stationPos.get(nd.id);
+      const parents = (parentsOf.get(nd.id) || []).filter(n => stationPos.has(n));
+      const children = (childrenOf.get(nd.id) || []).filter(n => stationPos.has(n));
+      if (parents.length === 0 && children.length === 0) continue;
+
+      const currentPrimary = isLTR ? pos.x : pos.y;
+      let newPrimary = currentPrimary;
+
+      if (parents.length > 0 && children.length > 0) {
+        const parentAvg = parents.reduce((s, n) => s + (isLTR ? stationPos.get(n).x : stationPos.get(n).y), 0) / parents.length;
+        const childAvg = children.reduce((s, n) => s + (isLTR ? stationPos.get(n).x : stationPos.get(n).y), 0) / children.length;
+        const idealPrimary = (parentAvg + childAvg) / 2;
+        newPrimary = currentPrimary + (idealPrimary - currentPrimary) * 0.15;
+      } else if (parents.length > 0) {
+        // Leaf node: pull toward parents
+        const parentAvg = parents.reduce((s, n) => s + (isLTR ? stationPos.get(n).x : stationPos.get(n).y), 0) / parents.length;
+        newPrimary = currentPrimary + (parentAvg + layerGap - currentPrimary) * 0.1;
+      }
+
+      if (isLTR) {
+        stationPos.set(nd.id, { x: newPrimary, y: pos.y }); // y unchanged!
+      } else {
+        stationPos.set(nd.id, { x: pos.x, y: newPrimary }); // x unchanged!
+      }
     }
   }
 
