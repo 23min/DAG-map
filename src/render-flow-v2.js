@@ -107,7 +107,12 @@ export function renderFlowV2(dag, layout, options = {}) {
     }
   }
 
-  // Stations
+  // Stations — dots + cards
+  const cardPlacements = layout.cardPlacements;
+  const layoutRouteColors = layout.routeColors;
+  const fsLabel = layout.labelSize || fontSize;
+  const fsData = fsLabel * 0.78;
+
   for (const nd of dag.nodes) {
     const pos = positions.get(nd.id);
     if (!pos) continue;
@@ -117,16 +122,13 @@ export function renderFlowV2(dag, layout, options = {}) {
     const nRoutes = nodeRoutes?.get(nd.id);
     const routeCount = nRoutes ? nRoutes.size : 1;
 
-    // Station dot — punched-out style (colored ring, white center)
     lines.push(`<g data-node-id="${esc(nd.id)}">`);
+
+    // Punched-out dot at primary route position
     lines.push(`<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${dotR}" fill="${color}" opacity="0.9"/>`);
     lines.push(`<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${dotR * 0.4}" fill="${theme.paper}"/>`);
 
-    // Label below the dot
-    lines.push(`<text class="dm-label" x="${pos.x.toFixed(1)}" y="${(pos.y + dotR + fontSize + 2 * s).toFixed(1)}" font-size="${fontSize}" fill="${theme.ink}" text-anchor="middle" opacity="0.6">${esc(nd.label)}</text>`);
-
-    // At shared nodes, each route's dot is drawn at its own Y via dotPositions.
-    // Draw additional dots for OTHER routes through this node at their dot positions.
+    // Additional dots at shared nodes
     if (routeCount > 1 && nRoutes && layout.dotPositions) {
       for (const otherRi of nRoutes) {
         if (otherRi === ri) continue;
@@ -137,6 +139,43 @@ export function renderFlowV2(dag, layout, options = {}) {
           lines.push(`<circle cx="${dp.x.toFixed(1)}" cy="${dp.y.toFixed(1)}" r="${dotR * 0.3}" fill="${theme.paper}"/>`);
         }
       }
+    }
+
+    // Station card (in card zone below routes)
+    const cp = cardPlacements?.get(nd.id);
+    if (cp && showCards) {
+      const { rect, cardPadX, cardPadY, routeIndices } = cp;
+
+      // Connector line from dot cluster to card
+      const connTopY = pos.y + dotR;
+      const connBotY = rect.y;
+      lines.push(`<line x1="${pos.x.toFixed(1)}" y1="${connTopY.toFixed(1)}" x2="${(rect.x + rect.w / 2).toFixed(1)}" y2="${connBotY.toFixed(1)}" stroke="${theme.muted || '#ccc'}" stroke-width="${0.5 * s}" stroke-dasharray="${2 * s},${2 * s}" opacity="0.4"/>`);
+
+      // Card background
+      lines.push(`<rect x="${rect.x.toFixed(1)}" y="${rect.y.toFixed(1)}" width="${rect.w.toFixed(1)}" height="${rect.h.toFixed(1)}" rx="${2.5 * s}" fill="${theme.paper}" stroke="${theme.muted || '#ccc'}" stroke-width="${0.7 * s}"/>`);
+
+      // Label
+      const labelY = rect.y + cardPadY + fsLabel * 0.85;
+      lines.push(`<text x="${(rect.x + cardPadX).toFixed(1)}" y="${labelY.toFixed(1)}" font-size="${fsLabel.toFixed(1)}" fill="${theme.ink}" text-anchor="start" font-weight="500">${esc(nd.label)}</text>`);
+
+      // Route indicator squares
+      const dataY = labelY + fsData + 3 * s;
+      let dx = rect.x + cardPadX;
+      const ris = routeIndices || (nRoutes ? [...nRoutes].sort((a, b) => a - b) : [ri]);
+      for (const rri of ris) {
+        const rcol = (layoutRouteColors?.get(rri)) || routeColor.get(rri) || '#268bd2';
+        lines.push(`<rect x="${dx.toFixed(1)}" y="${(dataY - fsData * 0.7).toFixed(1)}" width="${(3.5 * s).toFixed(1)}" height="${(3.5 * s).toFixed(1)}" rx="${(0.5 * s).toFixed(1)}" fill="${rcol}"/>`);
+        dx += 5 * s;
+      }
+
+      // Metric value if present
+      const metricValue = nd.times ?? nd.count;
+      if (metricValue !== undefined && metricValue !== null) {
+        lines.push(`<text x="${(dx + 2 * s).toFixed(1)}" y="${dataY.toFixed(1)}" font-size="${fsData.toFixed(1)}" fill="${theme.muted || '#999'}" text-anchor="start">${esc(String(metricValue))}</text>`);
+      }
+    } else if (!showCards) {
+      // Fallback: simple label below dot
+      lines.push(`<text class="dm-label" x="${pos.x.toFixed(1)}" y="${(pos.y + dotR + fontSize + 2 * s).toFixed(1)}" font-size="${fontSize}" fill="${theme.ink}" text-anchor="middle" opacity="0.6">${esc(nd.label)}</text>`);
     }
 
     lines.push(`</g>`);

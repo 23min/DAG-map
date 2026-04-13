@@ -15,6 +15,7 @@
 
 import { assertValidDag, buildGraph, topoSortAndRank } from './graph-utils.js';
 import { resolveTheme } from './themes.js';
+import { OccupancyGrid } from './occupancy.js';
 
 /**
  * @param {object} dag - { nodes, edges }
@@ -91,35 +92,59 @@ export function layoutFlowV2(dag, options = {}) {
   routeSortKey.set(trunkRi, 0);
   right.forEach((ri, i) => routeSortKey.set(ri, i + 1));
 
-  // ── Phase 4: Dot positions — each route has ONE fixed Y ──
-  // Every route maintains a consistent Y for its entire length.
-  // No local reindexing at shared nodes — the route's Y is determined
-  // by its global sort position. This guarantees zero overlap:
-  // every route is on its own horizontal track.
+  // ── Phase 4: Dot positions — converge at shared, spread between ──
+  //
+  // At shared stations: routes converge toward a common center,
+  //   spread by minimal dotSpacing to stay distinguishable.
+  // At single-route stations: route stays at its "home" Y.
+  // Between stations: routes smoothly transition.
+  //
+  // Like a physical metro: tracks come together at stations,
+  // spread apart in between.
+
   const dotPositions = new Map();
 
-  // Route Y = SPINE_Y + sortKey × dotSpacing
-  // This gives each route a unique Y, evenly spaced, trunk at center.
-  const routeFixedY = new Map();
+  // Each route's "home" Y = SPINE_Y + sortKey × dotSpacing
+  // This is where the route goes when it's alone (not sharing a station).
+  const routeHomeY = new Map();
   for (let ri = 0; ri < routes.length; ri++) {
     const sortKey = routeSortKey.get(ri) ?? 0;
-    routeFixedY.set(ri, SPINE_Y + sortKey * dotSpacing);
+    routeHomeY.set(ri, SPINE_Y + sortKey * dotSpacing);
   }
+
+  // Minimum spacing at shared stations — tighter than home spacing
+  // but enough to distinguish routes visually.
+  const sharedSpacing = Math.max(dotSpacing * 0.5, 6 * s);
 
   for (const nd of nodes) {
     const x = margin.left + layer.get(nd.id) * layerSpacing;
     const nRoutes = nodeRoutes.get(nd.id);
+    const routesList = nRoutes ? [...nRoutes].sort((a, b) => (routeSortKey.get(a) ?? 0) - (routeSortKey.get(b) ?? 0)) : [];
 
-    if (nRoutes) {
-      for (const ri of nRoutes) {
-        dotPositions.set(`${nd.id}:${ri}`, { x, y: routeFixedY.get(ri) });
+    if (routesList.length > 1) {
+      // SHARED station — routes converge.
+      // Center = average of all routes' home Y positions.
+      // Spread by sharedSpacing around that center, maintaining order.
+      const homeYs = routesList.map(ri => routeHomeY.get(ri));
+      const centerY = homeYs.reduce((a, b) => a + b, 0) / homeYs.length;
+      const trunkIdx = routesList.indexOf(trunkRi);
+      const anchor = trunkIdx >= 0 ? trunkIdx : Math.floor(routesList.length / 2);
+
+      for (let i = 0; i < routesList.length; i++) {
+        const ri = routesList[i];
+        const y = centerY + (i - anchor) * sharedSpacing;
+        dotPositions.set(`${nd.id}:${ri}`, { x, y });
       }
+    } else if (routesList.length === 1) {
+      // SINGLE-route station — route at its home Y.
+      const ri = routesList[0];
+      dotPositions.set(`${nd.id}:${ri}`, { x, y: routeHomeY.get(ri) });
     }
 
     // Nodes not on any route
     if (!nRoutes || nRoutes.size === 0) {
       const ri = nodeRoute.get(nd.id) ?? 0;
-      dotPositions.set(`${nd.id}:${ri}`, { x, y: routeFixedY.get(ri) ?? SPINE_Y });
+      dotPositions.set(`${nd.id}:${ri}`, { x, y: routeHomeY.get(ri) ?? SPINE_Y });
     }
   }
 
@@ -145,8 +170,7 @@ export function layoutFlowV2(dag, options = {}) {
   const width = margin.left + (maxLayer + 1) * layerSpacing + margin.right;
   const height = (maxY - minY) + margin.top + margin.bottom + 40 * s;
 
-  // ── Phase 6: Edge routing (H-V-H) using dot positions ──
-  // Per-route distinct colors
+  // ── Phase 6: Colors ──
   const PALETTE = ['#268bd2','#dc322f','#859900','#d33682','#b58900','#2aa198','#6c71c4','#cb4b16','#586e75','#073642'];
   const routeColors = new Map();
   const usedColors = new Set();
@@ -168,9 +192,200 @@ export function layoutFlowV2(dag, options = {}) {
   }
 
   const opBoost = theme.lineOpacity ?? 1.0;
+  const lineThickness = 2.5 * s;
+  const labelSize = (options.labelSize ?? 3.6) * s;
 
-  // Build segment → routes map for track spreading
-  const segmentMembers = new Map(); // "from→to" → [routeIdx, ...]
+  // ── Phase 7: Card placement + occupancy grid ──
+  // Cards go in a separate zone BELOW the route area. Routes pass
+  // through cards (like Celonis — routes visit activities). Cards
+  // are NOT registered in the occupancy grid — only route-on-route
+  // conflicts use obstacle avoidance.
+  const grid = new OccupancyGrid(2 * s);
+  const dotR = 3.2 * s;
+
+  // Register dots in the grid (for route-on-route avoidance)
+  for (const [key, dp] of dotPositions) {
+    grid.place({ x: dp.x - dotR, y: dp.y - dotR, w: dotR * 2, h: dotR * 2, type: 'dot', owner: key });
+  }
+
+  // Find the bottom of the route zone (lowest dot Y)
+  let routeZoneBottom = -Infinity;
+  for (const [, dp] of dotPositions) {
+    if (dp.y > routeZoneBottom) routeZoneBottom = dp.y;
+  }
+
+  const cardPlacements = new Map();
+  const fsLabel = labelSize;
+  const fsData = labelSize * 0.78;
+  const cardGap = 8 * s;
+  const cardZoneTop = routeZoneBottom + dotR + cardGap;
+
+  // Card grid: collision-free placement within the card zone only
+  const cardGrid = new OccupancyGrid(2 * s);
+
+  for (const nd of nodes) {
+    const pos = positions.get(nd.id);
+    if (!pos) continue;
+
+    const nRoutes = nodeRoutes.get(nd.id);
+    const routeIndices = nRoutes ? [...nRoutes].sort((a, b) => a - b) : [];
+    const n = routeIndices.length || 1;
+
+    // Card dimensions
+    const labelW = (nd.label || nd.id).length * fsLabel * 0.52;
+    const indicatorW = n * 5 * s;
+    const contentW = Math.max(labelW, indicatorW + 4 * s);
+    const cardPadX = 5 * s;
+    const cardPadY = 3 * s;
+    const cardW = contentW + cardPadX * 2;
+    const cardH = fsLabel + fsData + cardPadY * 2 + 3 * s;
+
+    // Place cards below route zone, centered on dot X
+    const xCenter = pos.x - cardW / 2;
+    // Try rows: first row, then stagger down if collision
+    const candidates = [
+      { x: xCenter, y: cardZoneTop },
+      { x: xCenter, y: cardZoneTop + cardH + 4 * s },
+      { x: xCenter, y: cardZoneTop + (cardH + 4 * s) * 2 },
+    ];
+
+    let placed = false;
+    for (const c of candidates) {
+      const rect = { x: c.x, y: c.y, w: cardW, h: cardH, type: 'card', owner: `card_${nd.id}` };
+      if (cardGrid.tryPlace(rect)) {
+        cardPlacements.set(nd.id, { rect, cardW, cardH, cardPadX, cardPadY, routeIndices });
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      const c = candidates[0];
+      const rect = { x: c.x, y: c.y, w: cardW, h: cardH, type: 'card', owner: `card_${nd.id}` };
+      cardGrid.place(rect);
+      cardPlacements.set(nd.id, { rect, cardW, cardH, cardPadX, cardPadY, routeIndices });
+    }
+  }
+
+  // Recalculate height to accommodate card zone
+  let cardMaxY = routeZoneBottom + dotR + cardGap;
+  for (const item of cardGrid.items) {
+    const bottom = item.y + item.h;
+    if (bottom > cardMaxY) cardMaxY = bottom;
+  }
+  const newHeight = Math.max(height, cardMaxY + margin.bottom);
+
+  // ── Phase 8: Obstacle-aware edge routing (H-V-H) ──
+
+  // Build H-V-H path string with rounded elbows
+  function buildRoute(px, py, qx, qy, midFrac, r) {
+    const dx = qx - px, dy = qy - py;
+    if (Math.abs(dy) < 0.5) return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+    if (Math.abs(dx) < 0.5) return { d: `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`, jogPos: null };
+    const cr = Math.min(r, Math.abs(dy) / 2, Math.abs(dx) / 2);
+    const midX = px + dx * midFrac;
+    const sx = Math.sign(dx), sy = Math.sign(dy);
+    let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
+    d += `L ${(midX - sx * cr).toFixed(1)} ${py.toFixed(1)} `;
+    d += `Q ${midX.toFixed(1)} ${py.toFixed(1)} ${midX.toFixed(1)} ${(py + sy * cr).toFixed(1)} `;
+    d += `L ${midX.toFixed(1)} ${(qy - sy * cr).toFixed(1)} `;
+    d += `Q ${midX.toFixed(1)} ${qy.toFixed(1)} ${(midX + sx * cr).toFixed(1)} ${qy.toFixed(1)} `;
+    d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+    return { d, jogPos: midX };
+  }
+
+  // Score a 3-segment H-V-H path against the occupancy grid
+  function scoreRoute(px, py, qx, qy, jogPos, ignore) {
+    const t = lineThickness;
+    const h1 = { x: Math.min(px, jogPos) - t, y: py - t * 2, w: Math.abs(jogPos - px) + t * 2, h: t * 4 };
+    const vj = { x: jogPos - t, y: Math.min(py, qy), w: t * 2, h: Math.abs(qy - py) };
+    const h2 = { x: Math.min(jogPos, qx) - t, y: qy - t * 2, w: Math.abs(qx - jogPos) + t * 2, h: t * 4 };
+    return grid.overlapCount(h1, ignore) + grid.overlapCount(vj, ignore) + grid.overlapCount(h2, ignore);
+  }
+
+  // Register a routed path's segments in the grid
+  function registerRoute(px, py, qx, qy, jogPos, owner) {
+    grid.placeLine(px, py, jogPos, py, lineThickness, owner);
+    grid.placeLine(jogPos, py, jogPos, qy, lineThickness, owner);
+    grid.placeLine(jogPos, qy, qx, qy, lineThickness, owner);
+  }
+
+  // Route a segment with collision avoidance
+  function routeSegment(px, py, qx, qy, owner, ignore) {
+    const r = cornerRadius;
+    const dy = qy - py, dx = qx - px;
+
+    // Straight horizontal — check for card collisions
+    if (Math.abs(dy) < 0.5) {
+      const shrink = lineThickness;
+      const checkX = Math.min(px, qx) + shrink;
+      const checkW = Math.abs(dx) - 2 * shrink;
+      if (checkW <= 0) {
+        grid.placeLine(px, py, qx, qy, lineThickness, owner);
+        return `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      }
+      const hRect = { x: checkX, y: py - lineThickness, w: checkW, h: lineThickness * 2 };
+      const collisions = grid.overlapCount(hRect, ignore);
+      if (collisions === 0) {
+        grid.placeLine(px, py, qx, qy, lineThickness, owner);
+        return `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      }
+
+      // Detour: H-V-H-V-H around obstacle
+      const detourDist = 15 * s;
+      const upY = py - detourDist, downY = py + detourDist;
+      const upScore = scoreRoute(px, py, qx, upY, (px + qx) / 2, ignore);
+      const downScore = scoreRoute(px, py, qx, downY, (px + qx) / 2, ignore);
+      const detourY = upScore <= downScore ? upY : downY;
+      const midX1 = px + dx * 0.3, midX2 = px + dx * 0.7;
+      const cr = Math.min(r, detourDist / 2, Math.abs(midX1 - px) / 2);
+      if (cr < 1) {
+        grid.placeLine(px, py, qx, qy, lineThickness, owner);
+        return `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      }
+      const sx = Math.sign(dx), sy = Math.sign(detourY - py);
+      let d = `M ${px.toFixed(1)} ${py.toFixed(1)} `;
+      d += `L ${(midX1 - sx * cr).toFixed(1)} ${py.toFixed(1)} `;
+      d += `Q ${midX1.toFixed(1)} ${py.toFixed(1)} ${midX1.toFixed(1)} ${(py + sy * cr).toFixed(1)} `;
+      d += `L ${midX1.toFixed(1)} ${(detourY - sy * cr).toFixed(1)} `;
+      d += `Q ${midX1.toFixed(1)} ${detourY.toFixed(1)} ${(midX1 + sx * cr).toFixed(1)} ${detourY.toFixed(1)} `;
+      d += `L ${(midX2 - sx * cr).toFixed(1)} ${detourY.toFixed(1)} `;
+      d += `Q ${midX2.toFixed(1)} ${detourY.toFixed(1)} ${midX2.toFixed(1)} ${(detourY - sy * cr).toFixed(1)} `;
+      d += `L ${midX2.toFixed(1)} ${(py + sy * cr).toFixed(1)} `;
+      d += `Q ${midX2.toFixed(1)} ${py.toFixed(1)} ${(midX2 + sx * cr).toFixed(1)} ${py.toFixed(1)} `;
+      d += `L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      grid.placeLine(px, py, midX1, py, lineThickness, owner);
+      grid.placeLine(midX1, py, midX1, detourY, lineThickness, owner);
+      grid.placeLine(midX1, detourY, midX2, detourY, lineThickness, owner);
+      grid.placeLine(midX2, detourY, midX2, py, lineThickness, owner);
+      grid.placeLine(midX2, py, qx, qy, lineThickness, owner);
+      return d;
+    }
+
+    // Non-straight: try multiple midFrac values, pick lowest collision count
+    const midFracs = [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];
+    let bestD = null, bestCollisions = Infinity;
+    for (const mf of midFracs) {
+      const { d, jogPos } = buildRoute(px, py, qx, qy, mf, r);
+      if (jogPos === null) {
+        grid.placeLine(px, py, qx, qy, lineThickness, owner);
+        return d;
+      }
+      const collisions = scoreRoute(px, py, qx, qy, jogPos, ignore);
+      if (collisions === 0) {
+        registerRoute(px, py, qx, qy, jogPos, owner);
+        return d;
+      }
+      if (collisions < bestCollisions) { bestCollisions = collisions; bestD = d; }
+    }
+    // Use best option even if imperfect
+    const bestMf = midFracs[0];
+    const bestJogPos = px + (qx - px) * bestMf;
+    registerRoute(px, py, qx, qy, bestJogPos, owner);
+    return bestD;
+  }
+
+  // Build segment → routes map
+  const segmentMembers = new Map();
   for (let ri = 0; ri < routes.length; ri++) {
     for (let i = 1; i < routes[ri].nodes.length; i++) {
       const key = `${routes[ri].nodes[i - 1]}\u2192${routes[ri].nodes[i]}`;
@@ -191,21 +406,11 @@ export function layoutFlowV2(dag, options = {}) {
       const q = dotPositions.get(`${toId}:${ri}`) || positions.get(toId);
       if (!p || !q) continue;
 
-      // Each route has its own fixed Y — no track spread needed.
-      // The dot positions already guarantee separation.
-      const px = p.x, py = p.y;
-      const qx = q.x, qy = q.y;
-      const dx = qx - px, dy = qy - py;
+      const owner = `route_${ri}_${fromId}_${toId}`;
+      const ignore = new Set([owner, fromId, toId, `card_${fromId}`, `card_${toId}`,
+        `${fromId}:${ri}`, `${toId}:${ri}`]);
 
-      let d;
-      if (Math.abs(dy) < 0.5) {
-        d = `M ${px} ${py} L ${qx} ${qy}`;
-      } else {
-        const midX = px + dx / 2;
-        const r = Math.min(cornerRadius, Math.abs(dx) / 4, Math.abs(dy) / 2);
-        const syDir = dy > 0 ? 1 : -1;
-        d = `M ${px} ${py} L ${midX - r} ${py} Q ${midX} ${py}, ${midX} ${py + syDir * r} L ${midX} ${qy - syDir * r} Q ${midX} ${qy}, ${midX + r} ${qy} L ${qx} ${qy}`;
-      }
+      const d = routeSegment(p.x, p.y, q.x, q.y, owner, ignore);
       segments.push({ d, color, thickness, opacity, dashed: false });
     }
     return segments;
@@ -223,32 +428,26 @@ export function layoutFlowV2(dag, options = {}) {
     if (routeEdgeSet.has(`${f}\u2192${t}`)) return;
     const p = positions.get(f), q = positions.get(t);
     if (!p || !q) return;
-    const dx = q.x - p.x, dy = q.y - p.y;
-    let d;
-    if (Math.abs(dy) < 0.5) {
-      d = `M ${p.x} ${p.y} L ${q.x} ${q.y}`;
-    } else {
-      const midX = p.x + dx / 2;
-      const r = Math.min(cornerRadius, Math.abs(dx) / 4, Math.abs(dy) / 2);
-      const sy = dy > 0 ? 1 : -1;
-      d = `M ${p.x} ${p.y} L ${midX - r} ${p.y} Q ${midX} ${p.y}, ${midX} ${p.y + sy * r} L ${midX} ${q.y - sy * r} Q ${midX} ${q.y}, ${midX + r} ${q.y} L ${q.x} ${q.y}`;
-    }
+    const owner = `extra_${f}_${t}`;
+    const ignore = new Set([owner, f, t, `card_${f}`, `card_${t}`]);
+    const d = routeSegment(p.x, p.y, q.x, q.y, owner, ignore);
     extraEdges.push({ d, color: '#999', thickness: 1.2 * s, opacity: 0.2, dashed: true });
   });
 
   return {
-    positions, routePaths, extraEdges, width, height,
+    positions, routePaths, extraEdges, width, height: newHeight,
     routes, nodeRoute, nodeRoutes, maxLayer,
     dotPositions, dotSpacing, routeSide, routeSortKey, trunkRi,
     laneDividers: [], laneHeight: dotSpacing * 3,
     layerSpacing, scale: s, theme,
     routeYScreen: new Map(routes.map((_, i) => [i, SPINE_Y + shiftY + (routeSortKey.get(i) ?? 0) * dotSpacing])),
     trunkYScreen: SPINE_Y + shiftY,
-    minY: margin.top, maxY: margin.top + height,
+    minY: margin.top, maxY: margin.top + newHeight,
     laneSpacing: dotSpacing, lineGap: dotSpacing,
     globalRouteOffset: new Map(routes.map((_, i) => [i, (routeSortKey.get(i) ?? 0) * dotSpacing])),
     trackAssignment: new Map(),
     segmentRoutes: new Map(),
     nodeLane: nodeRoute,
+    cardPlacements, routeColors, labelSize,
   };
 }
