@@ -33,7 +33,7 @@ export function layoutProcess(dag, options = {}) {
 
   const layerGap = (options.layerGap ?? 80) * s;
   const stationGap = (options.stationGap ?? 60) * s;
-  const trackSpread = (options.trackSpread ?? 8) * s;
+  const trackSpread = (options.trackSpread ?? 12) * s;
   const cornerRadius = (options.cornerRadius ?? 6) * s;
   const fontSize = (options.labelSize ?? 4) * s;
   const fsMetric = fontSize * 0.75;
@@ -88,37 +88,75 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
-  // ── Phase 3: Station positions ─────────────────────────────────
+  // ── Phase 3: Adaptive station positions ─────────────────────────
+  // Layer gaps are proportional to routing complexity in each gap:
+  // - More routes diverging/converging = wider gap (more routing room)
+  // - Straight-through routes = narrower gap (compact)
+  // This is the "time/distance" concept: spacing reflects graph structure.
+
   const maxStationsPerLayer = Math.max(...layers.map(l => l.length), 1);
   const crossAxisSpan = (maxStationsPerLayer - 1) * stationGap;
+
+  // Compute per-gap complexity: how many route segments cross this gap,
+  // and how many change cross-axis position (need a jog)
+  const gapComplexity = [];
+  for (let li = 0; li < maxRank; li++) {
+    let bending = 0, total = 0;
+    const srcSet = new Set(layers[li]);
+    const dstSet = new Set(layers[li + 1]);
+    for (const route of (options.routes || [])) {
+      for (let i = 1; i < route.nodes.length; i++) {
+        if (srcSet.has(route.nodes[i - 1]) && dstSet.has(route.nodes[i])) {
+          total++;
+          // Check if source and dest are at different cross-axis positions
+          const srcIdx = layers[li].indexOf(route.nodes[i - 1]);
+          const dstIdx = layers[li + 1].indexOf(route.nodes[i]);
+          if (srcIdx !== dstIdx || layers[li].length !== layers[li + 1].length) bending++;
+        }
+      }
+    }
+    // Also count DAG edges (not just route edges)
+    for (const [from, to] of edges) {
+      if (srcSet.has(from) && dstSet.has(to)) total++;
+    }
+    gapComplexity.push({ total, bending });
+  }
+
+  // Adaptive layer gap: base + extra for complex gaps
+  const adaptiveGaps = gapComplexity.map(({ total, bending }) => {
+    const complexity = Math.max(bending, 1);
+    return layerGap * (0.7 + 0.3 * Math.min(complexity, 5));
+  });
+  // Add a final gap for the last layer
+  if (adaptiveGaps.length === 0) adaptiveGaps.push(layerGap);
 
   const stationPos = new Map();
 
   if (isLTR) {
-    // Layers = columns (X), stations within layer = rows (Y)
+    let curX = margin.left;
     for (let li = 0; li <= maxRank; li++) {
       const layer = layers[li];
       const n = layer.length;
       const span = (n - 1) * stationGap;
       const startY = margin.top + (crossAxisSpan - span) / 2;
-      const x = margin.left + li * layerGap;
 
       for (let i = 0; i < n; i++) {
-        stationPos.set(layer[i], { x, y: startY + i * stationGap });
+        stationPos.set(layer[i], { x: curX, y: startY + i * stationGap });
       }
+      curX += adaptiveGaps[li] || layerGap;
     }
   } else {
-    // Layers = rows (Y), stations within layer = columns (X)
+    let curY = margin.top;
     for (let li = 0; li <= maxRank; li++) {
       const layer = layers[li];
       const n = layer.length;
       const span = (n - 1) * stationGap;
       const startX = margin.left + (crossAxisSpan - span) / 2;
-      const y = margin.top + li * layerGap;
 
       for (let i = 0; i < n; i++) {
-        stationPos.set(layer[i], { x: startX + i * stationGap, y });
+        stationPos.set(layer[i], { x: startX + i * stationGap, y: curY });
       }
+      curY += adaptiveGaps[li] || layerGap;
     }
   }
 
@@ -307,7 +345,7 @@ export function layoutProcess(dag, options = {}) {
   // H-V-H-V-H detour routing: when straight H-V-H can't avoid crossings,
   // route around the obstacle via a detour lane above or below.
   function tryDetourRoute(px, py, qx, qy, owner, ignore) {
-    const detourDist = 15 * s; // how far to detour
+    const detourDist = 20 * s; // how far to detour above/below
     const dx = qx - px;
 
     if (isLTR) {
@@ -508,13 +546,13 @@ export function layoutProcess(dag, options = {}) {
     }
 
     // If all H-V-H candidates have crossings, try H-V-H-V-H detour routing.
-    // The detour extends the first H run past the conflict, jogs to a detour
-    // Y/X, runs horizontally past the obstacle, then jogs to destination.
+    // Only use detour if it achieves ZERO crossings — a detour with crossings
+    // is worse than a simple H-V-H with crossings (longer path, more visual noise).
     if (bestScore > 0) {
       const detourResult = tryDetourRoute(px, py, qx, qy, owner, ignore);
-      if (detourResult && detourResult.score < bestScore) {
+      if (detourResult && detourResult.score === 0) {
         bestD = detourResult.d;
-        bestScore = detourResult.score;
+        bestScore = 0;
         bestJog = 'detour';
       }
     }
