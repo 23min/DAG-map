@@ -33,7 +33,8 @@ export function layoutProcess(dag, options = {}) {
 
   const layerGap = (options.layerGap ?? 80) * s;
   const stationGap = (options.stationGap ?? 60) * s;
-  const trackSpread = (options.trackSpread ?? 12) * s;
+  const bundling = options.bundling ?? false;
+  const trackSpread = (options.trackSpread ?? (bundling ? 5 : 12)) * s;
   const cornerRadius = (options.cornerRadius ?? 6) * s;
   const fontSize = (options.labelSize ?? 4) * s;
   const fsMetric = fontSize * 0.75;
@@ -681,18 +682,116 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
+  // ── Card re-placement: check cards against route grid ─────────
+  // Cards placed in Phase 5 may overlap with routes built in Phase 6.
+  // Re-place any conflicting cards using the route grid.
+  for (const nd of nodes) {
+    const cp = cardPlacements.get(nd.id);
+    if (!cp) continue;
+    const pos = stationPos.get(nd.id);
+    if (!pos) continue;
+
+    // Check if current card position overlaps any route
+    const overlaps = routeGrid.overlapCount(cp.rect, new Set([`card_${nd.id}`, `sta_${nd.id}`]));
+    if (overlaps === 0) continue;
+
+    // Try all candidates again, now checking against route grid too
+    const { cardW, cardH, cardPadX: cpx, cardPadY: cpy } = cp;
+    const gap = 6 * s;
+    let candidates;
+    if (isLTR) {
+      candidates = [
+        { x: pos.x - cardW / 2, y: pos.y + dotR + gap },
+        { x: pos.x - cardW / 2, y: pos.y - dotR - gap - cardH },
+        { x: pos.x - cardW / 2 + cardW * 0.6, y: pos.y + dotR + gap },
+        { x: pos.x - cardW / 2 - cardW * 0.6, y: pos.y + dotR + gap },
+        { x: pos.x - cardW / 2 + cardW * 0.6, y: pos.y - dotR - gap - cardH },
+        { x: pos.x - cardW / 2 - cardW * 0.6, y: pos.y - dotR - gap - cardH },
+        { x: pos.x - cardW / 2, y: pos.y + dotR + gap * 3 },
+        { x: pos.x - cardW / 2, y: pos.y - dotR - gap * 3 - cardH },
+      ];
+    } else {
+      candidates = [
+        { x: pos.x + dotR + gap, y: pos.y - cardH / 2 },
+        { x: pos.x - dotR - gap - cardW, y: pos.y - cardH / 2 },
+        { x: pos.x + dotR + gap * 3, y: pos.y - cardH / 2 },
+        { x: pos.x - dotR - gap * 3 - cardW, y: pos.y - cardH / 2 },
+        { x: pos.x + dotR + gap, y: pos.y },
+        { x: pos.x - dotR - gap - cardW, y: pos.y },
+      ];
+    }
+
+    grid.removeOwner(`card_${nd.id}`);
+    let replaced = false;
+    for (const c of candidates) {
+      const rect = { x: c.x, y: c.y, w: cardW, h: cardH, type: 'card', owner: `card_${nd.id}` };
+      const gridOK = grid.canPlace(rect);
+      const routeOK = routeGrid.overlapCount(rect, new Set([`card_${nd.id}`, `sta_${nd.id}`])) === 0;
+      if (gridOK && routeOK) {
+        grid.place(rect);
+        cardPlacements.set(nd.id, { rect, cardW, cardH, cardPadX: cpx, cardPadY: cpy });
+        replaced = true;
+        break;
+      }
+    }
+    if (!replaced) {
+      // Keep original position as fallback
+      grid.place(cp.rect);
+    }
+  }
+
   // Assemble per-route path arrays
+  // Route weight: data-driven if available, otherwise structural heuristic.
+  // Priority: route.frequency > sum(node.count) > route length
+  const routeWeight = new Map();
+  let maxWeight = 0;
+  for (let ri = 0; ri < routes.length; ri++) {
+    const route = routes[ri];
+    let w;
+    if (route.frequency !== undefined) {
+      w = route.frequency;
+    } else {
+      // Sum node counts along route as proxy for frequency
+      let countSum = 0, hasCount = false;
+      for (const nodeId of route.nodes) {
+        const nd = nodeMap.get(nodeId);
+        const c = nd?.count ?? nd?.times;
+        if (c !== undefined) { countSum += c; hasCount = true; }
+      }
+      w = hasCount ? countSum : route.nodes.length;
+    }
+    routeWeight.set(ri, w);
+    if (w > maxWeight) maxWeight = w;
+  }
+
+  let trunkRi = 0;
+  for (let ri = 1; ri < routes.length; ri++) {
+    if (routeWeight.get(ri) > routeWeight.get(trunkRi)) trunkRi = ri;
+  }
+
   const routePaths = [];
   for (let ri = 0; ri < routes.length; ri++) {
     const route = routes[ri];
     const color = routeColors.get(ri);
+    const weight = routeWeight.get(ri) || 1;
+    const relWeight = maxWeight > 0 ? weight / maxWeight : 1;
+    // Thickness and opacity scale with relative weight
+    const thick = lineThickness * (0.6 + 0.6 * relWeight);
+    const op = 0.4 + 0.4 * relWeight;
     const segments = [];
     for (let i = 1; i < route.nodes.length; i++) {
       const key = `${ri}:${route.nodes[i - 1]}\u2192${route.nodes[i]}`;
       const d = segmentPaths.get(key);
-      if (d) segments.push({ d, color, thickness: lineThickness, opacity: 0.7 });
+      if (d) segments.push({
+        d, color,
+        thickness: thick,
+        opacity: op,
+        dashed: false,
+        fromId: route.nodes[i - 1],
+        toId: route.nodes[i],
+      });
     }
-    routePaths.push({ ri, color, segments });
+    routePaths.push({ ri, color, isTrunk: ri === trunkRi, relWeight, segments });
   }
 
   // Extra edges
@@ -745,6 +844,6 @@ export function layoutProcess(dag, options = {}) {
     layers, routes, routeColors, nodeRoutes, segmentRoutes,
     scale: s, theme, fontSize, fsMetric, isLTR,
     cardPadX, cardPadY, cardRadius, dotR,
-    lineThickness, trackSpread,
+    lineThickness, trackSpread, trunkRi,
   };
 }

@@ -20,9 +20,12 @@ export function renderProcess(dag, layout, options = {}) {
   const { stationPos, cardPlacements, routePaths, extraEdges,
           width, height, scale: s, theme: themeObj,
           fontSize, fsMetric, cardPadX, cardPadY, cardRadius, dotR,
-          routes, routeColors, nodeRoutes, trackSpread } = layout;
+          routes, routeColors, nodeRoutes, segmentRoutes, trackSpread,
+          trunkRi, lineThickness } = layout;
 
   const theme = themeObj || resolveTheme(options.theme);
+  const showFrequency = options.frequency ?? false;
+  const showBundling = options.bundling ?? false;
 
   const lines = [];
   lines.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif">`);
@@ -35,10 +38,50 @@ export function renderProcess(dag, layout, options = {}) {
     lines.push(`<path d="${seg.d}" fill="none" stroke="${seg.color}" stroke-width="${seg.thickness.toFixed(1)}" opacity="${seg.opacity}" stroke-linecap="round" stroke-dasharray="${4 * s},${3 * s}"/>`);
   }
 
-  // Route paths (thick colored lines — behind dots, on top of extra edges)
-  for (const rp of routePaths) {
-    for (const seg of rp.segments) {
-      lines.push(`<path d="${seg.d}" fill="none" stroke="${seg.color}" stroke-width="${seg.thickness.toFixed(1)}" opacity="${seg.opacity}" stroke-linecap="round" stroke-linejoin="round"/>`);
+  // Route paths
+  if (showBundling && segmentRoutes) {
+    // Ribbon-cable bundling: shared segments draw each route's line
+    // at reduced spacing (tight parallel) so all colors are visible.
+    // Non-shared segments draw normally.
+    const drawnSegments = new Set();
+    for (const rp of routePaths) {
+      for (const seg of rp.segments) {
+        const segKey = `${seg.fromId}\u2192${seg.toId}`;
+        if (drawnSegments.has(segKey)) continue;
+        drawnSegments.add(segKey);
+
+        const members = segmentRoutes?.get(segKey) || [rp.ri];
+        if (members.length > 1) {
+          // Ribbon cable: each route draws at its own (tight) path position
+          for (const ri of members) {
+            const color = routeColors?.get(ri) || '#999';
+            const memberRp = routePaths.find(r => r.ri === ri);
+            const memberSeg = memberRp?.segments.find(s => s.fromId === seg.fromId && s.toId === seg.toId);
+            const d = memberSeg?.d || seg.d;
+            const thick = lineThickness * 0.85;
+            lines.push(`<path d="${d}" fill="none" stroke="${color}" stroke-width="${thick.toFixed(1)}" opacity="0.8" stroke-linecap="round" stroke-linejoin="round"/>`);
+          }
+        } else {
+          // Single route — normal rendering with weight-based styling
+          const dash = showFrequency && rp.relWeight < 0.5 ? ` stroke-dasharray="${4*s},${3*s}"` : '';
+          lines.push(`<path d="${seg.d}" fill="none" stroke="${seg.color}" stroke-width="${seg.thickness.toFixed(1)}" opacity="${seg.opacity}" stroke-linecap="round" stroke-linejoin="round"${dash}/>`);
+        }
+      }
+    }
+  } else {
+    // Standard rendering with data-driven frequency styling
+    for (const rp of routePaths) {
+      for (const seg of rp.segments) {
+        let dash = '';
+        let thick = seg.thickness;
+        let op = seg.opacity;
+        if (showFrequency) {
+          // Weight already encoded in thickness/opacity from layout
+          // Add dashing for low-weight routes
+          if (rp.relWeight < 0.4) dash = ` stroke-dasharray="${4*s},${3*s}"`;
+        }
+        lines.push(`<path d="${seg.d}" fill="none" stroke="${seg.color}" stroke-width="${thick.toFixed(1)}" opacity="${op}" stroke-linecap="round" stroke-linejoin="round"${dash}/>`);
+      }
     }
   }
 
