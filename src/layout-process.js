@@ -171,30 +171,9 @@ export function layoutProcess(dag, options = {}) {
     for (let i = 0; i < newOrder.length; i++) layer[i] = newOrder[i];
   }
 
-  // Third: barycenter refinement — pull stations toward their neighbors.
-  // This creates smooth transitions between layers instead of jumps.
-  // Only affects cross-axis, preserves within-layer ordering.
-  for (let iter = 0; iter < 8; iter++) {
-    for (const layer of layers) {
-      for (const id of layer) {
-        const parents = (parentsOf.get(id) || []).filter(n => stationCrossPos.has(n));
-        const children = (childrenOf.get(id) || []).filter(n => stationCrossPos.has(n));
-        const neighbors = [...parents, ...children];
-        if (neighbors.length === 0) continue;
-        const avg = neighbors.reduce((s, n) => s + stationCrossPos.get(n), 0) / neighbors.length;
-        const current = stationCrossPos.get(id);
-        stationCrossPos.set(id, current + (avg - current) * 0.3);
-      }
-      // Enforce minimum spacing
-      const sorted = [...layer].sort((a, b) => stationCrossPos.get(a) - stationCrossPos.get(b));
-      for (let i = 0; i < sorted.length; i++) layer[i] = sorted[i];
-      for (let i = 1; i < layer.length; i++) {
-        const prev = stationCrossPos.get(layer[i - 1]);
-        const curr = stationCrossPos.get(layer[i]);
-        if (curr - prev < stationGap) stationCrossPos.set(layer[i], prev + stationGap);
-      }
-    }
-  }
+  // No barycenter refinement — the divergence grouping provides clean
+  // positioning. Barycenter adds micro-variations that look like noise
+  // on linear chains (consecutive stations vary slightly = bad signal).
 
   // (B) Adaptive layer gaps
   const gapComplexity = [];
