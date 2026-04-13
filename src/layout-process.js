@@ -89,23 +89,21 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
-  // ── Phase 3: Route-aware adaptive positioning ───────────────────
-  // Three improvements over a fixed grid:
+  // ── Phase 3: Divergence-aware positioning ────────────────────────
+  // Solves the staircase problem: stations on shared trunk sections
+  // stay at the SAME Y. Only stations where routes actually diverge
+  // get spread vertically. Linear chains → horizontal. Forks → spread.
   //
-  // A) Route home lanes: each route gets a "home" cross-axis position.
-  //    Stations are placed at the average of their routes' home positions.
-  //    Single-route stations stay on their lane. Junctions sit between.
-  //    Rule: "station cross-axis = mean of member routes' home positions"
+  // Rule: "same Y on shared path, spread only at divergence points"
   //
-  // B) Adaptive layer gaps: wider at fan-out/fan-in, narrower at
-  //    straight-through sections. Proportional to routing complexity.
-  //    Rule: "gap = base × (0.7 + 0.3 × min(bendingRoutes, 5))"
-  //
-  // C) Variable primary-axis stagger: junction stations (fan-out/fan-in)
-  //    get a slight offset in the primary axis, giving routing more room.
-  //    Rule: "junction X offset = ±stationGap × 0.15 × (degree - 1)"
+  // Algorithm:
+  // 1. Start with centered positions (barycenter ordering)
+  // 2. For each layer, compute which routes are present
+  // 3. If all routes at this layer are the same set as the previous
+  //    layer → stations stay at the same Y (no divergence)
+  // 4. If routes differ → spread stations by their position among
+  //    the unique route groups at this layer
 
-  // Build node→routes mapping early (needed for positioning)
   const earlyNodeRoutes = new Map();
   nodes.forEach(nd => earlyNodeRoutes.set(nd.id, new Set()));
   for (let ri = 0; ri < (options.routes || []).length; ri++) {
@@ -114,49 +112,58 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
-  const nRoutes = (options.routes || []).length;
+  const maxStationsPerLayer = Math.max(...layers.map(l => l.length), 1);
 
-  // (A) Route home lanes — evenly spaced across the cross-axis
-  const routeHomePos = new Map();
-  const routeSpan = Math.max((nRoutes - 1), 1) * stationGap;
-  for (let ri = 0; ri < nRoutes; ri++) {
-    const pos = margin.top + margin.bottom + (nRoutes <= 1 ? 0 : (ri / (nRoutes - 1)) * routeSpan);
-    routeHomePos.set(ri, pos);
-  }
-
-  // Compute each station's cross-axis position from its route membership
+  // Compute "route signature" per station — the set of routes it belongs to.
+  // Stations with the same signature should be at similar Y.
+  // Stations with different signatures should spread.
   const stationCrossPos = new Map();
-  for (const nd of nodes) {
-    const memberRoutes = earlyNodeRoutes.get(nd.id);
-    if (memberRoutes && memberRoutes.size > 0) {
-      const positions = [...memberRoutes].map(ri => routeHomePos.get(ri) ?? 0);
-      stationCrossPos.set(nd.id, positions.reduce((a, b) => a + b, 0) / positions.length);
-    } else {
-      stationCrossPos.set(nd.id, margin.top + routeSpan / 2);
-    }
-  }
 
-  // Ensure within-layer ordering is preserved (don't flip barycenter results)
-  // and enforce minimum spacing
+  // Baseline Y: centered position for the widest layer
+  const centerY = margin.top + (maxStationsPerLayer - 1) * stationGap / 2;
+
   for (const layer of layers) {
-    // Sort by cross-axis position but maintain barycenter ordering for ties
-    const sorted = [...layer].sort((a, b) => {
-      const da = stationCrossPos.get(a) - stationCrossPos.get(b);
-      if (Math.abs(da) > 0.5) return da;
-      return nodeOrder.get(a) - nodeOrder.get(b);
+    if (layer.length === 1) {
+      // Single station: center it
+      stationCrossPos.set(layer[0], centerY);
+      continue;
+    }
+
+    // Compute unique route groups in this layer
+    // Each group = set of stations sharing the same route membership
+    const groups = new Map(); // signature string → [nodeIds]
+    for (const id of layer) {
+      const routes = earlyNodeRoutes.get(id);
+      const sig = routes ? [...routes].sort().join(',') : '';
+      if (!groups.has(sig)) groups.set(sig, []);
+      groups.get(sig).push(id);
+    }
+
+    // Sort groups by the average route index (determines Y ordering)
+    const sortedGroups = [...groups.entries()].sort((a, b) => {
+      const avgA = a[0] ? a[0].split(',').reduce((s, v) => s + Number(v), 0) / a[0].split(',').length : 0;
+      const avgB = b[0] ? b[0].split(',').reduce((s, v) => s + Number(v), 0) / b[0].split(',').length : 0;
+      return avgA - avgB;
     });
-    // Re-index with minimum spacing
-    for (let i = 0; i < sorted.length; i++) {
-      layer[i] = sorted[i];
-    }
-    // Enforce minimum gap between adjacent stations
-    const positions = layer.map(id => stationCrossPos.get(id));
-    for (let i = 1; i < positions.length; i++) {
-      if (positions[i] - positions[i - 1] < stationGap) {
-        positions[i] = positions[i - 1] + stationGap;
+
+    // Position groups: center the set of groups, spread by stationGap
+    const totalGroupHeight = (sortedGroups.length - 1) * stationGap;
+    let groupY = centerY - totalGroupHeight / 2;
+
+    // Re-sort layer by group then by barycenter within group
+    const newOrder = [];
+    for (const [sig, members] of sortedGroups) {
+      // Within a group, maintain barycenter order
+      members.sort((a, b) => nodeOrder.get(a) - nodeOrder.get(b));
+      for (let i = 0; i < members.length; i++) {
+        stationCrossPos.set(members[i], groupY + i * stationGap);
+        newOrder.push(members[i]);
       }
+      groupY += members.length * stationGap;
     }
-    layer.forEach((id, i) => stationCrossPos.set(id, positions[i]));
+
+    // Update layer order
+    for (let i = 0; i < newOrder.length; i++) layer[i] = newOrder[i];
   }
 
   // (B) Adaptive layer gaps
