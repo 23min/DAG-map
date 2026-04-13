@@ -304,6 +304,148 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
+  // H-V-H-V-H detour routing: when straight H-V-H can't avoid crossings,
+  // route around the obstacle via a detour lane above or below.
+  function tryDetourRoute(px, py, qx, qy, owner, ignore) {
+    const detourDist = 15 * s; // how far to detour
+    const dx = qx - px;
+
+    if (isLTR) {
+      // Try detour above (py - detourDist) and below (py + detourDist)
+      // Also try detour above/below destination: qy ± detourDist
+      const detourYs = [
+        Math.min(py, qy) - detourDist,
+        Math.max(py, qy) + detourDist,
+      ];
+      const jogFracs = [0.2, 0.35, 0.5, 0.65, 0.8];
+
+      let bestD = null, bestScore = Infinity;
+      for (const detourY of detourYs) {
+        for (const frac1 of [0.15, 0.25, 0.35]) {
+          const frac2 = 1 - frac1;
+          const jogX1 = px + dx * frac1;
+          const jogX2 = px + dx * frac2;
+          const r = Math.min(cornerRadius, Math.abs(detourY - py) / 2, Math.abs(dx) / 8);
+          if (r < 1) continue;
+
+          // Score the 5 segments
+          const segs = [
+            { x: Math.min(px, jogX1)-lt, y: py-lt*2, w: Math.abs(jogX1-px)+lt*2, h: lt*4 },
+            { x: jogX1-lt, y: Math.min(py, detourY), w: lt*2, h: Math.abs(detourY-py) },
+            { x: Math.min(jogX1, jogX2)-lt, y: detourY-lt*2, w: Math.abs(jogX2-jogX1)+lt*2, h: lt*4 },
+            { x: jogX2-lt, y: Math.min(detourY, qy), w: lt*2, h: Math.abs(qy-detourY) },
+            { x: Math.min(jogX2, qx)-lt, y: qy-lt*2, w: Math.abs(qx-jogX2)+lt*2, h: lt*4 },
+          ];
+          let score = 0;
+          for (const seg of segs) score += routeGrid.overlapCount(seg, ignore);
+
+          if (score < bestScore) {
+            bestScore = score;
+            const sy1 = Math.sign(detourY - py), sy2 = Math.sign(qy - detourY);
+            let d = `M ${px.toFixed(1)} ${py.toFixed(1)}`;
+            d += ` L ${(jogX1 - r).toFixed(1)} ${py.toFixed(1)}`;
+            d += ` Q ${jogX1.toFixed(1)} ${py.toFixed(1)} ${jogX1.toFixed(1)} ${(py + sy1 * r).toFixed(1)}`;
+            d += ` L ${jogX1.toFixed(1)} ${(detourY - sy1 * r).toFixed(1)}`;
+            d += ` Q ${jogX1.toFixed(1)} ${detourY.toFixed(1)} ${(jogX1 + Math.sign(dx) * r).toFixed(1)} ${detourY.toFixed(1)}`;
+            d += ` L ${(jogX2 - Math.sign(dx) * r).toFixed(1)} ${detourY.toFixed(1)}`;
+            d += ` Q ${jogX2.toFixed(1)} ${detourY.toFixed(1)} ${jogX2.toFixed(1)} ${(detourY + sy2 * r).toFixed(1)}`;
+            d += ` L ${jogX2.toFixed(1)} ${(qy - sy2 * r).toFixed(1)}`;
+            d += ` Q ${jogX2.toFixed(1)} ${qy.toFixed(1)} ${(jogX2 + Math.sign(dx) * r).toFixed(1)} ${qy.toFixed(1)}`;
+            d += ` L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+            bestD = d;
+
+            if (score === 0) {
+              // Register all 5 segments
+              routeGrid.placeLine(px, py, jogX1, py, lt, owner);
+              routeGrid.placeLine(jogX1, py, jogX1, detourY, lt, owner);
+              routeGrid.placeLine(jogX1, detourY, jogX2, detourY, lt, owner);
+              routeGrid.placeLine(jogX2, detourY, jogX2, qy, lt, owner);
+              routeGrid.placeLine(jogX2, qy, qx, qy, lt, owner);
+              return { d: bestD, score: 0 };
+            }
+          }
+        }
+      }
+      if (bestD && bestScore < Infinity) {
+        // Register best detour even if imperfect
+        const frac1 = 0.25, frac2 = 0.75;
+        const jogX1 = px + dx * frac1, jogX2 = px + dx * frac2;
+        const detourY = bestScore === 0 ? 0 : (Math.min(py,qy) - detourDist); // approximate
+        routeGrid.placeLine(px, py, jogX1, py, lt, owner);
+        routeGrid.placeLine(jogX1, py, jogX1, detourY, lt, owner);
+        routeGrid.placeLine(jogX1, detourY, jogX2, detourY, lt, owner);
+        routeGrid.placeLine(jogX2, detourY, jogX2, qy, lt, owner);
+        routeGrid.placeLine(jogX2, qy, qx, qy, lt, owner);
+        return { d: bestD, score: bestScore };
+      }
+      return null;
+    } else {
+      // TTB: V-H-V-H-V detour
+      const dy = qy - py;
+      const detourXs = [
+        Math.min(px, qx) - detourDist,
+        Math.max(px, qx) + detourDist,
+      ];
+
+      let bestD = null, bestScore = Infinity;
+      for (const detourX of detourXs) {
+        for (const frac1 of [0.15, 0.25, 0.35]) {
+          const frac2 = 1 - frac1;
+          const jogY1 = py + dy * frac1;
+          const jogY2 = py + dy * frac2;
+          const r = Math.min(cornerRadius, Math.abs(detourX - px) / 2, Math.abs(dy) / 8);
+          if (r < 1) continue;
+
+          const segs = [
+            { x: px-lt*2, y: Math.min(py, jogY1), w: lt*4, h: Math.abs(jogY1-py) },
+            { x: Math.min(px, detourX), y: jogY1-lt, w: Math.abs(detourX-px), h: lt*2 },
+            { x: detourX-lt*2, y: Math.min(jogY1, jogY2), w: lt*4, h: Math.abs(jogY2-jogY1) },
+            { x: Math.min(detourX, qx), y: jogY2-lt, w: Math.abs(qx-detourX), h: lt*2 },
+            { x: qx-lt*2, y: Math.min(jogY2, qy), w: lt*4, h: Math.abs(qy-jogY2) },
+          ];
+          let score = 0;
+          for (const seg of segs) score += routeGrid.overlapCount(seg, ignore);
+
+          if (score < bestScore) {
+            bestScore = score;
+            const sx1 = Math.sign(detourX - px), sx2 = Math.sign(qx - detourX);
+            let d = `M ${px.toFixed(1)} ${py.toFixed(1)}`;
+            d += ` L ${px.toFixed(1)} ${(jogY1 - r * Math.sign(dy)).toFixed(1)}`;
+            d += ` Q ${px.toFixed(1)} ${jogY1.toFixed(1)} ${(px + sx1 * r).toFixed(1)} ${jogY1.toFixed(1)}`;
+            d += ` L ${(detourX - sx1 * r).toFixed(1)} ${jogY1.toFixed(1)}`;
+            d += ` Q ${detourX.toFixed(1)} ${jogY1.toFixed(1)} ${detourX.toFixed(1)} ${(jogY1 + Math.sign(dy) * r).toFixed(1)}`;
+            d += ` L ${detourX.toFixed(1)} ${(jogY2 - Math.sign(dy) * r).toFixed(1)}`;
+            d += ` Q ${detourX.toFixed(1)} ${jogY2.toFixed(1)} ${(detourX + sx2 * r).toFixed(1)} ${jogY2.toFixed(1)}`;
+            d += ` L ${(qx - sx2 * r).toFixed(1)} ${jogY2.toFixed(1)}`;
+            d += ` Q ${qx.toFixed(1)} ${jogY2.toFixed(1)} ${qx.toFixed(1)} ${(jogY2 + Math.sign(dy) * r).toFixed(1)}`;
+            d += ` L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+            bestD = d;
+
+            if (score === 0) {
+              routeGrid.placeLine(px, py, px, jogY1, lt, owner);
+              routeGrid.placeLine(px, jogY1, detourX, jogY1, lt, owner);
+              routeGrid.placeLine(detourX, jogY1, detourX, jogY2, lt, owner);
+              routeGrid.placeLine(detourX, jogY2, qx, jogY2, lt, owner);
+              routeGrid.placeLine(qx, jogY2, qx, qy, lt, owner);
+              return { d: bestD, score: 0 };
+            }
+          }
+        }
+      }
+      if (bestD && bestScore < Infinity) {
+        const jogY1 = py + dy * 0.25, jogY2 = py + dy * 0.75;
+        const detourX = Math.min(px,qx) - detourDist;
+        routeGrid.placeLine(px, py, px, jogY1, lt, owner);
+        routeGrid.placeLine(px, jogY1, detourX, jogY1, lt, owner);
+        routeGrid.placeLine(detourX, jogY1, detourX, jogY2, lt, owner);
+        routeGrid.placeLine(detourX, jogY2, qx, jogY2, lt, owner);
+        routeGrid.placeLine(qx, jogY2, qx, qy, lt, owner);
+        return { d: bestD, score: bestScore };
+      }
+      return null;
+    }
+  }
+
   // Collect all segments with endpoints
   const allSegments = [];
   for (let ri = 0; ri < routes.length; ri++) {
@@ -365,8 +507,25 @@ export function layoutProcess(dag, options = {}) {
       if (score === 0) break;
     }
 
-    if (bestJog !== null) registerPath(px, py, qx, qy, bestJog, owner);
-    else routeGrid.placeLine(px, py, qx, qy, lt, owner);
+    // If all H-V-H candidates have crossings, try H-V-H-V-H detour routing.
+    // The detour extends the first H run past the conflict, jogs to a detour
+    // Y/X, runs horizontally past the obstacle, then jogs to destination.
+    if (bestScore > 0) {
+      const detourResult = tryDetourRoute(px, py, qx, qy, owner, ignore);
+      if (detourResult && detourResult.score < bestScore) {
+        bestD = detourResult.d;
+        bestScore = detourResult.score;
+        bestJog = 'detour';
+      }
+    }
+
+    if (bestJog === 'detour') {
+      // Detour path registered inside tryDetourRoute
+    } else if (bestJog !== null) {
+      registerPath(px, py, qx, qy, bestJog, owner);
+    } else {
+      routeGrid.placeLine(px, py, qx, qy, lt, owner);
+    }
     segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, bestD);
   }
 
