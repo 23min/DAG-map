@@ -565,8 +565,17 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
-  // Sort: process by layer order, then by route index (trunk first)
-  allSegments.sort((a, b) => a.fromLayer - b.fromLayer || a.ri - b.ri);
+  // Sort: process by layer order, then longest route first.
+  // Trunk (longest) routes get placed first and establish main paths.
+  // Shorter branch routes then route around them.
+  // Rule: "trunk first, branches adapt"
+  const routeLength = new Map();
+  for (let ri = 0; ri < routes.length; ri++) routeLength.set(ri, routes[ri].nodes.length);
+  allSegments.sort((a, b) =>
+    a.fromLayer - b.fromLayer ||
+    (routeLength.get(b.ri) || 0) - (routeLength.get(a.ri) || 0) ||
+    a.ri - b.ri
+  );
 
   // Route each segment: try 15 midFrac candidates, score against grid
   const segmentPaths = new Map();
