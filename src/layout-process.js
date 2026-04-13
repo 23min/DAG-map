@@ -393,17 +393,17 @@ export function layoutProcess(dag, options = {}) {
     routeGrid.place({ x: pos.x - dotR * 1.5, y: pos.y - dotR * 1.5, w: dotR * 3, h: dotR * 3, type: 'dot', owner: `sta_${id}` });
   }
 
-  // Global route offset: each route gets a FIXED cross-axis offset
-  // regardless of which station it's at. This prevents zig-zags —
-  // a route between two shared stations runs perfectly straight.
-  // Rule: "route offset = global position, not per-station position"
-  const globalRouteOffset = new Map();
-  for (let ri = 0; ri < routes.length; ri++) {
-    globalRouteOffset.set(ri, (ri - (routes.length - 1) / 2) * trackSpread);
-  }
-
+  // Per-station offset with CONSISTENT ordering.
+  // Compact at each station (only spread by routes present),
+  // but sorted by global route index to prevent zig-zags.
+  // Rule: "per-station compact spread, globally consistent order"
   function routeDotOffset(nodeId, ri) {
-    return globalRouteOffset.get(ri) ?? 0;
+    const members = nodeRoutes.get(nodeId);
+    // Sort by global route index — same order everywhere
+    const sorted = members ? [...members].sort((a, b) => a - b) : [ri];
+    const idx = sorted.indexOf(ri);
+    const n = sorted.length;
+    return (idx - (n - 1) / 2) * trackSpread;
   }
 
   function buildPath(px, py, qx, qy, midFrac) {
