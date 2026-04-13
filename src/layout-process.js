@@ -88,60 +88,123 @@ export function layoutProcess(dag, options = {}) {
     }
   }
 
-  // ── Phase 3: Adaptive station positions ─────────────────────────
-  // Layer gaps are proportional to routing complexity in each gap:
-  // - More routes diverging/converging = wider gap (more routing room)
-  // - Straight-through routes = narrower gap (compact)
-  // This is the "time/distance" concept: spacing reflects graph structure.
+  // ── Phase 3: Route-aware adaptive positioning ───────────────────
+  // Three improvements over a fixed grid:
+  //
+  // A) Route home lanes: each route gets a "home" cross-axis position.
+  //    Stations are placed at the average of their routes' home positions.
+  //    Single-route stations stay on their lane. Junctions sit between.
+  //    Rule: "station cross-axis = mean of member routes' home positions"
+  //
+  // B) Adaptive layer gaps: wider at fan-out/fan-in, narrower at
+  //    straight-through sections. Proportional to routing complexity.
+  //    Rule: "gap = base × (0.7 + 0.3 × min(bendingRoutes, 5))"
+  //
+  // C) Variable primary-axis stagger: junction stations (fan-out/fan-in)
+  //    get a slight offset in the primary axis, giving routing more room.
+  //    Rule: "junction X offset = ±stationGap × 0.15 × (degree - 1)"
 
-  const maxStationsPerLayer = Math.max(...layers.map(l => l.length), 1);
-  const crossAxisSpan = (maxStationsPerLayer - 1) * stationGap;
+  // Build node→routes mapping early (needed for positioning)
+  const earlyNodeRoutes = new Map();
+  nodes.forEach(nd => earlyNodeRoutes.set(nd.id, new Set()));
+  for (let ri = 0; ri < (options.routes || []).length; ri++) {
+    for (const nodeId of (options.routes || [])[ri].nodes) {
+      earlyNodeRoutes.get(nodeId)?.add(ri);
+    }
+  }
 
-  // Compute per-gap complexity: how many route segments cross this gap,
-  // and how many change cross-axis position (need a jog)
+  const nRoutes = (options.routes || []).length;
+
+  // (A) Route home lanes — evenly spaced across the cross-axis
+  const routeHomePos = new Map();
+  const routeSpan = Math.max((nRoutes - 1), 1) * stationGap;
+  for (let ri = 0; ri < nRoutes; ri++) {
+    const pos = margin.top + margin.bottom + (nRoutes <= 1 ? 0 : (ri / (nRoutes - 1)) * routeSpan);
+    routeHomePos.set(ri, pos);
+  }
+
+  // Compute each station's cross-axis position from its route membership
+  const stationCrossPos = new Map();
+  for (const nd of nodes) {
+    const memberRoutes = earlyNodeRoutes.get(nd.id);
+    if (memberRoutes && memberRoutes.size > 0) {
+      const positions = [...memberRoutes].map(ri => routeHomePos.get(ri) ?? 0);
+      stationCrossPos.set(nd.id, positions.reduce((a, b) => a + b, 0) / positions.length);
+    } else {
+      stationCrossPos.set(nd.id, margin.top + routeSpan / 2);
+    }
+  }
+
+  // Ensure within-layer ordering is preserved (don't flip barycenter results)
+  // and enforce minimum spacing
+  for (const layer of layers) {
+    // Sort by cross-axis position but maintain barycenter ordering for ties
+    const sorted = [...layer].sort((a, b) => {
+      const da = stationCrossPos.get(a) - stationCrossPos.get(b);
+      if (Math.abs(da) > 0.5) return da;
+      return nodeOrder.get(a) - nodeOrder.get(b);
+    });
+    // Re-index with minimum spacing
+    for (let i = 0; i < sorted.length; i++) {
+      layer[i] = sorted[i];
+    }
+    // Enforce minimum gap between adjacent stations
+    const positions = layer.map(id => stationCrossPos.get(id));
+    for (let i = 1; i < positions.length; i++) {
+      if (positions[i] - positions[i - 1] < stationGap) {
+        positions[i] = positions[i - 1] + stationGap;
+      }
+    }
+    layer.forEach((id, i) => stationCrossPos.set(id, positions[i]));
+  }
+
+  // (B) Adaptive layer gaps
   const gapComplexity = [];
   for (let li = 0; li < maxRank; li++) {
-    let bending = 0, total = 0;
+    let bending = 0;
     const srcSet = new Set(layers[li]);
     const dstSet = new Set(layers[li + 1]);
     for (const route of (options.routes || [])) {
       for (let i = 1; i < route.nodes.length; i++) {
         if (srcSet.has(route.nodes[i - 1]) && dstSet.has(route.nodes[i])) {
-          total++;
-          // Check if source and dest are at different cross-axis positions
-          const srcIdx = layers[li].indexOf(route.nodes[i - 1]);
-          const dstIdx = layers[li + 1].indexOf(route.nodes[i]);
-          if (srcIdx !== dstIdx || layers[li].length !== layers[li + 1].length) bending++;
+          const srcCross = stationCrossPos.get(route.nodes[i - 1]) ?? 0;
+          const dstCross = stationCrossPos.get(route.nodes[i]) ?? 0;
+          if (Math.abs(srcCross - dstCross) > stationGap * 0.3) bending++;
         }
       }
     }
-    // Also count DAG edges (not just route edges)
-    for (const [from, to] of edges) {
-      if (srcSet.has(from) && dstSet.has(to)) total++;
-    }
-    gapComplexity.push({ total, bending });
+    gapComplexity.push(bending);
   }
 
-  // Adaptive layer gap: base + extra for complex gaps
-  const adaptiveGaps = gapComplexity.map(({ total, bending }) => {
+  const adaptiveGaps = gapComplexity.map(bending => {
     const complexity = Math.max(bending, 1);
     return layerGap * (0.7 + 0.3 * Math.min(complexity, 5));
   });
-  // Add a final gap for the last layer
   if (adaptiveGaps.length === 0) adaptiveGaps.push(layerGap);
 
+  // (C) Junction stagger — offset junction stations slightly in primary axis
+  const junctionOffset = new Map();
+  for (const nd of nodes) {
+    const outDeg = (childrenOf.get(nd.id) || []).length;
+    const inDeg = (parentsOf.get(nd.id) || []).length;
+    const fanDeg = Math.max(outDeg, inDeg);
+    if (fanDeg > 1) {
+      // Fan-out: push slightly forward. Fan-in: push slightly back.
+      const dir = outDeg > inDeg ? 1 : -1;
+      junctionOffset.set(nd.id, dir * stationGap * 0.12 * (fanDeg - 1));
+    }
+  }
+
+  // Assemble final station positions
   const stationPos = new Map();
 
   if (isLTR) {
     let curX = margin.left;
     for (let li = 0; li <= maxRank; li++) {
       const layer = layers[li];
-      const n = layer.length;
-      const span = (n - 1) * stationGap;
-      const startY = margin.top + (crossAxisSpan - span) / 2;
-
-      for (let i = 0; i < n; i++) {
-        stationPos.set(layer[i], { x: curX, y: startY + i * stationGap });
+      for (const id of layer) {
+        const xOffset = junctionOffset.get(id) || 0;
+        stationPos.set(id, { x: curX + xOffset, y: stationCrossPos.get(id) });
       }
       curX += adaptiveGaps[li] || layerGap;
     }
@@ -149,12 +212,9 @@ export function layoutProcess(dag, options = {}) {
     let curY = margin.top;
     for (let li = 0; li <= maxRank; li++) {
       const layer = layers[li];
-      const n = layer.length;
-      const span = (n - 1) * stationGap;
-      const startX = margin.left + (crossAxisSpan - span) / 2;
-
-      for (let i = 0; i < n; i++) {
-        stationPos.set(layer[i], { x: startX + i * stationGap, y: curY });
+      for (const id of layer) {
+        const yOffset = junctionOffset.get(id) || 0;
+        stationPos.set(id, { x: stationCrossPos.get(id), y: curY + yOffset });
       }
       curY += adaptiveGaps[li] || layerGap;
     }
@@ -565,6 +625,51 @@ export function layoutProcess(dag, options = {}) {
       routeGrid.placeLine(px, py, qx, qy, lt, owner);
     }
     segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, bestD);
+  }
+
+  // ── Multi-pass refinement ────────────────────────────────────
+  // After initial placement, re-route each segment against the final
+  // grid state. Removes the segment first, then re-routes, giving it
+  // the chance to find a better path now that all other routes are placed.
+  // Rule: "for each segment, remove → re-score → re-place if improved"
+  for (let pass = 0; pass < 2; pass++) {
+    for (const seg of allSegments) {
+      const { ri, fromId, toId, px, py, qx, qy } = seg;
+      const crossDiff = isLTR ? Math.abs(qy - py) : Math.abs(qx - px);
+      if (crossDiff < 0.5) continue;
+
+      const owner = `r${ri}_${fromId}_${toId}`;
+      // Remove this segment's grid entries
+      routeGrid.removeOwner(owner);
+
+      const ignore = new Set([owner, `sta_${fromId}`, `sta_${toId}`]);
+      const edgeMembers = segmentRoutes.get(`${fromId}\u2192${toId}`) || [];
+      for (const otherRi of edgeMembers) ignore.add(`r${otherRi}_${fromId}_${toId}`);
+      for (let k = 0; k < routes[ri].nodes.length - 1; k++) {
+        ignore.add(`r${ri}_${routes[ri].nodes[k]}_${routes[ri].nodes[k + 1]}`);
+      }
+
+      let bestD = null, bestScore = Infinity, bestJog = null;
+      for (const mf of candidates) {
+        const { d, jogPos } = buildPath(px, py, qx, qy, mf);
+        if (jogPos === null) { bestD = d; bestJog = null; break; }
+        const score = scorePath(px, py, qx, qy, jogPos, ignore);
+        if (score < bestScore) { bestScore = score; bestD = d; bestJog = jogPos; }
+        if (score === 0) break;
+      }
+
+      if (bestScore > 0) {
+        const detourResult = tryDetourRoute(px, py, qx, qy, owner, ignore);
+        if (detourResult && detourResult.score === 0) {
+          bestD = detourResult.d; bestScore = 0; bestJog = 'detour';
+        }
+      }
+
+      if (bestJog === 'detour') { /* registered inside tryDetourRoute */ }
+      else if (bestJog !== null) registerPath(px, py, qx, qy, bestJog, owner);
+      else routeGrid.placeLine(px, py, qx, qy, lt, owner);
+      segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, bestD);
+    }
   }
 
   // Assemble per-route path arrays
