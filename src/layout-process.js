@@ -118,52 +118,82 @@ export function layoutProcess(dag, options = {}) {
   // Stations with the same signature should be at similar Y.
   // Stations with different signatures should spread.
   const stationCrossPos = new Map();
+  const crossAxisSpan = (maxStationsPerLayer - 1) * stationGap;
+  const centerY = margin.top + crossAxisSpan / 2;
 
-  // Baseline Y: centered position for the widest layer
-  const centerY = margin.top + (maxStationsPerLayer - 1) * stationGap / 2;
-
+  // First: assign initial positions from barycenter ordering (centered, compact)
   for (const layer of layers) {
-    if (layer.length === 1) {
-      // Single station: center it
-      stationCrossPos.set(layer[0], centerY);
-      continue;
-    }
+    const n = layer.length;
+    const span = (n - 1) * stationGap;
+    const startY = centerY - span / 2;
+    layer.forEach((id, i) => stationCrossPos.set(id, startY + i * stationGap));
+  }
 
-    // Compute unique route groups in this layer
-    // Each group = set of stations sharing the same route membership
-    const groups = new Map(); // signature string → [nodeIds]
+  // Second: at layers where routes DIVERGE (multiple distinct route groups),
+  // spread the groups apart. At layers where all stations share the same
+  // routes, keep them together (no staircase).
+  for (const layer of layers) {
+    if (layer.length <= 1) continue;
+
+    // Compute unique route membership groups
+    const groups = new Map();
     for (const id of layer) {
-      const routes = earlyNodeRoutes.get(id);
-      const sig = routes ? [...routes].sort().join(',') : '';
+      const memberRoutes = earlyNodeRoutes.get(id);
+      const sig = memberRoutes ? [...memberRoutes].sort().join(',') : '';
       if (!groups.has(sig)) groups.set(sig, []);
       groups.get(sig).push(id);
     }
 
-    // Sort groups by the average route index (determines Y ordering)
+    // If only one group → all stations share same routes → keep centered (no divergence)
+    if (groups.size <= 1) continue;
+
+    // Multiple groups = divergence point! Spread groups apart.
     const sortedGroups = [...groups.entries()].sort((a, b) => {
       const avgA = a[0] ? a[0].split(',').reduce((s, v) => s + Number(v), 0) / a[0].split(',').length : 0;
       const avgB = b[0] ? b[0].split(',').reduce((s, v) => s + Number(v), 0) / b[0].split(',').length : 0;
       return avgA - avgB;
     });
 
-    // Position groups: center the set of groups, spread by stationGap
-    const totalGroupHeight = (sortedGroups.length - 1) * stationGap;
-    let groupY = centerY - totalGroupHeight / 2;
+    // Compute total stations across all groups
+    const totalStations = layer.length;
+    const totalSpan = (totalStations - 1) * stationGap;
+    let curY = centerY - totalSpan / 2;
 
-    // Re-sort layer by group then by barycenter within group
     const newOrder = [];
     for (const [sig, members] of sortedGroups) {
-      // Within a group, maintain barycenter order
       members.sort((a, b) => nodeOrder.get(a) - nodeOrder.get(b));
       for (let i = 0; i < members.length; i++) {
-        stationCrossPos.set(members[i], groupY + i * stationGap);
+        stationCrossPos.set(members[i], curY);
         newOrder.push(members[i]);
+        curY += stationGap;
       }
-      groupY += members.length * stationGap;
     }
-
-    // Update layer order
     for (let i = 0; i < newOrder.length; i++) layer[i] = newOrder[i];
+  }
+
+  // Third: barycenter refinement — pull stations toward their neighbors.
+  // This creates smooth transitions between layers instead of jumps.
+  // Only affects cross-axis, preserves within-layer ordering.
+  for (let iter = 0; iter < 8; iter++) {
+    for (const layer of layers) {
+      for (const id of layer) {
+        const parents = (parentsOf.get(id) || []).filter(n => stationCrossPos.has(n));
+        const children = (childrenOf.get(id) || []).filter(n => stationCrossPos.has(n));
+        const neighbors = [...parents, ...children];
+        if (neighbors.length === 0) continue;
+        const avg = neighbors.reduce((s, n) => s + stationCrossPos.get(n), 0) / neighbors.length;
+        const current = stationCrossPos.get(id);
+        stationCrossPos.set(id, current + (avg - current) * 0.3);
+      }
+      // Enforce minimum spacing
+      const sorted = [...layer].sort((a, b) => stationCrossPos.get(a) - stationCrossPos.get(b));
+      for (let i = 0; i < sorted.length; i++) layer[i] = sorted[i];
+      for (let i = 1; i < layer.length; i++) {
+        const prev = stationCrossPos.get(layer[i - 1]);
+        const curr = stationCrossPos.get(layer[i]);
+        if (curr - prev < stationGap) stationCrossPos.set(layer[i], prev + stationGap);
+      }
+    }
   }
 
   // (B) Adaptive layer gaps
