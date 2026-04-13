@@ -345,7 +345,16 @@ export function layoutProcess(dag, options = {}) {
     }
 
     const owner = `r${ri}_${fromId}_${toId}`;
+    // Ignore: own path, endpoint stations, other routes on same segment
+    // (parallel tracks), and own earlier segments (same route continuity)
     const ignore = new Set([owner, `sta_${fromId}`, `sta_${toId}`]);
+    // Ignore parallel routes on the same edge (they run at different Y offsets)
+    const edgeMembers = segmentRoutes.get(`${fromId}\u2192${toId}`) || [];
+    for (const otherRi of edgeMembers) ignore.add(`r${otherRi}_${fromId}_${toId}`);
+    // Ignore own route's earlier segments (continuity, not obstacles)
+    for (let k = 0; k < routes[ri].nodes.length - 1; k++) {
+      ignore.add(`r${ri}_${routes[ri].nodes[k]}_${routes[ri].nodes[k + 1]}`);
+    }
 
     let bestD = null, bestScore = Infinity, bestJog = null;
     for (const mf of candidates) {
