@@ -437,15 +437,19 @@ export function layoutProcess(dag, options = {}) {
   }
 
   function scorePath(px, py, qx, qy, jogPos, ignore) {
+    // Scoring rects use trackSpread for the cross-axis extent (not just
+    // lineThickness). This ensures parallel routes at trackSpread distance
+    // are detected as conflicts, forcing their jogs to different positions.
+    const ts = trackSpread;
     if (isLTR) {
-      const h1 = { x: Math.min(px, jogPos) - lt, y: py - lt * 2, w: Math.abs(jogPos - px) + lt * 2, h: lt * 4 };
-      const vj = { x: jogPos - lt, y: Math.min(py, qy), w: lt * 2, h: Math.abs(qy - py) };
-      const h2 = { x: Math.min(jogPos, qx) - lt, y: qy - lt * 2, w: Math.abs(qx - jogPos) + lt * 2, h: lt * 4 };
+      const h1 = { x: Math.min(px, jogPos) - lt, y: py - ts, w: Math.abs(jogPos - px) + lt * 2, h: ts * 2 };
+      const vj = { x: jogPos - ts, y: Math.min(py, qy), w: ts * 2, h: Math.abs(qy - py) };
+      const h2 = { x: Math.min(jogPos, qx) - lt, y: qy - ts, w: Math.abs(qx - jogPos) + lt * 2, h: ts * 2 };
       return routeGrid.overlapCount(h1, ignore) + routeGrid.overlapCount(vj, ignore) + routeGrid.overlapCount(h2, ignore);
     } else {
-      const v1 = { x: px - lt * 2, y: Math.min(py, jogPos), w: lt * 4, h: Math.abs(jogPos - py) };
-      const hj = { x: Math.min(px, qx), y: jogPos - lt, w: Math.abs(qx - px), h: lt * 2 };
-      const v2 = { x: qx - lt * 2, y: Math.min(jogPos, qy), w: lt * 4, h: Math.abs(qy - jogPos) };
+      const v1 = { x: px - ts, y: Math.min(py, jogPos), w: ts * 2, h: Math.abs(jogPos - py) };
+      const hj = { x: Math.min(px, qx), y: jogPos - ts, w: Math.abs(qx - px), h: ts * 2 };
+      const v2 = { x: qx - ts, y: Math.min(jogPos, qy), w: ts * 2, h: Math.abs(qy - jogPos) };
       return routeGrid.overlapCount(v1, ignore) + routeGrid.overlapCount(hj, ignore) + routeGrid.overlapCount(v2, ignore);
     }
   }
@@ -718,13 +722,11 @@ export function layoutProcess(dag, options = {}) {
     }
 
     const owner = `r${ri}_${fromId}_${toId}`;
-    // Ignore: own path, endpoint stations, other routes on same segment
-    // (parallel tracks), and own earlier segments (same route continuity)
+    // Ignore: own path, endpoint stations, own route's other segments.
+    // Do NOT ignore parallel routes on same segment — their jogs need
+    // separation even though their horizontal runs are at different Y.
     const ignore = new Set([owner, `sta_${fromId}`, `sta_${toId}`]);
-    // Ignore parallel routes on the same edge (they run at different Y offsets)
-    const edgeMembers = segmentRoutes.get(`${fromId}\u2192${toId}`) || [];
-    for (const otherRi of edgeMembers) ignore.add(`r${otherRi}_${fromId}_${toId}`);
-    // Ignore own route's earlier segments (continuity, not obstacles)
+    // Ignore own route's segments (continuity, not obstacles)
     for (let k = 0; k < routes[ri].nodes.length - 1; k++) {
       ignore.add(`r${ri}_${routes[ri].nodes[k]}_${routes[ri].nodes[k + 1]}`);
     }
