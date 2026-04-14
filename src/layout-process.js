@@ -650,13 +650,12 @@ export function layoutProcess(dag, options = {}) {
     const crossDiff = isLTR ? Math.abs(qy - py) : Math.abs(qx - px);
 
     if (crossDiff < trackSpread * 1.2) {
-      // Near-straight: draw horizontal at source Y, arrive at dest Y.
-      // For small Y diffs (< trackSpread), this looks like a straight
-      // line. No tiny elbows, no visible diagonals.
-      const d = isLTR
-        ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)}`
-        : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)}`;
-      routeGrid.placeLine(px, py, qx, isLTR ? py : qy, lt, `r${ri}_${fromId}_${toId}`);
+      // Near-straight: draw a true straight line (px,py)→(qx,qy).
+      // The angle is tiny (< trackSpread over layerGap = ~8°) and
+      // barely visible. Much better than tiny H-V-H elbows or
+      // disconnected edges from drawing horizontal at wrong Y.
+      const d = `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      routeGrid.placeLine(px, py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
       segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, d);
       continue;
     }
