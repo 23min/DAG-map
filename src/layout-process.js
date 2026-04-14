@@ -642,7 +642,58 @@ export function layoutProcess(dag, options = {}) {
     a.ri - b.ri
   );
 
-  // Route each segment: try 15 midFrac candidates, score against grid
+  // ── Pre-assign complementary jog positions at fan-in/fan-out ────
+  // At stations where multiple segments converge or diverge, assign
+  // staggered midFrac hints so their jogs don't overlap.
+  // Rule: "converging routes get complementary jog positions"
+  const jogHints = new Map(); // "ri:from→to" → suggested midFrac
+
+  // Group outgoing segments by source station
+  const outgoing = new Map(); // stationId → [segments]
+  const incoming = new Map(); // stationId → [segments]
+  for (const seg of allSegments) {
+    if (!outgoing.has(seg.fromId)) outgoing.set(seg.fromId, []);
+    outgoing.get(seg.fromId).push(seg);
+    if (!incoming.has(seg.toId)) incoming.set(seg.toId, []);
+    incoming.get(seg.toId).push(seg);
+  }
+
+  // For fan-out stations (multiple outgoing to different destinations)
+  for (const [stationId, segs] of outgoing) {
+    const uniqueDests = new Set(segs.map(s => s.toId));
+    if (uniqueDests.size <= 1) continue; // shared segment, not fan-out
+    // Sort by destination cross-axis position
+    const sorted = [...segs].sort((a, b) => {
+      const crossA = isLTR ? a.qy : a.qx;
+      const crossB = isLTR ? b.qy : b.qx;
+      return crossA - crossB;
+    });
+    // Assign evenly spread midFrac: routes going UP get early jog, DOWN get late
+    for (let i = 0; i < sorted.length; i++) {
+      const mf = sorted.length === 1 ? 0.5 : 0.2 + (i / (sorted.length - 1)) * 0.6;
+      jogHints.set(`${sorted[i].ri}:${sorted[i].fromId}\u2192${sorted[i].toId}`, mf);
+    }
+  }
+
+  // For fan-in stations (multiple incoming from different sources)
+  for (const [stationId, segs] of incoming) {
+    const uniqueSrcs = new Set(segs.map(s => s.fromId));
+    if (uniqueSrcs.size <= 1) continue;
+    const sorted = [...segs].sort((a, b) => {
+      const crossA = isLTR ? a.py : a.px;
+      const crossB = isLTR ? b.py : b.px;
+      return crossA - crossB;
+    });
+    for (let i = 0; i < sorted.length; i++) {
+      const key = `${sorted[i].ri}:${sorted[i].fromId}\u2192${sorted[i].toId}`;
+      if (!jogHints.has(key)) { // don't override fan-out hints
+        const mf = sorted.length === 1 ? 0.5 : 0.8 - (i / (sorted.length - 1)) * 0.6;
+        jogHints.set(key, mf);
+      }
+    }
+  }
+
+  // Route each segment: use hint if available, else try all candidates
   const segmentPaths = new Map();
   const candidates = [0.12, 0.18, 0.24, 0.30, 0.36, 0.42, 0.48, 0.52, 0.58, 0.64, 0.70, 0.76, 0.82, 0.88];
 
@@ -677,7 +728,13 @@ export function layoutProcess(dag, options = {}) {
     }
 
     let bestD = null, bestScore = Infinity, bestJog = null;
-    for (const mf of candidates) {
+    // Use hint from fan-in/fan-out pre-assignment, prioritized first
+    const hintKey = `${ri}:${fromId}\u2192${toId}`;
+    const hint = jogHints.get(hintKey);
+    const orderedCandidates = hint !== undefined
+      ? [hint, ...candidates.filter(c => Math.abs(c - hint) > 0.05)]
+      : candidates;
+    for (const mf of orderedCandidates) {
       const { d, jogPos } = buildPath(px, py, qx, qy, mf);
       if (jogPos === null) { bestD = d; bestJog = null; break; }
       const score = scorePath(px, py, qx, qy, jogPos, ignore);
