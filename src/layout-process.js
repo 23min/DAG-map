@@ -661,16 +661,16 @@ export function layoutProcess(dag, options = {}) {
   // For fan-out stations (multiple outgoing to different destinations)
   for (const [stationId, segs] of outgoing) {
     const uniqueDests = new Set(segs.map(s => s.toId));
-    if (uniqueDests.size <= 1) continue; // shared segment, not fan-out
+    if (uniqueDests.size <= 1) continue;
     // Sort by destination cross-axis position
     const sorted = [...segs].sort((a, b) => {
       const crossA = isLTR ? a.qy : a.qx;
       const crossB = isLTR ? b.qy : b.qx;
       return crossA - crossB;
     });
-    // Assign evenly spread midFrac: routes going UP get early jog, DOWN get late
+    // Wide spread: 0.12 to 0.88 — maximum separation between jogs
     for (let i = 0; i < sorted.length; i++) {
-      const mf = sorted.length === 1 ? 0.5 : 0.2 + (i / (sorted.length - 1)) * 0.6;
+      const mf = sorted.length === 1 ? 0.5 : 0.12 + (i / (sorted.length - 1)) * 0.76;
       jogHints.set(`${sorted[i].ri}:${sorted[i].fromId}\u2192${sorted[i].toId}`, mf);
     }
   }
@@ -679,15 +679,17 @@ export function layoutProcess(dag, options = {}) {
   for (const [stationId, segs] of incoming) {
     const uniqueSrcs = new Set(segs.map(s => s.fromId));
     if (uniqueSrcs.size <= 1) continue;
+    // Sort by source cross-axis position (reversed: top source → late jog)
     const sorted = [...segs].sort((a, b) => {
       const crossA = isLTR ? a.py : a.px;
       const crossB = isLTR ? b.py : b.px;
       return crossA - crossB;
     });
+    // Wide spread reversed: top routes jog late, bottom jog early
     for (let i = 0; i < sorted.length; i++) {
       const key = `${sorted[i].ri}:${sorted[i].fromId}\u2192${sorted[i].toId}`;
-      if (!jogHints.has(key)) { // don't override fan-out hints
-        const mf = sorted.length === 1 ? 0.5 : 0.8 - (i / (sorted.length - 1)) * 0.6;
+      if (!jogHints.has(key)) {
+        const mf = sorted.length === 1 ? 0.5 : 0.88 - (i / (sorted.length - 1)) * 0.76;
         jogHints.set(key, mf);
       }
     }
@@ -728,13 +730,30 @@ export function layoutProcess(dag, options = {}) {
     }
 
     let bestD = null, bestScore = Infinity, bestJog = null;
-    // Use hint from fan-in/fan-out pre-assignment, prioritized first
+    // Use hint from fan-in/fan-out pre-assignment
     const hintKey = `${ri}:${fromId}\u2192${toId}`;
     const hint = jogHints.get(hintKey);
-    const orderedCandidates = hint !== undefined
-      ? [hint, ...candidates.filter(c => Math.abs(c - hint) > 0.05)]
+
+    // If hint exists, try it first. If it scores 0, use it immediately
+    // (don't let scoring find a "better" position that creates overlays).
+    if (hint !== undefined) {
+      const { d, jogPos } = buildPath(px, py, qx, qy, hint);
+      if (jogPos !== null) {
+        const score = scorePath(px, py, qx, qy, jogPos, ignore);
+        if (score === 0) {
+          registerPath(px, py, qx, qy, jogPos, owner);
+          segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, d);
+          continue; // skip full search — hint is clean
+        }
+        bestD = d; bestScore = score; bestJog = jogPos;
+      }
+    }
+
+    // Full search: try all candidates (or hint + candidates if hint scored > 0)
+    const searchCandidates = hint !== undefined
+      ? candidates.filter(c => Math.abs(c - hint) > 0.05)
       : candidates;
-    for (const mf of orderedCandidates) {
+    for (const mf of searchCandidates) {
       const { d, jogPos } = buildPath(px, py, qx, qy, mf);
       if (jogPos === null) { bestD = d; bestJog = null; break; }
       const score = scorePath(px, py, qx, qy, jogPos, ignore);
