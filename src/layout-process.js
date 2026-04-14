@@ -714,24 +714,24 @@ export function layoutProcess(dag, options = {}) {
 
     const layerSpan = Math.abs((seg.toLayer ?? 0) - (seg.fromLayer ?? 0));
     if (crossDiff < trackSpread * 1.2 && layerSpan <= 1) {
-      // Small Y diff. Check if route membership is the same at both
-      // stations — if so, draw truly straight (no V step needed).
-      // If different, draw V step at source.
-      const fromRoutes = nodeRoutes.get(fromId);
-      const toRoutes = nodeRoutes.get(toId);
-      const sameRoutes = fromRoutes && toRoutes &&
-        fromRoutes.size === toRoutes.size &&
-        [...fromRoutes].every(r => toRoutes.has(r));
+      // Small Y diff — route continuity check.
+      // If this route CONTINUES through the destination (has an
+      // outgoing segment from dest), maintain source Y = straight line.
+      // Only V-step when this route actually ENDS at destination
+      // (terminal station for this route).
+      const routeNodes = routes[ri].nodes;
+      const destIdx = routeNodes.indexOf(toId);
+      const routeContinues = destIdx >= 0 && destIdx < routeNodes.length - 1;
 
       let d;
-      if (sameRoutes || crossDiff < 0.5) {
-        // Same route membership → straight horizontal at source Y
+      if (routeContinues || crossDiff < 0.5) {
+        // Route passes through → straight at source Y (continuity)
         d = isLTR
           ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)}`
           : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)}`;
         routeGrid.placeLine(px, py, qx, isLTR ? py : qy, lt, `r${ri}_${fromId}_${toId}`);
       } else {
-        // Different membership → V step at source, H at dest Y
+        // Route terminates → V step at source, H at dest Y
         d = isLTR
           ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`
           : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
