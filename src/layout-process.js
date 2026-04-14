@@ -35,6 +35,7 @@ export function layoutProcess(dag, options = {}) {
   const stationGap = (options.stationGap ?? 70) * s;
   const bundling = options.bundling ?? false;
   const trackSpread = (options.trackSpread ?? (bundling ? 5 : 12)) * s;
+  const jogSpread = 12 * s; // jog markers always use full spread, even in bundling
   const cornerRadius = (options.cornerRadius ?? 6) * s;
   const fontSize = (options.labelSize ?? 4.5) * s;
   const fsMetric = fontSize * 0.75;
@@ -443,12 +444,12 @@ export function layoutProcess(dag, options = {}) {
     // from other routes and force them to different positions.
     if (isLTR) {
       const h1 = { x: Math.min(px, jogPos) - lt, y: py - lt * 2, w: Math.abs(jogPos - px) + lt * 2, h: lt * 4 };
-      const vj = { x: jogPos - trackSpread, y: Math.min(py, qy), w: trackSpread * 2, h: Math.abs(qy - py) };
+      const vj = { x: jogPos - jogSpread, y: Math.min(py, qy), w: jogSpread * 2, h: Math.abs(qy - py) };
       const h2 = { x: Math.min(jogPos, qx) - lt, y: qy - lt * 2, w: Math.abs(qx - jogPos) + lt * 2, h: lt * 4 };
       return routeGrid.overlapCount(h1, ignore) + routeGrid.overlapCount(vj, ignore) + routeGrid.overlapCount(h2, ignore);
     } else {
       const v1 = { x: px - lt * 2, y: Math.min(py, jogPos), w: lt * 4, h: Math.abs(jogPos - py) };
-      const hj = { x: Math.min(px, qx), y: jogPos - trackSpread, w: Math.abs(qx - px), h: trackSpread * 2 };
+      const hj = { x: Math.min(px, qx), y: jogPos - jogSpread, w: Math.abs(qx - px), h: jogSpread * 2 };
       const v2 = { x: qx - lt * 2, y: Math.min(jogPos, qy), w: lt * 4, h: Math.abs(qy - jogPos) };
       return routeGrid.overlapCount(v1, ignore) + routeGrid.overlapCount(hj, ignore) + routeGrid.overlapCount(v2, ignore);
     }
@@ -461,12 +462,12 @@ export function layoutProcess(dag, options = {}) {
       routeGrid.placeLine(jogPos, qy, qx, qy, lt, owner);
       // Jog marker: wider obstacle at the jog X to prevent other
       // routes from jogging at the same position
-      routeGrid.place({ x: jogPos - trackSpread * 0.8, y: Math.min(py, qy), w: trackSpread * 1.6, h: Math.abs(qy - py), type: 'jog', owner: owner + '_jog' });
+      routeGrid.place({ x: jogPos - jogSpread * 0.8, y: Math.min(py, qy), w: jogSpread * 1.6, h: Math.abs(qy - py), type: 'jog', owner: owner + '_jog' });
     } else {
       routeGrid.placeLine(px, py, px, jogPos, lt, owner);
       routeGrid.placeLine(px, jogPos, qx, jogPos, lt, owner);
       routeGrid.placeLine(qx, jogPos, qx, qy, lt, owner);
-      routeGrid.place({ x: Math.min(px, qx), y: jogPos - trackSpread * 0.8, w: Math.abs(qx - px), h: trackSpread * 1.6, type: 'jog', owner: owner + '_jog' });
+      routeGrid.place({ x: Math.min(px, qx), y: jogPos - jogSpread * 0.8, w: Math.abs(qx - px), h: jogSpread * 1.6, type: 'jog', owner: owner + '_jog' });
     }
   }
 
@@ -713,14 +714,15 @@ export function layoutProcess(dag, options = {}) {
 
     const layerSpan = Math.abs((seg.toLayer ?? 0) - (seg.fromLayer ?? 0));
     if (crossDiff < trackSpread * 1.2 && layerSpan <= 1) {
-      // Small Y diff: draw horizontal at source Y, then short vertical
-      // step at destination (hidden by station dot). No diagonals ever.
-      // H-step: (px,py) → (qx,py), V-step: (qx,py) → (qx,qy)
+      // Small Y diff: draw V step at SOURCE then H at DEST Y.
+      // The V step at the source is hidden by the previous station's dot.
+      // The H run at dest Y aligns with the outgoing segment from that
+      // station, preventing visible Y-mismatches at through-stations.
       const d = isLTR
-        ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`
-        : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
-      routeGrid.placeLine(px, py, qx, isLTR ? py : qy, lt, `r${ri}_${fromId}_${toId}`);
-      routeGrid.placeLine(isLTR ? qx : px, isLTR ? py : qy, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
+        ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`
+        : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      routeGrid.placeLine(isLTR ? px : px, isLTR ? py : py, isLTR ? px : qx, isLTR ? qy : py, lt, `r${ri}_${fromId}_${toId}`);
+      routeGrid.placeLine(isLTR ? px : qx, isLTR ? qy : py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
       segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, d);
       continue;
     }
