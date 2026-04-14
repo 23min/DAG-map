@@ -714,15 +714,30 @@ export function layoutProcess(dag, options = {}) {
 
     const layerSpan = Math.abs((seg.toLayer ?? 0) - (seg.fromLayer ?? 0));
     if (crossDiff < trackSpread * 1.2 && layerSpan <= 1) {
-      // Small Y diff: draw V step at SOURCE then H at DEST Y.
-      // The V step at the source is hidden by the previous station's dot.
-      // The H run at dest Y aligns with the outgoing segment from that
-      // station, preventing visible Y-mismatches at through-stations.
-      const d = isLTR
-        ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`
-        : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
-      routeGrid.placeLine(isLTR ? px : px, isLTR ? py : py, isLTR ? px : qx, isLTR ? qy : py, lt, `r${ri}_${fromId}_${toId}`);
-      routeGrid.placeLine(isLTR ? px : qx, isLTR ? qy : py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
+      // Small Y diff. Check if route membership is the same at both
+      // stations — if so, draw truly straight (no V step needed).
+      // If different, draw V step at source.
+      const fromRoutes = nodeRoutes.get(fromId);
+      const toRoutes = nodeRoutes.get(toId);
+      const sameRoutes = fromRoutes && toRoutes &&
+        fromRoutes.size === toRoutes.size &&
+        [...fromRoutes].every(r => toRoutes.has(r));
+
+      let d;
+      if (sameRoutes || crossDiff < 0.5) {
+        // Same route membership → straight horizontal at source Y
+        d = isLTR
+          ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)}`
+          : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)}`;
+        routeGrid.placeLine(px, py, qx, isLTR ? py : qy, lt, `r${ri}_${fromId}_${toId}`);
+      } else {
+        // Different membership → V step at source, H at dest Y
+        d = isLTR
+          ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`
+          : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+        routeGrid.placeLine(isLTR ? px : px, isLTR ? py : py, isLTR ? px : qx, isLTR ? qy : py, lt, `r${ri}_${fromId}_${toId}`);
+        routeGrid.placeLine(isLTR ? px : qx, isLTR ? qy : py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
+      }
       segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, d);
       continue;
     }
