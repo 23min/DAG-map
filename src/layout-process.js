@@ -621,6 +621,7 @@ export function layoutProcess(dag, options = {}) {
         qx: isLTR ? tp.x : tp.x + dotOff2,
         qy: isLTR ? tp.y + dotOff2 : tp.y,
         fromLayer: rank.get(fromId),
+        toLayer: rank.get(toId),
       });
     }
   }
@@ -649,7 +650,8 @@ export function layoutProcess(dag, options = {}) {
     const { ri, fromId, toId, px, py, qx, qy } = seg;
     const crossDiff = isLTR ? Math.abs(qy - py) : Math.abs(qx - px);
 
-    if (crossDiff < trackSpread * 1.2) {
+    const layerSpan = Math.abs((seg.toLayer ?? 0) - (seg.fromLayer ?? 0));
+    if (crossDiff < trackSpread * 1.2 && layerSpan <= 1) {
       // Small Y diff: draw horizontal at source Y, then short vertical
       // step at destination (hidden by station dot). No diagonals ever.
       // H-step: (px,py) → (qx,py), V-step: (qx,py) → (qx,qy)
