@@ -437,19 +437,19 @@ export function layoutProcess(dag, options = {}) {
   }
 
   function scorePath(px, py, qx, qy, jogPos, ignore) {
-    // Scoring rects use trackSpread for the cross-axis extent (not just
-    // lineThickness). This ensures parallel routes at trackSpread distance
-    // are detected as conflicts, forcing their jogs to different positions.
-    const ts = trackSpread;
+    // Score the 3 segments of H-V-H (or V-H-V) against the grid.
+    // H segments use lineThickness for height (normal track width).
+    // V jog uses trackSpread*2 width — wider to detect nearby jogs
+    // from other routes and force them to different positions.
     if (isLTR) {
-      const h1 = { x: Math.min(px, jogPos) - lt, y: py - ts, w: Math.abs(jogPos - px) + lt * 2, h: ts * 2 };
-      const vj = { x: jogPos - ts, y: Math.min(py, qy), w: ts * 2, h: Math.abs(qy - py) };
-      const h2 = { x: Math.min(jogPos, qx) - lt, y: qy - ts, w: Math.abs(qx - jogPos) + lt * 2, h: ts * 2 };
+      const h1 = { x: Math.min(px, jogPos) - lt, y: py - lt * 2, w: Math.abs(jogPos - px) + lt * 2, h: lt * 4 };
+      const vj = { x: jogPos - trackSpread, y: Math.min(py, qy), w: trackSpread * 2, h: Math.abs(qy - py) };
+      const h2 = { x: Math.min(jogPos, qx) - lt, y: qy - lt * 2, w: Math.abs(qx - jogPos) + lt * 2, h: lt * 4 };
       return routeGrid.overlapCount(h1, ignore) + routeGrid.overlapCount(vj, ignore) + routeGrid.overlapCount(h2, ignore);
     } else {
-      const v1 = { x: px - ts, y: Math.min(py, jogPos), w: ts * 2, h: Math.abs(jogPos - py) };
-      const hj = { x: Math.min(px, qx), y: jogPos - ts, w: Math.abs(qx - px), h: ts * 2 };
-      const v2 = { x: qx - ts, y: Math.min(jogPos, qy), w: ts * 2, h: Math.abs(qy - jogPos) };
+      const v1 = { x: px - lt * 2, y: Math.min(py, jogPos), w: lt * 4, h: Math.abs(jogPos - py) };
+      const hj = { x: Math.min(px, qx), y: jogPos - trackSpread, w: Math.abs(qx - px), h: trackSpread * 2 };
+      const v2 = { x: qx - lt * 2, y: Math.min(jogPos, qy), w: lt * 4, h: Math.abs(qy - jogPos) };
       return routeGrid.overlapCount(v1, ignore) + routeGrid.overlapCount(hj, ignore) + routeGrid.overlapCount(v2, ignore);
     }
   }
@@ -459,10 +459,14 @@ export function layoutProcess(dag, options = {}) {
       routeGrid.placeLine(px, py, jogPos, py, lt, owner);
       routeGrid.placeLine(jogPos, py, jogPos, qy, lt, owner);
       routeGrid.placeLine(jogPos, qy, qx, qy, lt, owner);
+      // Jog marker: wider obstacle at the jog X to prevent other
+      // routes from jogging at the same position
+      routeGrid.place({ x: jogPos - trackSpread * 0.8, y: Math.min(py, qy), w: trackSpread * 1.6, h: Math.abs(qy - py), type: 'jog', owner: owner + '_jog' });
     } else {
       routeGrid.placeLine(px, py, px, jogPos, lt, owner);
       routeGrid.placeLine(px, jogPos, qx, jogPos, lt, owner);
       routeGrid.placeLine(qx, jogPos, qx, qy, lt, owner);
+      routeGrid.place({ x: Math.min(px, qx), y: jogPos - trackSpread * 0.8, w: Math.abs(qx - px), h: trackSpread * 1.6, type: 'jog', owner: owner + '_jog' });
     }
   }
 
