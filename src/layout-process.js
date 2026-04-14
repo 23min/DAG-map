@@ -394,17 +394,22 @@ export function layoutProcess(dag, options = {}) {
     routeGrid.place({ x: pos.x - dotR * 1.5, y: pos.y - dotR * 1.5, w: dotR * 3, h: dotR * 3, type: 'dot', owner: `sta_${id}` });
   }
 
-  // Per-station offset with CONSISTENT ordering.
-  // Compact at each station (only spread by routes present),
-  // but sorted by global route index to prevent zig-zags.
-  // Rule: "per-station compact spread, globally consistent order"
-  function routeDotOffset(nodeId, ri) {
-    const members = nodeRoutes.get(nodeId);
-    // Sort by global route index — same order everywhere
+  // Route-consistent offsets: each route gets a FIXED offset computed
+  // at its first station and maintained throughout. No Y-jumps when
+  // other routes join/leave at intermediate stations.
+  // Rule: "route offset = position among routes at FIRST shared station"
+  const routeFixedOffset = new Map();
+  for (let ri = 0; ri < routes.length; ri++) {
+    const firstNode = routes[ri].nodes[0];
+    const members = nodeRoutes.get(firstNode);
     const sorted = members ? [...members].sort((a, b) => a - b) : [ri];
     const idx = sorted.indexOf(ri);
     const n = sorted.length;
-    return (idx - (n - 1) / 2) * trackSpread;
+    routeFixedOffset.set(ri, (idx - (n - 1) / 2) * trackSpread);
+  }
+
+  function routeDotOffset(nodeId, ri) {
+    return routeFixedOffset.get(ri) ?? 0;
   }
 
   function buildPath(px, py, qx, qy, midFrac) {
@@ -713,31 +718,10 @@ export function layoutProcess(dag, options = {}) {
     const crossDiff = isLTR ? Math.abs(qy - py) : Math.abs(qx - px);
 
     const layerSpan = Math.abs((seg.toLayer ?? 0) - (seg.fromLayer ?? 0));
-    if (crossDiff < trackSpread * 1.2 && layerSpan <= 1) {
-      // Small Y diff — route continuity check.
-      // If this route CONTINUES through the destination (has an
-      // outgoing segment from dest), maintain source Y = straight line.
-      // Only V-step when this route actually ENDS at destination
-      // (terminal station for this route).
-      const routeNodes = routes[ri].nodes;
-      const destIdx = routeNodes.indexOf(toId);
-      const routeContinues = destIdx >= 0 && destIdx < routeNodes.length - 1;
-
-      let d;
-      if (routeContinues || crossDiff < 0.5) {
-        // Route passes through → straight at source Y (continuity)
-        d = isLTR
-          ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)}`
-          : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)}`;
-        routeGrid.placeLine(px, py, qx, isLTR ? py : qy, lt, `r${ri}_${fromId}_${toId}`);
-      } else {
-        // Route terminates → V step at source, H at dest Y
-        d = isLTR
-          ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`
-          : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
-        routeGrid.placeLine(isLTR ? px : px, isLTR ? py : py, isLTR ? px : qx, isLTR ? qy : py, lt, `r${ri}_${fromId}_${toId}`);
-        routeGrid.placeLine(isLTR ? px : qx, isLTR ? qy : py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
-      }
+    if (crossDiff < 0.5 && layerSpan <= 1) {
+      // Truly same Y → straight line
+      const d = `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      routeGrid.placeLine(px, py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
       segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, d);
       continue;
     }
