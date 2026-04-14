@@ -394,22 +394,16 @@ export function layoutProcess(dag, options = {}) {
     routeGrid.place({ x: pos.x - dotR * 1.5, y: pos.y - dotR * 1.5, w: dotR * 3, h: dotR * 3, type: 'dot', owner: `sta_${id}` });
   }
 
-  // Route-consistent offsets: each route gets a FIXED offset computed
-  // at its first station and maintained throughout. No Y-jumps when
-  // other routes join/leave at intermediate stations.
-  // Rule: "route offset = position among routes at FIRST shared station"
-  const routeFixedOffset = new Map();
-  for (let ri = 0; ri < routes.length; ri++) {
-    const firstNode = routes[ri].nodes[0];
-    const members = nodeRoutes.get(firstNode);
+  // Per-station offset with consistent global ordering.
+  // Compact at each station, sorted by global route index.
+  // Small Y-steps at through-stations where route sets change
+  // are acceptable — hidden by station dots.
+  function routeDotOffset(nodeId, ri) {
+    const members = nodeRoutes.get(nodeId);
     const sorted = members ? [...members].sort((a, b) => a - b) : [ri];
     const idx = sorted.indexOf(ri);
     const n = sorted.length;
-    routeFixedOffset.set(ri, (idx - (n - 1) / 2) * trackSpread);
-  }
-
-  function routeDotOffset(nodeId, ri) {
-    return routeFixedOffset.get(ri) ?? 0;
+    return (idx - (n - 1) / 2) * trackSpread;
   }
 
   function buildPath(px, py, qx, qy, midFrac) {
@@ -718,10 +712,14 @@ export function layoutProcess(dag, options = {}) {
     const crossDiff = isLTR ? Math.abs(qy - py) : Math.abs(qx - px);
 
     const layerSpan = Math.abs((seg.toLayer ?? 0) - (seg.fromLayer ?? 0));
-    if (crossDiff < 0.5 && layerSpan <= 1) {
-      // Truly same Y → straight line
-      const d = `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
-      routeGrid.placeLine(px, py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
+    if (crossDiff < trackSpread * 1.2 && layerSpan <= 1) {
+      // Small Y diff — draw V step at source, H at dest Y.
+      // V step hidden by departure station dot.
+      const d = isLTR
+        ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`
+        : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
+      routeGrid.placeLine(isLTR ? px : px, isLTR ? py : py, isLTR ? px : qx, isLTR ? qy : py, lt, `r${ri}_${fromId}_${toId}`);
+      routeGrid.placeLine(isLTR ? px : qx, isLTR ? qy : py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
       segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, d);
       continue;
     }
