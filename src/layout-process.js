@@ -649,10 +649,14 @@ export function layoutProcess(dag, options = {}) {
     const { ri, fromId, toId, px, py, qx, qy } = seg;
     const crossDiff = isLTR ? Math.abs(qy - py) : Math.abs(qx - px);
 
-    if (crossDiff < 0.5) {
-      // Straight
-      const d = `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${qy.toFixed(1)}`;
-      routeGrid.placeLine(px, py, qx, qy, lt, `r${ri}_${fromId}_${toId}`);
+    if (crossDiff < trackSpread * 1.2) {
+      // Near-straight: draw horizontal at source Y, arrive at dest Y.
+      // For small Y diffs (< trackSpread), this looks like a straight
+      // line. No tiny elbows, no visible diagonals.
+      const d = isLTR
+        ? `M ${px.toFixed(1)} ${py.toFixed(1)} L ${qx.toFixed(1)} ${py.toFixed(1)}`
+        : `M ${px.toFixed(1)} ${py.toFixed(1)} L ${px.toFixed(1)} ${qy.toFixed(1)}`;
+      routeGrid.placeLine(px, py, qx, isLTR ? py : qy, lt, `r${ri}_${fromId}_${toId}`);
       segmentPaths.set(`${ri}:${fromId}\u2192${toId}`, d);
       continue;
     }
@@ -709,7 +713,7 @@ export function layoutProcess(dag, options = {}) {
     for (const seg of allSegments) {
       const { ri, fromId, toId, px, py, qx, qy } = seg;
       const crossDiff = isLTR ? Math.abs(qy - py) : Math.abs(qx - px);
-      if (crossDiff < 0.5) continue;
+      if (crossDiff < trackSpread * 1.2) continue;
 
       const owner = `r${ri}_${fromId}_${toId}`;
       // Remove this segment's grid entries
