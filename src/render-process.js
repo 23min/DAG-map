@@ -33,9 +33,9 @@ export function renderProcess(dag, layout, options = {}) {
   // Background
   lines.push(`<rect width="${width}" height="${height}" fill="${theme.paper}"/>`);
 
-  // Extra edges (dashed, behind everything)
+  // Extra edges (thin, behind everything)
   for (const seg of extraEdges) {
-    lines.push(`<path d="${seg.d}" fill="none" stroke="${seg.color}" stroke-width="${seg.thickness.toFixed(1)}" opacity="${seg.opacity}" stroke-linecap="round" stroke-dasharray="${4 * s},${3 * s}"/>`);
+    lines.push(`<path d="${seg.d}" fill="none" stroke="${seg.color}" stroke-width="${seg.thickness.toFixed(1)}" opacity="${seg.opacity}" stroke-linecap="round"/>`);
   }
 
   // Route paths
@@ -97,44 +97,76 @@ export function renderProcess(dag, layout, options = {}) {
 
     // Station dots — pill for junctions (multi-route), circle for single
     const isLTR = layout.isLTR;
+    const stationStyle = options.stationStyle || 'default'; // 'default' or 'metro'
     if (sortedRoutes.length > 1) {
       // Junction: elongated pill spanning all route dots
       const n = sortedRoutes.length;
-      const minOff = (0 - (n - 1) / 2) * trackSpread;
-      const maxOff = ((n - 1) - (n - 1) / 2) * trackSpread;
+      // Use port offsets for pill dimensions so pill covers actual dot positions
+      let minOff = Infinity, maxOff = -Infinity;
+      for (const ri of sortedRoutes) {
+        const off = layout.portOffset?.get(`${nd.id}:${ri}`) ?? 0;
+        if (off < minOff) minOff = off;
+        if (off > maxOff) maxOff = off;
+      }
+      if (!isFinite(minOff)) { minOff = (0 - (n - 1) / 2) * trackSpread; maxOff = ((n - 1) - (n - 1) / 2) * trackSpread; }
       const pillPad = dotR * 0.6;
+      // Metro style: pill outlined in dominant route color, thicker stroke.
+      // Dimensions match Metro Mode 1: width = dotR*2.1, rx ≈ dotR, stroke 2.4*s.
+      const firstColor = routeColors?.get(sortedRoutes[0]) || '#999';
+      const isMetro = stationStyle === 'metro';
+      const pillStroke = isMetro ? firstColor : (theme.muted || '#ccc');
+      const pillStrokeW = isMetro ? 2.4 * s : 0.6 * s;
+      const pillR = isMetro ? dotR * 0.9 : dotR;
 
       if (isLTR) {
-        // Vertical pill
-        const pillX = pos.x - dotR;
+        const pillX = pos.x - pillR;
         const pillY = pos.y + minOff - pillPad;
-        const pillW = dotR * 2;
+        const pillW = pillR * 2;
         const pillH = (maxOff - minOff) + pillPad * 2;
-        lines.push(`<rect x="${pillX.toFixed(1)}" y="${pillY.toFixed(1)}" width="${pillW.toFixed(1)}" height="${pillH.toFixed(1)}" rx="${dotR}" fill="${theme.paper}" stroke="${theme.muted || '#ccc'}" stroke-width="${0.6 * s}"/>`);
+        lines.push(`<rect x="${pillX.toFixed(1)}" y="${pillY.toFixed(1)}" width="${pillW.toFixed(1)}" height="${pillH.toFixed(1)}" rx="${pillR.toFixed(1)}" fill="${theme.paper}" stroke="${pillStroke}" stroke-width="${pillStrokeW.toFixed(1)}"/>`);
       } else {
-        // Horizontal pill
         const pillX = pos.x + minOff - pillPad;
-        const pillY = pos.y - dotR;
+        const pillY = pos.y - pillR;
         const pillW = (maxOff - minOff) + pillPad * 2;
-        const pillH = dotR * 2;
-        lines.push(`<rect x="${pillX.toFixed(1)}" y="${pillY.toFixed(1)}" width="${pillW.toFixed(1)}" height="${pillH.toFixed(1)}" rx="${dotR}" fill="${theme.paper}" stroke="${theme.muted || '#ccc'}" stroke-width="${0.6 * s}"/>`);
+        const pillH = pillR * 2;
+        lines.push(`<rect x="${pillX.toFixed(1)}" y="${pillY.toFixed(1)}" width="${pillW.toFixed(1)}" height="${pillH.toFixed(1)}" rx="${pillR.toFixed(1)}" fill="${theme.paper}" stroke="${pillStroke}" stroke-width="${pillStrokeW.toFixed(1)}"/>`);
       }
 
-      // Individual punched-out dots inside the pill
-      for (let i = 0; i < n; i++) {
-        const ri = sortedRoutes[i];
-        const color = routeColors?.get(ri) || '#999';
-        const off = (i - (n - 1) / 2) * trackSpread;
-        const cx = isLTR ? pos.x : pos.x + off;
-        const cy = isLTR ? pos.y + off : pos.y;
-        lines.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(dotR * 0.75).toFixed(1)}" fill="${color}"/>`);
-        lines.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(dotR * 0.3).toFixed(1)}" fill="${theme.paper}"/>`);
+      if (stationStyle === 'metro') {
+        // Metro style: horizontal tick marks inside pill (no colored dots)
+        for (let i = 0; i < n; i++) {
+          const ri = sortedRoutes[i];
+          const color = routeColors?.get(ri) || '#999';
+          const off = layout.portOffset?.get(`${nd.id}:${ri}`) ?? (i - (n - 1) / 2) * trackSpread;
+          if (isLTR) {
+            const ty = pos.y + off;
+            lines.push(`<line x1="${(pos.x - dotR * 0.6).toFixed(1)}" y1="${ty.toFixed(1)}" x2="${(pos.x + dotR * 0.6).toFixed(1)}" y2="${ty.toFixed(1)}" stroke="${color}" stroke-width="${0.8 * s}" opacity="0.4"/>`);
+          } else {
+            const tx = pos.x + off;
+            lines.push(`<line x1="${tx.toFixed(1)}" y1="${(pos.y - dotR * 0.6).toFixed(1)}" x2="${tx.toFixed(1)}" y2="${(pos.y + dotR * 0.6).toFixed(1)}" stroke="${color}" stroke-width="${0.8 * s}" opacity="0.4"/>`);
+          }
+        }
+      } else {
+        // Default style: colored punched-out dots for each route
+        for (let i = 0; i < n; i++) {
+          const ri = sortedRoutes[i];
+          const color = routeColors?.get(ri) || '#999';
+          const off = layout.portOffset?.get(`${nd.id}:${ri}`) ?? (i - (n - 1) / 2) * trackSpread;
+          const cx = isLTR ? pos.x : pos.x + off;
+          const cy = isLTR ? pos.y + off : pos.y;
+          lines.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(dotR * 0.75).toFixed(1)}" fill="${color}"/>`);
+          lines.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(dotR * 0.3).toFixed(1)}" fill="${theme.paper}"/>`);
+        }
       }
     } else if (sortedRoutes.length === 1) {
-      // Single route — simple punched-out dot
       const color = routeColors?.get(sortedRoutes[0]) || '#999';
-      lines.push(`<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${dotR.toFixed(1)}" fill="${color}"/>`);
-      lines.push(`<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${(dotR * 0.35).toFixed(1)}" fill="${theme.paper}"/>`);
+      if (stationStyle === 'metro') {
+        // Metro style: outlined circle, paper fill, thicker stroke
+        lines.push(`<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${(dotR * 0.85).toFixed(1)}" fill="${theme.paper}" stroke="${color}" stroke-width="${1.6 * s}"/>`);
+      } else {
+        lines.push(`<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${dotR.toFixed(1)}" fill="${color}"/>`);
+        lines.push(`<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${(dotR * 0.35).toFixed(1)}" fill="${theme.paper}"/>`);
+      }
     } else {
       // No route — muted dot
       lines.push(`<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${dotR.toFixed(1)}" fill="${theme.muted || '#999'}"/>`);

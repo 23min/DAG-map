@@ -117,6 +117,37 @@ export class OccupancyGrid {
     this.items = this.items.filter(item => item.owner !== owner);
   }
 
+  /**
+   * Proximity-based repulsion score. Items within range contribute
+   * a score inversely proportional to distance. Direct overlaps score
+   * highest (10), nearby items score less. This is the "pheromone gradient"
+   * — stronger repulsion when closer.
+   * @param {Rect} rect - candidate placement
+   * @param {number} range - repulsion radius
+   * @param {string|Set<string>} [ignoreOwner]
+   * @returns {number}
+   */
+  proximityScore(rect, range, ignoreOwner) {
+    let score = 0;
+    const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+    for (const item of this.items) {
+      if (this._ignored(item, ignoreOwner)) continue;
+      const ix = item.x + item.w / 2, iy = item.y + item.h / 2;
+      // Cross-axis distance (Y for LTR, X for TTB)
+      const dy = Math.abs(cy - iy);
+      const dx = Math.abs(cx - ix);
+      // Only care about cross-axis proximity for parallel segments
+      // Check X-extent overlap first (are they in the same gap?)
+      const xOverlap = Math.min(rect.x + rect.w, item.x + item.w) - Math.max(rect.x, item.x);
+      if (xOverlap <= 0) continue; // different gap, skip
+      if (dy < range) {
+        // Graduated: overlap=10, touching=5, half-range=2.5, range=0
+        score += 10 * Math.max(0, 1 - dy / range);
+      }
+    }
+    return score;
+  }
+
   /** @private */
   _ignored(item, ignoreOwner) {
     if (!ignoreOwner || !item.owner) return false;
