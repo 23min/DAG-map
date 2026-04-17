@@ -63,6 +63,8 @@ export function renderSVG(dag, layout, options = {}) {
     metrics,
     edgeMetrics,
     colorScale: userColorScale,
+    selected,
+    interactive = false,
   } = options;
 
   const colorScale = userColorScale || colorScales.palette;
@@ -196,8 +198,16 @@ export function renderSVG(dag, layout, options = {}) {
         svg += renderEdge(edge, { ...seg, color: edgeColor }, ctx);
         svg += '\n';
       } else {
+        // When interactive, emit a wider invisible hit area so thin edges are clickable
+        if (interactive && fromId && toId) {
+          svg += `<path d="${seg.d}" stroke="transparent" stroke-width="${Math.max(seg.thickness, 8 * s)}" fill="none" `;
+          svg += `stroke-linecap="round" pointer-events="stroke" `;
+          svg += `data-edge-from="${escAttr(fromId)}" data-edge-to="${escAttr(toId)}" data-route="${ri}" data-edge-hit="true"`;
+          svg += `/>\n`;
+        }
         svg += `<path d="${seg.d}" stroke="${edgeColor}" stroke-width="${seg.thickness}" fill="none" `;
         svg += `stroke-linecap="round" stroke-linejoin="round" opacity="${edgeOpacity}"`;
+        if (interactive) svg += ` pointer-events="none"`;
         if (seg.dashed) svg += ` stroke-dasharray="${4 * s},${3 * s}"`;
         if (fromId && toId) {
           svg += ` data-edge-from="${escAttr(fromId)}" data-edge-to="${escAttr(toId)}" data-route="${ri}"`;
@@ -276,6 +286,14 @@ export function renderSVG(dag, layout, options = {}) {
       }
       if (isGate) {
         svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${2.2 * s}" fill="${col.cls('gate')}" opacity="${isDim ? dO * 0.6 : 0.4}"/>`;
+      }
+
+      // Selection ring (rendered around the node when selected)
+      const isSelected = selected && selected.has && selected.has(nd.id);
+      if (isSelected) {
+        const selR = r + 3 * s;
+        svg += `<circle cx="${pos.x.toFixed(1)}" cy="${pos.y.toFixed(1)}" r="${selR}" `;
+        svg += `fill="none" stroke="${col.ink}" stroke-width="${1.2 * s}" opacity="0.8" class="dag-map-selected"/>`;
       }
 
       // Metric label (rendered above the node)

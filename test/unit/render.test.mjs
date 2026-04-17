@@ -283,4 +283,73 @@ describe('renderSVG', () => {
     const svg = renderSVG(linear3, layout, { cssVars: false });
     assert.ok(!svg.includes('--dm-title-size'));
   });
+
+  // ── Selected state tests ─────────────────────────────────────
+
+  it('renders selection ring for selected nodes', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { selected: new Set(['b']) });
+    assert.ok(svg.includes('dag-map-selected'), 'should have selection class');
+    // Count selection rings — only node b should have one
+    const matches = svg.match(/dag-map-selected/g);
+    assert.strictEqual(matches.length, 1);
+  });
+
+  it('renders selection ring for multiple selected nodes', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { selected: new Set(['a', 'c']) });
+    const matches = svg.match(/dag-map-selected/g);
+    assert.strictEqual(matches.length, 2);
+  });
+
+  it('renders no selection ring when selected set is empty', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { selected: new Set() });
+    assert.ok(!svg.includes('dag-map-selected'));
+  });
+
+  it('renders no selection ring when selected is undefined', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, {});
+    assert.ok(!svg.includes('dag-map-selected'));
+  });
+
+  it('selection ring composes with heatmap metrics', () => {
+    const layout = layoutMetro(linear3);
+    const metrics = new Map([['b', { value: 0.8, label: '80%' }]]);
+    const svg = renderSVG(linear3, layout, {
+      metrics,
+      selected: new Set(['b']),
+    });
+    // Both metric value and selection indicator present
+    assert.ok(svg.includes('dag-map-selected'));
+    assert.ok(svg.includes('80%'));
+    assert.ok(svg.includes('data-metric-value="0.8"'));
+  });
+
+  // ── Edge hit area tests ──────────────────────────────────────
+
+  it('does not render edge hit areas when interactive is false (default)', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout);
+    assert.ok(!svg.includes('data-edge-hit="true"'), 'should not have edge hit area by default');
+    assert.ok(!svg.includes('pointer-events="none"'), 'visible edges should keep default pointer-events');
+  });
+
+  it('renders invisible edge hit areas when interactive is true', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { interactive: true });
+    assert.ok(svg.includes('data-edge-hit="true"'), 'should have edge hit area');
+    assert.ok(svg.includes('pointer-events="stroke"'), 'hit area should capture pointer events');
+    assert.ok(svg.includes('stroke="transparent"'), 'hit area should be invisible');
+  });
+
+  it('edge hit areas have wider stroke than visible edges', () => {
+    const layout = layoutMetro(linear3);
+    const svg = renderSVG(linear3, layout, { interactive: true });
+    const hitMatch = svg.match(/stroke-width="([^"]+)"[^>]*data-edge-hit="true"/);
+    assert.ok(hitMatch, 'should find hit area with stroke-width');
+    const hitWidth = parseFloat(hitMatch[1]);
+    assert.ok(hitWidth >= 8, `hit area stroke-width ${hitWidth} should be >= 8`);
+  });
 });

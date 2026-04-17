@@ -14,11 +14,13 @@ import { THEMES, resolveTheme } from './themes.js';
 import { createStationRenderer, createEdgeRenderer } from './render-flow-station.js';
 import { validateDag, swapPathXY } from './graph-utils.js';
 import { colorScales } from './color-scales.js';
+import { bindEvents } from './events.js';
 
 export { layoutMetro, dominantClass };
 export { layoutHasse };
 export { layoutFlow };
 export { renderSVG };
+export { bindEvents };
 export { bezierPath };
 export { angularPath, progressiveCurve };
 export { metroPath };
