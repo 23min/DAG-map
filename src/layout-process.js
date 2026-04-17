@@ -690,63 +690,111 @@ export function layoutProcess(dag, options = {}) {
   // obstacles forced H-V-H into short-H-and-jog zigzags when cards were
   // anywhere near the route's Y (even for valid horizontal paths).
 
-  // ── Port assignment ────────────────────────────────────────────
-  // Each station assigns a fixed port (cross-axis offset) to each route.
-  // Port ordering is based on where routes go NEXT (exit port) or came
-  // FROM (entry port). Routes heading to higher cross-axis positions
-  // get higher ports. This ensures:
-  //   1. Routes don't cross unnecessarily between adjacent stations
-  //   2. A route enters and exits a station at the same Y
-  //   3. End stations can have different port ordering than start stations
+  // ── Port assignment (exit-direction + stability tiebreaker) ─────
+  // Primary sort: exit direction (where route goes next). Minimizes crossings.
+  // Tiebreaker: when two routes have the same exit direction (same destination
+  // Y), prefer the ordering that preserves their previous port assignment.
+  // This prevents the zigzag where a trunk route needlessly swaps ports
+  // between stations that share the same Y-line.
   //
-  // Rule: "port order follows flow direction — top port goes to top destination"
-
-  // For each station, compute exit-port order (by next station's cross-axis pos)
-  // and entry-port order (by prev station's cross-axis pos).
-  // Through-stations blend both: a route's port = average of its entry and exit rank.
+  // Rule: "exit-direction primary, previous-port tiebreaker"
   const portOffset = new Map(); // "nodeId:ri" → cross-axis offset
+  const crossAxis = isLTR ? 'y' : 'x';
 
-  for (const [nodeId, memberSet] of nodeRoutes) {
-    const members = [...memberSet];
-    if (members.length <= 1) {
-      // Single route — centered
-      if (members.length === 1) portOffset.set(`${nodeId}:${members[0]}`, 0);
-      continue;
-    }
+  // Process left-to-right so previous ports are available for tiebreaking
+  for (let li = 0; li <= maxRank; li++) {
+    for (const stationId of layers[li]) {
+      const members = [...(nodeRoutes.get(stationId) || [])];
+      if (members.length <= 1) {
+        if (members.length === 1) portOffset.set(`${stationId}:${members[0]}`, 0);
+        continue;
+      }
 
-    const pos = stationPos.get(nodeId);
-    if (!pos) continue;
-    const crossAxis = isLTR ? 'y' : 'x';
+      const n = members.length;
+      const slots = [];
+      for (let i = 0; i < n; i++) slots.push((i - (n - 1) / 2) * trackSpread);
+      const pos = stationPos.get(stationId);
 
-    // For each route through this station, find prev/next station positions
-    const routeInfo = [];
-    for (const ri of members) {
-      const route = routes[ri];
-      const idx = route.nodes.indexOf(nodeId);
-      const prevNode = idx > 0 ? route.nodes[idx - 1] : null;
-      const nextNode = idx < route.nodes.length - 1 ? route.nodes[idx + 1] : null;
-      const prevPos = prevNode ? stationPos.get(prevNode) : null;
-      const nextPos = nextNode ? stationPos.get(nextNode) : null;
+      // Detect TRUNK: all routes continue from SAME previous station that
+      // has the SAME route set. This is true trunk continuity (no merging).
+      const prevPorts = new Map();
+      const prevStations = new Set();
+      let allHavePrev = true;
+      for (const ri of members) {
+        const route = routes[ri];
+        const idx = route.nodes.indexOf(stationId);
+        if (idx > 0) {
+          const prev = route.nodes[idx - 1];
+          prevStations.add(prev);
+          const pp = portOffset.get(`${prev}:${ri}`);
+          if (pp !== undefined) prevPorts.set(ri, pp);
+          else allHavePrev = false;
+        } else {
+          allHavePrev = false;
+        }
+      }
+      let isTrunk = false;
+      if (allHavePrev && prevStations.size === 1) {
+        const prev = [...prevStations][0];
+        const pm = nodeRoutes.get(prev);
+        if (pm && pm.size === members.length) {
+          let same = true;
+          for (const m of members) if (!pm.has(m)) { same = false; break; }
+          if (same) isTrunk = true;
+        }
+      }
 
-      // Sort key: exit direction (where route goes next).
-      // Fall back to entry direction at terminal stations.
-      // Rule: "port order follows flow — top port goes to top destination"
-      let sortKey;
-      if (nextPos) sortKey = nextPos[crossAxis];
-      else if (prevPos) sortKey = prevPos[crossAxis];
-      else sortKey = pos[crossAxis] + ri * 0.01;
+      if (isTrunk) {
+        // TRUNK: carry forward EXACT ports (stability guarantee).
+        // All routes came from same prev with same set → preserve the
+        // relative ordering exactly. No re-sorting.
+        const continuing = members.slice().sort((a, b) => prevPorts.get(a) - prevPorts.get(b));
+        for (let i = 0; i < continuing.length; i++) {
+          portOffset.set(`${stationId}:${continuing[i]}`, slots[i]);
+        }
+      } else {
+        // DIVERGENCE/CONVERGENCE/START: exit-direction sort, with terminal
+        // routes keeping their previous port slot (so trunk stays flat
+        // through terminus, like R0 at 'offer' in hire_to_retire).
+        const termWithPrev = [];
+        const sortable = [];
+        for (const ri of members) {
+          const route = routes[ri];
+          const idx = route.nodes.indexOf(stationId);
+          const nextNode = idx < route.nodes.length - 1 ? route.nodes[idx + 1] : null;
+          const prevNode = idx > 0 ? route.nodes[idx - 1] : null;
+          const nextPos = nextNode ? stationPos.get(nextNode) : null;
+          const prevPos = prevNode ? stationPos.get(prevNode) : null;
 
-      routeInfo.push({ ri, sortKey });
-    }
+          if (!nextNode && prevNode) {
+            const pp = portOffset.get(`${prevNode}:${ri}`);
+            if (pp !== undefined) { termWithPrev.push({ ri, prevPort: pp }); continue; }
+          }
 
-    // Sort routes by their flow direction
-    routeInfo.sort((a, b) => a.sortKey - b.sortKey);
+          let sortKey;
+          if (nextPos) sortKey = nextPos[crossAxis];
+          else if (prevPos) sortKey = prevPos[crossAxis];
+          else sortKey = (pos?.[crossAxis] ?? 0) + ri * 0.01;
+          sortable.push({ ri, sortKey });
+        }
+        sortable.sort((a, b) => a.sortKey - b.sortKey);
 
-    // Assign ports centered around 0
-    const n = routeInfo.length;
-    for (let i = 0; i < n; i++) {
-      const offset = (i - (n - 1) / 2) * trackSpread;
-      portOffset.set(`${nodeId}:${routeInfo[i].ri}`, offset);
+        const usedSlots = new Set();
+        for (const t of termWithPrev) {
+          let bestIdx = -1, bestDist = Infinity;
+          for (let si = 0; si < slots.length; si++) {
+            if (usedSlots.has(si)) continue;
+            const dist = Math.abs(slots[si] - t.prevPort);
+            if (dist < bestDist) { bestDist = dist; bestIdx = si; }
+          }
+          if (bestIdx >= 0) { portOffset.set(`${stationId}:${t.ri}`, slots[bestIdx]); usedSlots.add(bestIdx); }
+        }
+        for (const r of sortable) {
+          for (let si = 0; si < slots.length; si++) {
+            if (!usedSlots.has(si)) { portOffset.set(`${stationId}:${r.ri}`, slots[si]); usedSlots.add(si); break; }
+          }
+        }
+      }
     }
   }
 
