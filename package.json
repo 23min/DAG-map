@@ -15,7 +15,7 @@
     "test:visual": "node test/flow-visual.spec.mjs",
     "demo": "npx serve . -l 3333"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "devDependencies": {
     "playwright": "^1.58.2"
   }

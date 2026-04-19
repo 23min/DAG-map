@@ -505,4 +505,7 @@ Contributions welcome — bug fixes, layout improvements, new themes, demo examp
 
 ## License
 
-MIT
+Apache-2.0. See [`LICENSE`](LICENSE) for full text and [`NOTICE`](NOTICE)
+for attribution notices. Relicensed from MIT on 2026-04-19 to align with
+the broader product stack (FlowTime, Liminara) and gain explicit patent
+grants.
